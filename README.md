@@ -11,12 +11,12 @@ Acıbadem University, Fall 2026.
 
 ## Team: Django Unchained
 
-- Yaren Sargın
-- Esin Sarıaltın
-- Rana İlgi Yılmaz
-- Ramiz Özdemir
+- Ramiz Özdemir: lead, architecture
+- Yaren Sargın: database
+- Esin Sarıaltın: backend and calculation
+- Rana İlgi Yılmaz: product owner, frontend
 
 ## How we work
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). In short: every task is an issue, every change is a pull request reviewed by
-a teammate, `main` is always green.
+a teammate, `main` is always green. Sprints are one week, see the milestones.
