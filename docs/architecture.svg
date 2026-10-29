@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1220" height="640" viewBox="0 0 1220 640" font-family="Inter, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#111"/>
+    </marker>
+  </defs>
+  <rect width="1220" height="640" fill="#fff"/>
+  <g fill="none" stroke="#111" stroke-width="1.6" marker-end="url(#a)">
+    <path d="M350 110V158" marker-start="url(#a)"/>
+    <path d="M640 195H698"/>
+    <path d="M820 232V268"/>
+    <path d="M190 342V418"/>
+    <path d="M500 342V418"/>
+    <path d="M820 342V485H642"/>
+    <path d="M942 290H998"/>
+    <path d="M942 320L970 320L970 390H998"/>
+  </g>
+  <g font-size="13" fill="#444">
+    <text x="362" y="140">HTTPS, HTML + htmx</text>
+    <text x="652" y="186">jobs</text>
+    <text x="202" y="385">uploads</text>
+    <text x="512" y="385">ORM</text>
+    <text x="680" y="476">refresh views</text>
+    <text x="946" y="280">grades</text>
+    <text x="934" y="372">mail</text>
+  </g>
+
+  <rect x="160" y="40" width="380" height="70" rx="6" fill="#fff" stroke="#111" stroke-width="1.6"/>
+  <text x="350" y="70" text-anchor="middle" font-size="17" font-weight="600" fill="#111">Browser</text>
+  <text x="350" y="93" text-anchor="middle" font-size="13" fill="#444">instructor, student, department head</text>
+
+  <rect x="60" y="160" width="580" height="180" rx="6" fill="#eef3fb" stroke="#1f4e99" stroke-width="2"/>
+  <text x="80" y="190" font-size="17" font-weight="600" fill="#1f4e99">Django 5.2 application</text>
+  <g font-size="14" fill="#111">
+    <rect x="80" y="206" width="262" height="52" rx="4" fill="#fff" stroke="#1f4e99"/>
+    <text x="96" y="237">Accounts and roles</text>
+    <rect x="358" y="206" width="262" height="52" rx="4" fill="#fff" stroke="#1f4e99"/>
+    <text x="374" y="237">Courses, LOs, grade entry</text>
+    <rect x="80" y="270" width="262" height="52" rx="4" fill="#fff" stroke="#1f4e99"/>
+    <text x="96" y="301">LO and PO calculation</text>
+    <rect x="358" y="270" width="262" height="52" rx="4" fill="#fff" stroke="#1f4e99"/>
+    <text x="374" y="301">Reports and PDF export</text>
+  </g>
+
+  <rect x="700" y="160" width="240" height="70" rx="6" fill="#eef3fb" stroke="#1f4e99" stroke-width="2"/>
+  <text x="820" y="190" text-anchor="middle" font-size="17" font-weight="600" fill="#1f4e99">Redis</text>
+  <text x="820" y="212" text-anchor="middle" font-size="13" fill="#444">job queue, page cache</text>
+
+  <rect x="700" y="270" width="240" height="70" rx="6" fill="#eef3fb" stroke="#1f4e99" stroke-width="2"/>
+  <text x="820" y="300" text-anchor="middle" font-size="17" font-weight="600" fill="#1f4e99">Celery worker</text>
+  <text x="820" y="322" text-anchor="middle" font-size="13" fill="#444">bulk import, view refresh, mail</text>
+
+  <rect x="60" y="420" width="260" height="130" rx="6" fill="#eef3fb" stroke="#1f4e99" stroke-width="2"/>
+  <text x="80" y="452" font-size="17" font-weight="600" fill="#1f4e99">File storage</text>
+  <g font-size="13" fill="#444">
+    <text x="80" y="480">local disk or S3</text>
+    <text x="80" y="502">grade CSV, syllabus PDF,</text>
+    <text x="80" y="520">report PDF</text>
+  </g>
+
+  <rect x="360" y="420" width="280" height="130" rx="6" fill="#eef3fb" stroke="#1f4e99" stroke-width="2"/>
+  <text x="380" y="452" font-size="17" font-weight="600" fill="#1f4e99">PostgreSQL 16</text>
+  <g font-size="13" fill="#444">
+    <text x="380" y="480">3NF tables: grades, weights</text>
+    <text x="380" y="502">materialized views:</text>
+    <text x="380" y="520">student LO, course PO, PO profile</text>
+  </g>
+
+  <rect x="990" y="150" width="200" height="290" rx="6" fill="none" stroke="#b3261e" stroke-width="1.4" stroke-dasharray="6 5"/>
+  <text x="1006" y="176" font-size="13" font-weight="600" fill="#b3261e">EXTERNAL</text>
+  <rect x="1000" y="255" width="180" height="70" rx="6" fill="#fff" stroke="#b3261e" stroke-width="1.6"/>
+  <text x="1090" y="285" text-anchor="middle" font-size="16" font-weight="600" fill="#111">ALMS</text>
+  <text x="1090" y="306" text-anchor="middle" font-size="13" fill="#444">Moodle web service</text>
+  <rect x="1000" y="355" width="180" height="70" rx="6" fill="#fff" stroke="#b3261e" stroke-width="1.6"/>
+  <text x="1090" y="385" text-anchor="middle" font-size="16" font-weight="600" fill="#111">SMTP</text>
+  <text x="1090" y="406" text-anchor="middle" font-size="13" fill="#444">university mail</text>
+
+  <text x="60" y="600" font-size="13" fill="#444">Grades are stored once. LO and PO scores are computed in the database and never rounded before display.</text>
+</svg>
