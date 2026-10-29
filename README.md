@@ -16,6 +16,18 @@ Acıbadem University, Fall 2026.
 - Esin Sarıaltın: backend and calculation
 - Rana İlgi Yılmaz: product owner, frontend
 
+## Run locally
+
+```
+docker compose up -d
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+Settings come from environment variables, see `.env.example`. The defaults match the compose database.
+
 ## How we work
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). In short: every task is an issue, every change is a pull request reviewed by
