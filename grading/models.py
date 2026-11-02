@@ -16,10 +16,10 @@ class Term(models.Model):
     season = models.CharField(max_length=10, choices=Season.choices)
 
     class Meta:
-        ordering = ["-year", "season"]
-        constraints = [
+        ordering = ("-year", "season")
+        constraints = (
             models.UniqueConstraint(fields=["year", "season"], name="uniq_term"),
-        ]
+        )
 
     def __str__(self):
         return f"{self.year} {self.get_season_display()}"
@@ -32,7 +32,7 @@ class ProgramOutcome(models.Model):
     description = models.TextField(blank=True)
 
     class Meta:
-        ordering = ["code"]
+        ordering = ("code",)
 
     def __str__(self):
         return self.code
@@ -46,7 +46,7 @@ class Course(models.Model):
     credits = models.PositiveSmallIntegerField(default=3)
 
     class Meta:
-        ordering = ["code"]
+        ordering = ("code",)
 
     def __str__(self):
         return f"{self.code} - {self.name}"
@@ -65,10 +65,10 @@ class CourseOffering(models.Model):
     term = models.ForeignKey(Term, on_delete=models.PROTECT, related_name="offerings")
 
     class Meta:
-        ordering = ["-term__year", "term__season", "course__code"]
-        constraints = [
+        ordering = ("-term__year", "term__season", "course__code")
+        constraints = (
             models.UniqueConstraint(fields=["course", "term"], name="uniq_offering_course_term"),
-        ]
+        )
 
     def __str__(self):
         return f"{self.course.code} ({self.term})"
@@ -88,10 +88,10 @@ class LearningOutcome(models.Model):
     description = models.TextField(blank=True)
 
     class Meta:
-        ordering = ["offering", "code"]
-        constraints = [
+        ordering = ("offering", "code")
+        constraints = (
             models.UniqueConstraint(fields=["offering", "code"], name="uniq_lo_code_per_offering"),
-        ]
+        )
 
     def __str__(self):
         return f"{self.offering} / {self.code}"
@@ -111,10 +111,10 @@ class Assessment(models.Model):
     )
 
     class Meta:
-        ordering = ["offering", "name"]
-        constraints = [
+        ordering = ("offering", "name")
+        constraints = (
             models.UniqueConstraint(fields=["offering", "name"], name="uniq_assessment_name_per_offering"),
-        ]
+        )
 
     def __str__(self):
         return f"{self.offering} / {self.name}"
@@ -136,9 +136,9 @@ class Enrollment(models.Model):
     )
 
     class Meta:
-        constraints = [
+        constraints = (
             models.UniqueConstraint(fields=["offering", "student"], name="uniq_enrollment"),
-        ]
+        )
 
     def __str__(self):
         return f"{self.student} -> {self.offering}"
@@ -154,9 +154,9 @@ class Grade(models.Model):
     )
 
     class Meta:
-        constraints = [
+        constraints = (
             models.UniqueConstraint(fields=["enrollment", "assessment"], name="uniq_grade"),
-        ]
+        )
 
     def __str__(self):
         return f"{self.enrollment} / {self.assessment.name}: {self.score}"
@@ -190,9 +190,9 @@ class AssessmentLOWeight(models.Model):
     )
 
     class Meta:
-        constraints = [
+        constraints = (
             models.UniqueConstraint(fields=["assessment", "learning_outcome"], name="uniq_assessment_lo"),
-        ]
+        )
 
     def __str__(self):
         return f"{self.assessment.name} -> {self.learning_outcome.code}: {self.weight}"
@@ -221,9 +221,9 @@ class LOPOWeight(models.Model):
     )
 
     class Meta:
-        constraints = [
+        constraints = (
             models.UniqueConstraint(fields=["learning_outcome", "program_outcome"], name="uniq_lo_po"),
-        ]
+        )
 
     def __str__(self):
         return f"{self.learning_outcome.code} -> {self.program_outcome.code}: {self.weight}"
