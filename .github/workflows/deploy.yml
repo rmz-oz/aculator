@@ -31,6 +31,7 @@ jobs:
         with:
           context: .
           push: true
+          build-args: GIT_SHA=${{ env.SHA }}
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:sha-${{ env.SHA }}
@@ -45,8 +46,11 @@ jobs:
           APP_URL: ${{ vars.APP_URL }}
         run: |
           if [ -z "$APP_URL" ]; then echo "APP_URL not set, skipping"; exit 0; fi
+          # The old version keeps answering until Render switches over, so wait for this commit.
           for i in $(seq 1 30); do
-            curl -fsS "$APP_URL/healthz/" && exit 0
+            live=$(curl -fsS "$APP_URL/healthz/" | jq -r .version || true)
+            [ "$live" = "$SHA" ] && echo "live: $live" && exit 0
+            echo "waiting, live is ${live:-down}"
             sleep 10
           done
-          echo "health check failed"; exit 1
+          echo "$SHA not live after 5 minutes"; exit 1

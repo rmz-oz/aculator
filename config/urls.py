@@ -14,6 +14,8 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+import os
+
 from django.contrib import admin
 from django.db import connection
 from django.http import JsonResponse
@@ -21,10 +23,13 @@ from django.urls import path
 
 
 def healthz(request):
-    """Used by Render's health check. Fails if the database is unreachable."""
+    """Used by Render's health check and the Deploy workflow. Fails if the database is unreachable.
+
+    `version` is the commit the image was built from, so a deploy can wait for the right one.
+    """
     with connection.cursor() as cursor:
         cursor.execute('SELECT 1')
-    return JsonResponse({'status': 'ok'})
+    return JsonResponse({'status': 'ok', 'version': os.environ.get('GIT_SHA', 'dev')})
 
 
 urlpatterns = [
