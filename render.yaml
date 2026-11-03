@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: aculator
+    runtime: image
+    image:
+      url: ghcr.io/rmz-oz/aculator:latest
+    plan: free
+    region: frankfurt
+    healthCheckPath: /healthz/
+    autoDeploy: false
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aculator-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "0"
+
+databases:
+  - name: aculator-db
+    plan: free
+    region: frankfurt
+    postgresMajorVersion: "16"
