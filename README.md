@@ -28,6 +28,15 @@ python manage.py runserver
 
 Settings come from environment variables, see `.env.example`. The defaults match the compose database.
 
+## Deploy
+
+Every green `main` is built into `ghcr.io/rmz-oz/aculator` and deployed to Render, see
+[decision 5](docs/decisions/0005-branching-and-deploy.md). To run the image locally:
+
+```
+docker build -t aculator . && docker run --rm -p 8000:8000 -e DATABASE_URL=postgres://postgres:postgres@host.docker.internal:5432/aculator aculator
+```
+
 ## How we work
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). In short: every task is an issue, every change is a pull request reviewed by
