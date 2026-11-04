@@ -62,9 +62,9 @@ class GradingModelTests(TestCase):
 
     def assert_database_rejects(self, model, **fields):
         # The savepoint keeps this TestCase's transaction usable after failure.
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                model.objects.create(**fields)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            model.objects.create(**fields)
+
 
     def test_grade_above_max_score_is_rejected(self):
         grade = Grade(
