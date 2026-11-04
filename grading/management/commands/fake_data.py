@@ -1,22 +1,20 @@
 import random
 from decimal import Decimal
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
-from django.db import transaction
 
 from grading.models import (
-    Term,
+    Assessment,
+    AssessmentLOWeight,
     Course,
     CourseOffering,
-    LearningOutcome,
-    ProgramOutcome,
-    Assessment,
     Enrollment,
     Grade,
-    AssessmentLOWeight,
+    LearningOutcome,
     LOPOWeight,
+    ProgramOutcome,
+    Term,
 )
 
 
@@ -34,9 +32,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         student_count = options["students"]
 
-        self.stdout.write(
-            f"Preparing to generate data for {student_count} students..."
-        )
+        self.stdout.write(f"Preparing to generate data for {student_count} students...")
         User = get_user_model()
 
         created_students = 0
@@ -59,11 +55,7 @@ class Command(BaseCommand):
                 user.save(update_fields=["password"])
                 created_students += 1
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Created {created_students} fake students."
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Created {created_students} fake students."))
         terms = []
 
         for year in range(2023, 2027):
@@ -74,11 +66,7 @@ class Command(BaseCommand):
                 )
                 terms.append(term)
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Created or retrieved {len(terms)} academic terms."
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Created or retrieved {len(terms)} academic terms."))
         course_data = [
             ("CSE101", "Introduction to Programming", 6),
             ("CSE102", "Object Oriented Programming", 6),
@@ -102,11 +90,7 @@ class Command(BaseCommand):
             )
             courses.append(course)
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Created or retrieved {len(courses)} courses."
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Created or retrieved {len(courses)} courses."))
         offerings = []
 
         for term in terms:
@@ -117,27 +101,15 @@ class Command(BaseCommand):
                 )
                 offerings.append(offering)
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Created or retrieved {len(offerings)} course offerings."
-            )
-        )
-        students = list(
-            User.objects.filter(
-                username__startswith="fake_student_"
-            ).order_by("id")[:student_count]
-        )
+        self.stdout.write(self.style.SUCCESS(f"Created or retrieved {len(offerings)} course offerings."))
+        students = list(User.objects.filter(username__startswith="fake_student_").order_by("id")[:student_count])
 
-       
         enrollments_to_create = []
 
         for student in students:
             random_generator = random.Random(student.username)
 
-            selected_offerings = random_generator.sample(
-                offerings,
-                k=min(8, len(offerings))
-            )
+            selected_offerings = random_generator.sample(offerings, k=min(8, len(offerings)))
 
             for offering in selected_offerings:
                 enrollments_to_create.append(
@@ -160,11 +132,7 @@ class Command(BaseCommand):
             )
         )
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Created or retrieved {len(enrollments)} enrollments."
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Created or retrieved {len(enrollments)} enrollments."))
         assessments = []
 
         assessment_data = [
@@ -185,29 +153,19 @@ class Command(BaseCommand):
                 )
                 assessments.append(assessment)
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Created or retrieved {len(assessments)} assessments."
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Created or retrieved {len(assessments)} assessments."))
         grades_to_create = []
 
         assessments_by_offering = {}
 
         for assessment in assessments:
-            assessments_by_offering.setdefault(
-                assessment.offering_id, []
-            ).append(assessment)
+            assessments_by_offering.setdefault(assessment.offering_id, []).append(assessment)
 
         for enrollment in enrollments:
-            offering_assessments = assessments_by_offering.get(
-                enrollment.offering_id, []
-            )
+            offering_assessments = assessments_by_offering.get(enrollment.offering_id, [])
 
             for assessment in offering_assessments:
-                score = Decimal(
-                    str(random.randint(40, 100))
-                )
+                score = Decimal(str(random.randint(40, 100)))
 
                 grades_to_create.append(
                     Grade(
@@ -223,27 +181,17 @@ class Command(BaseCommand):
             batch_size=1000,
         )
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Processed {len(grades_to_create)} fake grades."
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Processed {len(grades_to_create)} fake grades."))
         program_outcomes = []
 
         for i in range(1, 6):
             po, created = ProgramOutcome.objects.get_or_create(
                 code=f"PO{i}",
-                defaults={
-                    "description": f"Program outcome {i}"
-                },
+                defaults={"description": f"Program outcome {i}"},
             )
             program_outcomes.append(po)
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Created or retrieved {len(program_outcomes)} program outcomes."
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Created or retrieved {len(program_outcomes)} program outcomes."))
         learning_outcomes = []
 
         for offering in offerings:
@@ -251,38 +199,26 @@ class Command(BaseCommand):
                 lo, created = LearningOutcome.objects.get_or_create(
                     offering=offering,
                     code=f"LO{i}",
-                    defaults={
-                        "description": f"Learning outcome {i}"
-                    },
+                    defaults={"description": f"Learning outcome {i}"},
                 )
                 learning_outcomes.append(lo)
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Created or retrieved {len(learning_outcomes)} learning outcomes."
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Created or retrieved {len(learning_outcomes)} learning outcomes."))
         # Create Assessment-LO weights
         assessments_by_offering = {}
 
         for assessment in assessments:
-            assessments_by_offering.setdefault(
-                assessment.offering_id, []
-            ).append(assessment)
+            assessments_by_offering.setdefault(assessment.offering_id, []).append(assessment)
 
         assessment_lo_weights = []
 
         for lo in learning_outcomes:
-            related_assessments = assessments_by_offering.get(
-                lo.offering_id, []
-            )
+            related_assessments = assessments_by_offering.get(lo.offering_id, [])
 
             if not related_assessments:
                 continue
 
-            weight = Decimal("1") / Decimal(
-                len(related_assessments)
-            )
+            weight = Decimal(1) / Decimal(len(related_assessments))
 
             for assessment in related_assessments:
                 assessment_lo_weights.append(
@@ -299,20 +235,13 @@ class Command(BaseCommand):
             batch_size=1000,
         )
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Processed {len(assessment_lo_weights)} Assessment-LO weights."
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Processed {len(assessment_lo_weights)} Assessment-LO weights."))
 
         # Create LO-PO weights
         lo_po_weights = []
 
         for lo in learning_outcomes:
-            selected_pos = random.sample(
-                program_outcomes,
-                k=min(3, len(program_outcomes))
-            )
+            selected_pos = random.sample(program_outcomes, k=min(3, len(program_outcomes)))
 
             for po in selected_pos:
                 lo_po_weights.append(
@@ -329,8 +258,4 @@ class Command(BaseCommand):
             batch_size=1000,
         )
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Processed {len(lo_po_weights)} LO-PO weights."
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Processed {len(lo_po_weights)} LO-PO weights."))

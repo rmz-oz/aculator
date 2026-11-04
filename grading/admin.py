@@ -108,4 +108,3 @@ class AssessmentLOWeightAdmin(admin.ModelAdmin):
 class LOPOWeightAdmin(admin.ModelAdmin):
     list_display = ("learning_outcome", "program_outcome", "weight")
     list_select_related = ("learning_outcome", "program_outcome")
-

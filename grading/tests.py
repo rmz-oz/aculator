@@ -65,7 +65,6 @@ class GradingModelTests(TestCase):
         with self.assertRaises(IntegrityError), transaction.atomic():
             model.objects.create(**fields)
 
-
     def test_grade_above_max_score_is_rejected(self):
         grade = Grade(
             enrollment=self.enrollment,
