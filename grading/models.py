@@ -17,7 +17,9 @@ class Term(models.Model):
 
     class Meta:
         ordering = ("-year", "season")
-        constraints = (models.UniqueConstraint(fields=["year", "season"], name="uniq_term"),)
+        constraints = (
+            models.UniqueConstraint(fields=["year", "season"], name="uniq_term"),
+        )
 
     def __str__(self):
         return f"{self.year} {self.get_season_display()}"
@@ -64,7 +66,9 @@ class CourseOffering(models.Model):
 
     class Meta:
         ordering = ("-term__year", "term__season", "course__code")
-        constraints = (models.UniqueConstraint(fields=["course", "term"], name="uniq_offering_course_term"),)
+        constraints = (
+            models.UniqueConstraint(fields=["course", "term"], name="uniq_offering_course_term"),
+        )
 
     def __str__(self):
         return f"{self.course.code} ({self.term})"
@@ -77,13 +81,17 @@ class LearningOutcome(models.Model):
     have different LOs in different terms.
     """
 
-    offering = models.ForeignKey(CourseOffering, on_delete=models.CASCADE, related_name="learning_outcomes")
+    offering = models.ForeignKey(
+        CourseOffering, on_delete=models.CASCADE, related_name="learning_outcomes"
+    )
     code = models.CharField(max_length=10)  # e.g. "LO1", unique within the offering
     description = models.TextField(blank=True)
 
     class Meta:
         ordering = ("offering", "code")
-        constraints = (models.UniqueConstraint(fields=["offering", "code"], name="uniq_lo_code_per_offering"),)
+        constraints = (
+            models.UniqueConstraint(fields=["offering", "code"], name="uniq_lo_code_per_offering"),
+        )
 
     def __str__(self):
         return f"{self.offering} / {self.code}"
@@ -92,13 +100,13 @@ class LearningOutcome(models.Model):
 class Assessment(models.Model):
     """A graded item of an offering (midterm, quiz, project, ...)."""
 
-    offering = models.ForeignKey(CourseOffering, on_delete=models.CASCADE, related_name="assessments")
+    offering = models.ForeignKey(
+        CourseOffering, on_delete=models.CASCADE, related_name="assessments"
+    )
     name = models.CharField(max_length=100)  # e.g. "Midterm"
     # Upper bound for Grade.score, checked in Grade.clean().
     max_score = models.DecimalField(
-        max_digits=6,
-        decimal_places=2,
-        default=100,
+        max_digits=6, decimal_places=2, default=100,
         validators=[MinValueValidator(0)],
     )
 
@@ -115,6 +123,7 @@ class Assessment(models.Model):
             ),
         )
 
+
     def __str__(self):
         return f"{self.offering} / {self.name}"
 
@@ -127,11 +136,17 @@ class Enrollment(models.Model):
     enrollments from being deleted by accident.
     """
 
-    offering = models.ForeignKey(CourseOffering, on_delete=models.CASCADE, related_name="enrollments")
-    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="enrollments")
+    offering = models.ForeignKey(
+        CourseOffering, on_delete=models.CASCADE, related_name="enrollments"
+    )
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="enrollments"
+    )
 
     class Meta:
-        constraints = (models.UniqueConstraint(fields=["offering", "student"], name="uniq_enrollment"),)
+        constraints = (
+            models.UniqueConstraint(fields=["offering", "student"], name="uniq_enrollment"),
+        )
 
     def __str__(self):
         return f"{self.student} -> {self.offering}"
@@ -142,7 +157,9 @@ class Grade(models.Model):
 
     enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, related_name="grades")
     assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="grades")
-    score = models.DecimalField(max_digits=6, decimal_places=2, validators=[MinValueValidator(0)])
+    score = models.DecimalField(
+        max_digits=6, decimal_places=2, validators=[MinValueValidator(0)]
+    )
 
     class Meta:
         constraints = (
@@ -166,10 +183,14 @@ class Grade(models.Model):
             return
 
         if self.enrollment.offering_id != self.assessment.offering_id:
-            raise ValidationError("Enrollment and assessment must belong to the same offering.")
+            raise ValidationError(
+                "Enrollment and assessment must belong to the same offering."
+            )
 
         if self.score is not None and self.score > self.assessment.max_score:
-            raise ValidationError({"score": f"Score must not exceed {self.assessment.max_score}."})
+            raise ValidationError({
+                "score": f"Score must not exceed {self.assessment.max_score}."
+            })
 
 
 class AssessmentLOWeight(models.Model):
@@ -180,10 +201,11 @@ class AssessmentLOWeight(models.Model):
     """
 
     assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="lo_weights")
-    learning_outcome = models.ForeignKey(LearningOutcome, on_delete=models.CASCADE, related_name="assessment_weights")
+    learning_outcome = models.ForeignKey(
+        LearningOutcome, on_delete=models.CASCADE, related_name="assessment_weights"
+    )
     weight = models.DecimalField(
-        max_digits=5,
-        decimal_places=4,
+        max_digits=5, decimal_places=4,
         validators=[MinValueValidator(0), MaxValueValidator(1)],
     )
 
@@ -208,7 +230,10 @@ class AssessmentLOWeight(models.Model):
         if not (self.assessment_id and self.learning_outcome_id):
             return
         if self.assessment.offering_id != self.learning_outcome.offering_id:
-            raise ValidationError("Assessment and learning outcome must belong to the same offering.")
+            raise ValidationError(
+                "Assessment and learning outcome must belong to the same offering."
+            )
+
 
 
 class LOPOWeight(models.Model):
@@ -241,4 +266,7 @@ class LOPOWeight(models.Model):
         )
 
     def __str__(self):
-        return f"{self.learning_outcome.code} -> {self.program_outcome.code}: {self.weight}"
+        return (
+            f"{self.learning_outcome.code} -> "
+            f"{self.program_outcome.code}: {self.weight}"
+        )

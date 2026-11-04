@@ -1,8 +1,11 @@
 from decimal import Decimal
+from io import StringIO
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
 from django.db import IntegrityError, transaction
+from django.db.models import Count
 from django.test import TestCase
 
 from .models import (
@@ -64,6 +67,7 @@ class GradingModelTests(TestCase):
         # The savepoint keeps this TestCase's transaction usable after failure.
         with self.assertRaises(IntegrityError), transaction.atomic():
             model.objects.create(**fields)
+
 
     def test_grade_above_max_score_is_rejected(self):
         grade = Grade(
@@ -206,3 +210,39 @@ class GradingModelTests(TestCase):
             Assessment(**fields).full_clean()
 
         self.assert_database_rejects(Assessment, **fields)
+
+
+class FakeDataTests(TestCase):
+    def run_command(self, **kwargs):
+        call_command("fake_data", students=20, stdout=StringIO(), **kwargs)
+
+    def snapshot(self):
+        return (
+            list(Grade.objects.order_by("enrollment__student__username", "assessment__offering_id", "assessment__name")
+                 .values_list("score", flat=True)),
+            LOPOWeight.objects.count(),
+            Enrollment.objects.count(),
+        )
+
+    def test_rerun_adds_nothing(self):
+        self.run_command()
+        first = self.snapshot()
+        self.run_command()
+        self.assertEqual(first, self.snapshot())
+
+    def test_data_passes_model_validation(self):
+        self.run_command()
+        for model in (Grade, AssessmentLOWeight, LOPOWeight):
+            for obj in model.objects.all():
+                obj.full_clean()
+
+    def test_each_student_takes_a_course_once(self):
+        self.run_command()
+        repeats = (
+            Enrollment.objects.values("student", "offering__course").annotate(n=Count("id")).filter(n__gt=1)
+        )
+        self.assertFalse(repeats.exists())
+
+    def test_eleven_program_outcomes(self):
+        self.run_command()
+        self.assertEqual(ProgramOutcome.objects.count(), 11)
