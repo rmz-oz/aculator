@@ -43,7 +43,7 @@ class Course(models.Model):
 
     code = models.CharField(max_length=20, unique=True)
     name = models.CharField(max_length=200)
-    credits = models.PositiveSmallIntegerField(default=3)
+    ects = models.PositiveSmallIntegerField()
 
     class Meta:
         ordering = ("code",)
@@ -113,11 +113,15 @@ class Assessment(models.Model):
     class Meta:
         ordering = ("offering", "name")
         constraints = (
-            models.UniqueConstraint(fields=["offering", "name"], name="uniq_assessment_name_per_offering"),
+            models.UniqueConstraint(
+                fields=["offering", "name"],
+                name="uniq_assessment_name_per_offering",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(max_score__gte=0),
+                name="assessment_max_score_nonnegative",
+            ),
         )
-
-    def __str__(self):
-        return f"{self.offering} / {self.name}"
 
 
 class Enrollment(models.Model):
@@ -155,7 +159,14 @@ class Grade(models.Model):
 
     class Meta:
         constraints = (
-            models.UniqueConstraint(fields=["enrollment", "assessment"], name="uniq_grade"),
+            models.UniqueConstraint(
+                fields=["enrollment", "assessment"],
+                name="uniq_grade",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(score__gte=0),
+                name="grade_score_nonnegative",
+            ),
         )
 
     def __str__(self):
@@ -164,13 +175,18 @@ class Grade(models.Model):
     def clean(self):
         """Cross-field checks. Runs in admin and on full_clean(), not on save()."""
         super().clean()
-        # Related objects may be missing when the form already failed on them.
         if not (self.enrollment_id and self.assessment_id):
             return
+
         if self.enrollment.offering_id != self.assessment.offering_id:
-            raise ValidationError("Enrollment ve assessment aynı offering'e ait olmalı.")
+            raise ValidationError(
+                "Enrollment and assessment must belong to the same offering."
+            )
+
         if self.score is not None and self.score > self.assessment.max_score:
-            raise ValidationError({"score": f"Not, en fazla {self.assessment.max_score} olabilir."})
+            raise ValidationError({
+                "score": f"Score must not exceed {self.assessment.max_score}."
+            })
 
 
 class AssessmentLOWeight(models.Model):
@@ -191,7 +207,14 @@ class AssessmentLOWeight(models.Model):
 
     class Meta:
         constraints = (
-            models.UniqueConstraint(fields=["assessment", "learning_outcome"], name="uniq_assessment_lo"),
+            models.UniqueConstraint(
+                fields=["assessment", "learning_outcome"],
+                name="uniq_assessment_lo",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(weight__gte=0, weight__lte=1),
+                name="assessment_lo_weight_range",
+            ),
         )
 
     def __str__(self):
@@ -203,27 +226,43 @@ class AssessmentLOWeight(models.Model):
         if not (self.assessment_id and self.learning_outcome_id):
             return
         if self.assessment.offering_id != self.learning_outcome.offering_id:
-            raise ValidationError("Assessment ve LO aynı offering'e ait olmalı.")
+            raise ValidationError(
+                "Assessment and learning outcome must belong to the same offering."
+            )
+
 
 
 class LOPOWeight(models.Model):
-    """How much a learning outcome contributes to a program outcome (weight in [0, 1])."""
+    """An LO's contribution level to a PO, on an integer scale from 1 to 5."""
 
     learning_outcome = models.ForeignKey(
-        LearningOutcome, on_delete=models.CASCADE, related_name="po_weights"
+        LearningOutcome,
+        on_delete=models.CASCADE,
+        related_name="po_weights",
     )
     program_outcome = models.ForeignKey(
-        ProgramOutcome, on_delete=models.CASCADE, related_name="lo_weights"
+        ProgramOutcome,
+        on_delete=models.CASCADE,
+        related_name="lo_weights",
     )
-    weight = models.DecimalField(
-        max_digits=5, decimal_places=4,
-        validators=[MinValueValidator(0), MaxValueValidator(1)],
+    weight = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
     )
 
     class Meta:
         constraints = (
-            models.UniqueConstraint(fields=["learning_outcome", "program_outcome"], name="uniq_lo_po"),
+            models.UniqueConstraint(
+                fields=["learning_outcome", "program_outcome"],
+                name="uniq_lo_po",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(weight__gte=1, weight__lte=5),
+                name="lo_po_weight_range",
+            ),
         )
 
     def __str__(self):
-        return f"{self.learning_outcome.code} -> {self.program_outcome.code}: {self.weight}"
+        return (
+            f"{self.learning_outcome.code} -> "
+            f"{self.program_outcome.code}: {self.weight}"
+        )

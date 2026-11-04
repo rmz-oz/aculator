@@ -43,7 +43,7 @@ class ProgramOutcomeAdmin(admin.ModelAdmin):
 
 @admin.register(m.Course)
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ("code", "name", "credits")
+    list_display = ("code", "name", "ects")
     search_fields = ("code", "name")
 
 
