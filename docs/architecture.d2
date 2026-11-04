@@ -1,0 +1,124 @@
+# aculator architecture. Source for docs/architecture.svg and docs/architecture.png.
+# Render with Schibsted Grotesk (decision 0006):
+#   d2 --layout elk --font-regular SchibstedGrotesk-Regular.ttf --font-bold SchibstedGrotesk-Bold.ttf \
+#      docs/architecture.d2 docs/architecture.svg
+
+vars: {
+  d2-config: {
+    layout-engine: elk
+    pad: 48
+  }
+}
+
+direction: down
+
+classes: {
+  box: {
+    style: {
+      fill: "#FFFFFF"
+      stroke: "#0D1117"
+      stroke-width: 2
+      border-radius: 6
+      font-color: "#0D1117"
+      font-size: 17
+      bold: true
+    }
+  }
+  group: {
+    style: {
+      fill: "#FFFFFF"
+      stroke: "#B9BCC1"
+      stroke-width: 1
+      stroke-dash: 4
+      border-radius: 10
+      font-color: "#5F646C"
+      font-size: 15
+      bold: false
+    }
+  }
+  desc: {
+    shape: text
+    style: {
+      font-color: "#41464E"
+      font-size: 15
+      bold: false
+    }
+  }
+  flow: {
+    style: {
+      stroke: "#0D1117"
+      stroke-width: 2
+      font-color: "#41464E"
+      font-size: 14
+    }
+  }
+  data: {
+    style: {
+      stroke: "#1D4ED8"
+      stroke-width: 2
+      font-color: "#1D4ED8"
+      font-size: 14
+    }
+  }
+}
+
+browser: "Browser" {
+  class: box
+  d: "students, instructors,\nhead of department" {class: desc}
+}
+
+delivery: "Delivery" {
+  class: group
+  actions: "GitHub Actions" {
+    class: box
+    d: "lint, tests,\nmigration check" {class: desc}
+  }
+  ghcr: "GHCR" {
+    class: box
+    d: "one Docker image\nper commit" {class: desc}
+  }
+  actions -> ghcr: "image" {class: flow}
+}
+
+render: "Render, Frankfurt" {
+  class: group
+  app: "Django 5.2 on gunicorn" {
+    class: box
+    d: "accounts and roles\ncourses, LOs, grade entry\nLO and PO calculation\nreports, PDF, read only API" {class: desc}
+  }
+  worker: "Worker + Redis queue" {
+    class: box
+    d: "bulk import, view refresh,\nemail, page cache" {class: desc}
+  }
+  disk: "File storage" {
+    class: box
+    d: "CSV, syllabus PDF,\nreport PDF" {class: desc}
+  }
+  pg: "PostgreSQL 16" {
+    class: box
+    shape: cylinder
+    d: "3NF tables: grades, weights\nviews: student LO, course PO,\nPO profile" {class: desc}
+  }
+
+  app -> worker: "jobs" {class: flow}
+  app -> pg: "grades in" {class: data}
+  worker -> pg: "refresh views" {class: data}
+  app -> disk: "uploads" {class: flow}
+}
+
+outside: "Outside services" {
+  class: group
+  alms: "ALMS" {
+    class: box
+    d: "Moodle web services" {class: desc}
+  }
+  smtp: "University mail" {
+    class: box
+    d: "SMTP" {class: desc}
+  }
+}
+
+browser <-> render.app: "HTTPS, HTML + HTMX" {class: flow}
+delivery.ghcr -> render.app: "deploy hook" {class: flow}
+render.worker -> outside.alms: "grades" {class: flow}
+render.worker -> outside.smtp: "mail" {class: flow}
