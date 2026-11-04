@@ -124,6 +124,10 @@ class Assessment(models.Model):
         )
 
 
+    def __str__(self):
+        return f"{self.offering} / {self.name}"
+
+
 class Enrollment(models.Model):
     """A student enrolled in an offering.
 
