@@ -26,4 +26,9 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt ruff==0.17.3
       - run: ruff check .
-      - run: python manage.py test
+      - run: python manage.py makemigrations --check --dry-run
+      - name: Run tests (fail if none ran)
+        run: |
+          set -o pipefail
+          python manage.py test 2>&1 | tee test.log
+          grep -qE "^Ran [1-9][0-9]* test" test.log
