@@ -1,0 +1,46 @@
+<svg viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg" font-family="monospace">
+  <rect width="640" height="480" fill="#ffffff" stroke="#0D1117"/>
+  <text x="20" y="30" font-size="16" font-weight="bold">Course report — instructor view</text>
+  <text x="20" y="48" font-size="12" fill="#5F646C">CSE 311, 2026 Fall</text>
+  <line x1="0" y1="58" x2="640" y2="58" stroke="#0D1117"/>
+
+  <text x="20" y="85" font-size="14" font-weight="bold">LO averages (class)</text>
+  <g font-size="12">
+    <text x="20" y="108">LO1</text><rect x="70" y="97" width="300" height="14" fill="none" stroke="#0D1117"/><rect x="70" y="97" width="255" height="14" fill="#B9BCC1"/><text x="380" y="108">85.0</text>
+    <text x="20" y="128">LO2</text><rect x="70" y="117" width="300" height="14" fill="none" stroke="#0D1117"/><rect x="70" y="117" width="195" height="14" fill="#B9BCC1"/><text x="380" y="128">65.0</text>
+    <text x="20" y="148">LO3</text><rect x="70" y="137" width="300" height="14" fill="none" stroke="#0D1117"/><rect x="70" y="137" width="260" height="14" fill="#B9BCC1"/><text x="380" y="148">87.0</text>
+  </g>
+
+  <text x="420" y="85" font-size="14" font-weight="bold">PO contribution</text>
+  <g font-size="12">
+    <text x="420" y="108">PO1 ·····</text>
+    <text x="420" y="128">PO3 ····</text>
+    <text x="420" y="148">PO7 ··</text>
+  </g>
+
+  <line x1="0" y1="168" x2="640" y2="168" stroke="#B9BCC1" stroke-dasharray="4"/>
+  <text x="20" y="193" font-size="14" font-weight="bold">Students (paste grades: #47, CSV: #13)</text>
+
+  <g font-size="11">
+    <text x="20" y="215" font-weight="bold">Student</text>
+    <text x="180" y="215" font-weight="bold">Midterm</text>
+    <text x="260" y="215" font-weight="bold">Project</text>
+    <text x="340" y="215" font-weight="bold">LO1</text>
+    <text x="390" y="215" font-weight="bold">LO2</text>
+    <text x="440" y="215" font-weight="bold">LO3</text>
+    <line x1="20" y1="222" x2="600" y2="222" stroke="#0D1117"/>
+
+    <text x="20" y="242">Elif Demir</text><text x="180" y="242">78</text><text x="260" y="242">90</text><text x="340" y="242">85</text><text x="390" y="242">65</text><text x="440" y="242">87</text>
+    <text x="20" y="262">Can Yıldız</text><text x="180" y="262">60</text><text x="260" y="262">—</text><text x="340" y="262">60</text><text x="390" y="262">—</text><text x="440" y="262">—</text>
+    <text x="20" y="282">...</text>
+  </g>
+
+  <rect x="20" y="300" width="580" height="30" fill="none" stroke="#0D1117" stroke-dasharray="3"/>
+  <text x="30" y="320" font-size="12">Can Yıldız: missing Project grade — "not enough evidence" badge (#42)</text>
+
+  <g font-size="11" fill="#5F646C">
+    <text x="20" y="360">[Export report] (#36)</text>
+    <text x="180" y="360">[Grade change history] (#35)</text>
+    <text x="420" y="360">[How a score was computed] (#41)</text>
+  </g>
+</svg>
