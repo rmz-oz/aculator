@@ -261,11 +261,18 @@ frame("access", 1250, 3290, 0.28, 0, f'''
 <pre>{ACCESS}</pre>
 {p("No role, inactive or anonymous: nothing. Pull request #68.", "muted")}''', "detail")
 
-frame("end", 0, 0, 0.8, 0, '''
-<div class="closing">
-  <div class="name">aculator</div>
-  <div class="quote"><span class="dot"></span><i>Every score can be explained.</i><p class="muted">github.com/rmz-oz/aculator</p></div>
-</div>''')
+TEAM_ROLES = [("Ramiz Özdemir", "as the team lead"), ("Esin Sarıaltın", "as the calculation engine"),
+              ("Yaren Sargın", "as the database"), ("Rana İlgi Yılmaz", "as the product owner")]
+CAST = "".join(f"<p class='cast'><b>{n}</b><span>{r}</span></p>" for n, r in TEAM_ROLES)
+frame("end", 0, 0, 1.0, 0, f'''
+<div class="credits"><div class="roll">
+<p class="cap">Django Unchained</p><p class="cap2">presented</p><h2>aculator</h2>
+<p class="cq"><i>“Gentlemen, you had my curiosity.<br>But now you have my attention.”</i></p>
+<p class="cwho">Calvin Candie, <i>Django Unchained</i> (2012)</p>
+<p class="cap2">starring</p>{CAST}
+<p class="cap2">no grades were rounded in the making of this project</p>
+<h2 class="blue">Thank you.</h2><p class="cgh">github.com/rmz-oz/aculator</p>
+</div></div>''', "endroll")
 
 # ---------------------------------------------------------------- the four main frames
 def png_img(name, style):
@@ -277,7 +284,7 @@ frame("cover", 0, 0, 1.0, 0, f'''
   <div class="cv-top ani" style="--d:0">{png_img("acu_shield.png", "height:150px")}
     <div><b>Acıbadem University</b><span>Computer Engineering</span></div></div>
   <div class="cv-mid">
-    <p class="kicker ani" style="--d:1">CSE 321 Data Systems, Checkpoint 1</p>
+    <p class="kicker ani" style="--d:1">CSE 311 Software Engineering and CSE 321 Data Systems</p>
     <h1 class="ani" style="--d:2">aculator</h1>
     <p class="cv-sub ani" style="--d:3">Program outcome assessment from course grades</p>
   </div>
@@ -376,7 +383,7 @@ COLS = [  # key, label, dates, width, body lines
     ("s1", "Sprint 1", "29 Oct to 5 Nov", 2300, []),
     ("s2", "Sprint 2", "5 to 12 Nov", 2300, []),
     ("s3", "Sprint 3", "to 19 Nov", 1150, ["Grade import from CSV", "Student PO profile", "How a score was computed",
-                                          "Index and size measurements", "<b class='blue'>CSE 311 checkpoint, 17 Nov</b>"]),
+                                          "Index and size measurements"]),
     ("s4", "Sprint 4", "to 26 Nov", 1150, ["Grades partitioned by term", "Backups and a failure plan", "Grade change history",
                                           "Paste grades from Excel"]),
     ("s5", "Sprint 5", "to 3 Dec", 1150, ["Load test", "Open API", "Turkish and English", "Course from the syllabus PDF"]),
@@ -403,9 +410,10 @@ FRAMES["end"].update(x=CAL_W + 1300, y=FY)
 
 def calendar():
     out = [f'<div class="cal" style="left:0;top:{TOP}px;width:{CAL_W}px;height:{HEAD + BODY}px"></div>']
-    for key, label, dates, w, lines in COLS:
+    for i, (key, label, dates, w, lines) in enumerate(COLS):
         x0, _ = COLX[key]
         now = " now" if key == "s2" else ""
+        now += " alt" if i % 2 else ""
         body = "".join(f"<li>{t}</li>" for t in lines)
         out.append(f'<div class="wk{now}" style="left:{x0}px;top:{TOP}px;width:{w}px;height:{HEAD + BODY}px">'
                    f'<div class="ch"><b>{label}</b><span>{dates}</span></div><ul>{body}</ul></div>')
@@ -437,7 +445,7 @@ STOPS = [
     ("s2", 2, None, "Ramiz", "Access control is done and in review; the calculation engine is in progress."),
     ("s2", 3, None, "Ramiz", "Materialized views and the course report page complete the sprint."),
     ({"world": [COLX["s3"][0] + 1725, TOP + (HEAD + BODY) / 2, 3520]}, 0, None, "Ramiz",
-     "Next three sprints: import, profile, measurements, then partitioning, backups and the load test. CSE 311 checkpoint on 17 November."),
+     "Next three sprints: import, profile, measurements, then partitioning, backups and the load test."),
     ({"world": [COLX["s6"][0] + 2275, TOP + (HEAD + BODY) / 2, 4800]}, 0, None, "Ramiz",
      "Then alerts, ALMS, a user test, the report export and the final reports. Demo on 29 and 30 December."),
     ("end", 0, None, "Ramiz", "Thank you. Questions. Backup slides are under the calendar: press O."),
