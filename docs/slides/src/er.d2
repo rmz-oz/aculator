@@ -1,0 +1,28 @@
+direction: right
+vars: {d2-config: {layout-engine: elk}}
+classes: {t: {shape: sql_table; style: {fill: "#EEF0F3"; stroke: "#FFFFFF"; font-color: "#0D1117"; border-radius: 0; font-size: 22}}}
+User: {class: t; id: int {constraint: primary_key}; username: varchar}
+Term: {class: t; id: bigint {constraint: primary_key}; year: smallint; season: varchar}
+ProgramOutcome: {class: t; id: bigint {constraint: primary_key}; code: varchar; description: text}
+Course: {class: t; id: bigint {constraint: primary_key}; code: varchar; name: varchar; ects: smallint}
+CourseOffering: {class: t; id: bigint {constraint: primary_key}; course_id: bigint {constraint: foreign_key}; term_id: bigint {constraint: foreign_key}}
+LearningOutcome: {class: t; id: bigint {constraint: primary_key}; offering_id: bigint {constraint: foreign_key}; code: varchar; description: text}
+Assessment: {class: t; id: bigint {constraint: primary_key}; offering_id: bigint {constraint: foreign_key}; name: varchar; max_score: numeric}
+Enrollment: {class: t; id: bigint {constraint: primary_key}; offering_id: bigint {constraint: foreign_key}; student_id: bigint {constraint: foreign_key}}
+Grade: {class: t; id: bigint {constraint: primary_key}; enrollment_id: bigint {constraint: foreign_key}; assessment_id: bigint {constraint: foreign_key}; score: numeric}
+AssessmentLOWeight: {class: t; id: bigint {constraint: primary_key}; assessment_id: bigint {constraint: foreign_key}; learning_outcome_id: bigint {constraint: foreign_key}; weight: numeric}
+LOPOWeight: {class: t; id: bigint {constraint: primary_key}; learning_outcome_id: bigint {constraint: foreign_key}; program_outcome_id: bigint {constraint: foreign_key}; weight: smallint}
+CourseOffering.course_id -> Course.id: {style.stroke: "#4A5160"}
+CourseOffering.term_id -> Term.id: {style.stroke: "#4A5160"}
+LearningOutcome.offering_id -> CourseOffering.id: {style.stroke: "#4A5160"}
+Assessment.offering_id -> CourseOffering.id: {style.stroke: "#4A5160"}
+Enrollment.offering_id -> CourseOffering.id: {style.stroke: "#4A5160"}
+Enrollment.student_id -> User.id: {style.stroke: "#4A5160"}
+Grade.enrollment_id -> Enrollment.id: {style.stroke: "#4A5160"}
+Grade.assessment_id -> Assessment.id: {style.stroke: "#4A5160"}
+AssessmentLOWeight.assessment_id -> Assessment.id: {style.stroke: "#4A5160"}
+AssessmentLOWeight.learning_outcome_id -> LearningOutcome.id: {style.stroke: "#4A5160"}
+LOPOWeight.learning_outcome_id -> LearningOutcome.id: {style.stroke: "#4A5160"}
+LOPOWeight.program_outcome_id -> ProgramOutcome.id: {style.stroke: "#4A5160"}
+Grade.style.fill: "#1D4ED8"
+Grade.style.font-color: "#FFFFFF"
