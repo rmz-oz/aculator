@@ -16,6 +16,13 @@ Acıbadem University, Fall 2026.
 - Esin Sarıaltın: backend and calculation
 - Rana İlgi Yılmaz: product owner, frontend
 
+## Presentations
+
+[![Checkpoint 1 slides, overview of the canvas](docs/slides/checkpoint1.png)](https://rmz-oz.github.io/aculator/slides/checkpoint1.html)
+
+[CSE 321 Checkpoint 1, 12 November](https://rmz-oz.github.io/aculator/slides/checkpoint1.html). Arrow keys to move,
+O for the overview, N for speaker notes, F for full screen. Built by `python3 docs/slides/build.py`.
+
 ## Run locally
 
 ```

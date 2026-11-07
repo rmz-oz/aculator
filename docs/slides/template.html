@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>aculator, CSE 321 Checkpoint 1</title>
+<style>
+/*FONTS*/
+:root { --ink:#0D1117; --muted:#4A5160; --line:#D5D9E0; --blue:#1D4ED8; --red:#C21F32; }
+* { box-sizing:border-box; margin:0; padding:0; }
+html, body { height:100%; overflow:hidden; background:#fff; color:var(--ink);
+  font-family:'Schibsted Grotesk', Arial, sans-serif; -webkit-font-smoothing:antialiased; }
+#stage { position:fixed; inset:0; overflow:hidden; cursor:default; }
+#world { position:absolute; left:0; top:0; transform-origin:0 0; }
+.zone { position:absolute; font-size:300px; font-weight:800; letter-spacing:-8px; color:#EEF0F3; white-space:nowrap; line-height:1; }
+.path { position:absolute; pointer-events:none; }
+.frame { position:absolute; width:1920px; height:1080px; padding:110px 128px; background:#fff;
+  transform-origin:50% 50%; display:flex; flex-direction:column; gap:44px; outline:2px solid transparent;
+  transition:outline-color .6s; }
+.overview .frame { outline-color:var(--line); cursor:pointer; }
+.overview .frame:hover { outline-color:var(--blue); }
+h1 { font-size:120px; font-weight:800; line-height:1.02; letter-spacing:-3px; max-width:1500px; }
+h2 { font-size:72px; font-weight:800; line-height:1.08; letter-spacing:-1.5px; max-width:1660px; }
+h3 { font-size:40px; font-weight:700; margin-bottom:14px; }
+p { font-size:34px; line-height:1.38; }
+.muted { color:var(--muted); } .blue { color:var(--blue); } .strong { font-weight:700; } .right { text-align:right; }
+.row { display:flex; gap:72px; align-items:center; flex:1; }
+.col { display:flex; flex-direction:column; gap:28px; }
+.col.narrow { width:560px; flex:none; }
+.fig { display:flex; justify-content:center; } .fig.left { justify-content:flex-start; }
+.three { display:grid; grid-template-columns:repeat(3,1fr); gap:72px; }
+.three p, .two p { color:var(--muted); font-size:32px; margin-bottom:10px; }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:120px; flex:1; }
+.two h3 { font-size:48px; margin-bottom:28px; }
+.roles h3 { font-size:56px; } .roles { flex:1; align-content:center; }
+.cover { display:flex; flex-direction:column; height:100%; justify-content:center; gap:56px; }
+.kicker { color:var(--muted); font-size:36px; }
+.cover-foot { display:flex; justify-content:space-between; align-items:flex-end; margin-top:80px; }
+.cover-foot p { font-size:34px; }
+.t { border-collapse:collapse; width:100%; font-size:34px; }
+.t th { text-align:left; font-weight:700; padding:0 0 18px; border-bottom:2px solid var(--ink); }
+.t td { padding:20px 0; border-bottom:1px solid var(--line); }
+.t .r { text-align:right; } .t td:first-child { padding-right:40px; }
+.detail .t { font-size:40px; } .detail p { font-size:38px; }
+.pipe { display:flex; flex-direction:column; gap:0; }
+.pipe div { display:grid; grid-template-columns:300px 1fr; padding:22px 0; border-bottom:1px solid var(--line); font-size:38px; }
+.pipe b { font-weight:700; } .pipe span { color:var(--muted); }
+.pipe .blue-b b { color:var(--blue); }
+pre { font-family:ui-monospace, 'SF Mono', Menlo, monospace; font-size:36px; line-height:1.45; color:var(--ink);
+  border-left:4px solid var(--blue); padding-left:40px; }
+.closing { display:flex; align-items:center; height:100%; gap:120px; }
+.closing .name { font-size:260px; font-weight:800; letter-spacing:-8px; }
+.closing .quote i { font-size:64px; font-weight:400; display:block; margin-bottom:24px; }
+.closing .dot { display:inline-block; width:22px; height:22px; border-radius:50%; background:var(--red); margin-bottom:28px; }
+[data-step] { transition:opacity .55s ease; }
+.hide { opacity:0 !important; }
+#notes { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line);
+  padding:16px 28px; font-size:17px; line-height:1.45; display:none; gap:28px; align-items:flex-start; z-index:5; }
+#notes.on { display:flex; }
+#notes .who { font-weight:700; min-width:70px; } #notes .txt { flex:1; color:var(--ink); }
+#notes .meta { color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums; }
+#count { position:fixed; right:20px; bottom:14px; font-size:14px; color:#9AA1AD; font-variant-numeric:tabular-nums; z-index:4; }
+#help { position:fixed; left:20px; bottom:14px; font-size:14px; color:#9AA1AD; z-index:4; transition:opacity 1s; }
+@media print { #notes, #count, #help { display:none !important; } }
+</style>
+</head>
+<body>
+<div id="stage"><div id="world"><!--WORLD--></div></div>
+<div id="notes"><div class="who"></div><div class="txt"></div><div class="meta"></div></div>
+<div id="count"></div>
+<div id="help">→ next   ← back   O overview   N notes   F full screen</div>
+<script>
+const D = /*DATA*/;
+const world = document.getElementById('world'), stage = document.getElementById('stage');
+const BW = 1920, BH = 1080;
+let cur = 0, cam = null, anim = null, overview = false;
+
+// frame-local rect -> world camera {x, y, w, r}
+function target(stop) {
+  const f = D.frames[stop.f], [lx, ly, lw] = stop.rect || [BW / 2, BH / 2, BW];
+  const a = f.r * Math.PI / 180, dx = (lx - BW / 2) * f.s, dy = (ly - BH / 2) * f.s;
+  return { x: f.x + dx * Math.cos(a) - dy * Math.sin(a), y: f.y + dx * Math.sin(a) + dy * Math.cos(a), w: lw * f.s * 1.04, r: f.r };
+}
+function overviewCam() {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const f of Object.values(D.frames)) {
+    const hw = BW * f.s / 2, hh = BH * f.s / 2;
+    x0 = Math.min(x0, f.x - hw); x1 = Math.max(x1, f.x + hw); y0 = Math.min(y0, f.y - hh); y1 = Math.max(y1, f.y + hh);
+  }
+  document.querySelectorAll('.zone').forEach(z => {
+    const x = z.offsetLeft, y = z.offsetTop;
+    x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + z.offsetWidth); y1 = Math.max(y1, y + z.offsetHeight);
+  });
+  x0 -= 150; x1 += 150; y0 -= 150; y1 += 150;
+  const w = Math.max(x1 - x0, (y1 - y0) * innerWidth / innerHeight);
+  return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, w, r: 0 };
+}
+function apply(c) {
+  const W = innerWidth, H = innerHeight;
+  const k = Math.min(W / c.w, H / (c.w * BH / BW));
+  world.style.transform = `translate(${W / 2}px,${H / 2}px) rotate(${-c.r}deg) scale(${k}) translate(${-c.x}px,${-c.y}px)`;
+  cam = c;
+}
+// van Wijk and Nuij smooth zoom, as in d3.interpolateZoom: zoom out, travel, zoom in.
+function izoom(p0, p1) {
+  const rho = Math.SQRT2, rho2 = 2, rho4 = 4;
+  const [ux0, uy0, w0] = p0, [ux1, uy1, w1] = p1, dx = ux1 - ux0, dy = uy1 - uy0, d2 = dx * dx + dy * dy;
+  let S, f;
+  if (d2 < 1e-6) { S = Math.log(w1 / w0) / rho; f = t => [ux0 + t * dx, uy0 + t * dy, w0 * Math.exp(rho * t * S)]; }
+  else {
+    const d1 = Math.sqrt(d2), b0 = (w1 * w1 - w0 * w0 + rho4 * d2) / (2 * w0 * rho2 * d1), b1 = (w1 * w1 - w0 * w0 - rho4 * d2) / (2 * w1 * rho2 * d1);
+    const r0 = Math.log(Math.sqrt(b0 * b0 + 1) - b0), r1 = Math.log(Math.sqrt(b1 * b1 + 1) - b1);
+    S = (r1 - r0) / rho;
+    f = t => { const s = t * S, c0 = Math.cosh(r0), u = w0 / (rho2 * d1) * (c0 * Math.tanh(rho * s + r0) - Math.sinh(r0));
+      return [ux0 + u * dx, uy0 + u * dy, w0 * c0 / Math.cosh(rho * s + r0)]; };
+  }
+  f.duration = Math.abs(S) * 1000;
+  return f;
+}
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+function fly(to, instant) {
+  cancelAnimationFrame(anim);
+  if (!cam || instant) { apply(to); return; }
+  const from = { ...cam }, z = izoom([from.x, from.y, from.w], [to.x, to.y, to.w]);
+  let dr = to.r - from.r; dr = ((dr + 540) % 360) - 180;
+  const dur = Math.min(2400, Math.max(z.duration * 1.1, 700)), t0 = performance.now();
+  if (z.duration < 1 && Math.abs(dr) < .01) { apply(to); return; }
+  const tick = now => {
+    const t = Math.min(1, (now - t0) / dur), e = ease(t), [x, y, w] = z(e);
+    apply({ x, y, w, r: from.r + dr * e });
+    if (t < 1) anim = requestAnimationFrame(tick);
+  };
+  anim = requestAnimationFrame(tick);
+}
+function reveal() {
+  const seen = {};
+  D.stops.forEach((s, i) => { if (i <= cur) seen[s.f] = Math.max(seen[s.f] || 0, s.step); });
+  document.querySelectorAll('.frame').forEach(fr => {
+    const n = overview ? 99 : (seen[fr.dataset.id] ?? 0);
+    fr.querySelectorAll('[data-step]').forEach(el => el.classList.toggle('hide', +el.dataset.step > n));
+  });
+}
+let t0 = null;
+function notes() {
+  const s = D.stops[cur], el = document.getElementById('notes');
+  el.querySelector('.who').textContent = s.who;
+  el.querySelector('.txt').textContent = s.note;
+  document.getElementById('count').textContent = overview ? 'overview' : `${cur + 1} / ${D.stops.length}`;
+}
+setInterval(() => {
+  if (t0 === null) return;
+  const sec = Math.floor((Date.now() - t0) / 1000);
+  document.querySelector('#notes .meta').textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+}, 500);
+function go(i, instant) {
+  cur = Math.max(0, Math.min(D.stops.length - 1, i));
+  overview = false; document.body.classList.remove('overview');
+  if (t0 === null && cur > 0) t0 = Date.now();
+  reveal(); notes(); fly(target(D.stops[cur]), instant);
+  history.replaceState(null, '', '#' + (cur + 1));
+}
+function toggleOverview() {
+  overview = !overview; document.body.classList.toggle('overview', overview);
+  reveal(); notes(); fly(overview ? overviewCam() : target(D.stops[cur]));
+}
+addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (['ArrowRight', 'ArrowDown', ' ', 'PageDown', 'Enter'].includes(k)) { e.preventDefault(); go(overview ? cur : cur + 1); }
+  else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(k)) { e.preventDefault(); go(overview ? cur : cur - 1); }
+  else if (k === 'Home') go(0); else if (k === 'End') go(D.stops.length - 1);
+  else if (k === 'o' || k === 'O' || k === 'Escape') { if (k !== 'Escape' || overview) toggleOverview(); }
+  else if (k === 'n' || k === 'N') document.getElementById('notes').classList.toggle('on');
+  else if (k === 'f' || k === 'F') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+});
+stage.addEventListener('click', e => {
+  const fr = e.target.closest('.frame');
+  if (overview && fr) { const i = D.stops.findIndex(s => s.f === fr.dataset.id); go(i < 0 ? cur : i); }
+  else if (!overview) go(cur + 1);
+});
+addEventListener('resize', () => apply(overview ? overviewCam() : target(D.stops[cur])));
+setTimeout(() => document.getElementById('help').style.opacity = 0, 6000);
+const start = parseInt(location.hash.slice(1)) - 1;
+go(isNaN(start) ? 0 : start, true);
+</script>
+</body>
+</html>
