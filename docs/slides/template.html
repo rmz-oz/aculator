@@ -52,6 +52,34 @@ pre { font-family:ui-monospace, 'SF Mono', Menlo, monospace; font-size:36px; lin
 .closing .name { font-size:260px; font-weight:800; letter-spacing:-8px; }
 .closing .quote i { font-size:64px; font-weight:400; display:block; margin-bottom:24px; }
 .closing .dot { display:inline-block; width:22px; height:22px; border-radius:50%; background:var(--red); margin-bottom:28px; }
+.cal { position:absolute; background:#F6F7F9; }
+.wk { position:absolute; border-left:2px solid #E3E6EB; padding:70px 60px; }
+.wk .ch b { display:block; font-size:150px; font-weight:800; letter-spacing:-4px; line-height:1; }
+.wk .ch span { display:block; font-size:70px; color:var(--muted); margin-top:18px; }
+.wk.now .ch b { color:var(--blue); }
+.wk ul { list-style:none; margin-top:150px; }
+.wk li { font-size:66px; line-height:1.25; margin-bottom:46px; }
+.mark { position:absolute; width:8px; background:var(--blue); }
+.mark span { position:absolute; left:28px; top:0; white-space:nowrap; font-size:80px; font-weight:700; color:var(--blue); }
+.bk { position:absolute; font-size:220px; font-weight:800; letter-spacing:-6px; color:#E3E6EB; }
+h2.big { font-size:84px; max-width:1600px; }
+.small { font-size:28px; }
+.chain { display:flex; align-items:stretch; gap:40px; margin-top:10px; }
+.chain > div:not(.arrow) { flex:1; display:flex; flex-direction:column; gap:6px; border-top:3px solid var(--ink); padding-top:22px; }
+.chain .lab { font-size:30px; font-weight:700; }
+.chain b { font-size:88px; font-weight:800; line-height:1.05; }
+.chain .muted { font-size:28px; }
+.chain .arrow { font-size:80px; color:var(--muted); align-self:center; }
+.pts { display:flex; align-items:center; gap:32px; }
+.pts .bar { width:700px; height:26px; background:#EEF0F3; } .pts .bar i { display:block; height:100%; background:var(--blue); }
+.pts span { font-size:32px; }
+.grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:56px; flex:1; }
+.grid3 { display:grid; grid-template-columns:1fr 1.25fr 1.25fr; gap:64px; flex:1; }
+.sprint ul { list-style:none; } .sprint li { font-size:30px; line-height:1.35; color:var(--muted); margin-bottom:18px; }
+.sprint h3 { font-size:44px; padding-bottom:16px; border-bottom:3px solid var(--ink); margin-bottom:22px; }
+.sprint .done h3 { color:var(--blue); border-color:var(--blue); }
+.sprint .kicker { font-size:34px; }
+.frame.sprint { gap:30px; padding-bottom:80px; }
 [data-step] { transition:opacity .55s ease; }
 .hide { opacity:0 !important; }
 #notes { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line);
@@ -77,6 +105,7 @@ let cur = 0, cam = null, anim = null, overview = false;
 
 // frame-local rect -> world camera {x, y, w, r}
 function target(stop) {
+  if (stop.world) { const [x, y, w] = stop.world; return { x, y, w, r: 0 }; }
   const f = D.frames[stop.f], [lx, ly, lw] = stop.rect || [BW / 2, BH / 2, BW];
   const a = f.r * Math.PI / 180, dx = (lx - BW / 2) * f.s, dy = (ly - BH / 2) * f.s;
   return { x: f.x + dx * Math.cos(a) - dy * Math.sin(a), y: f.y + dx * Math.sin(a) + dy * Math.cos(a), w: lw * f.s * 1.04, r: f.r };
@@ -87,7 +116,7 @@ function overviewCam() {
     const hw = BW * f.s / 2, hh = BH * f.s / 2;
     x0 = Math.min(x0, f.x - hw); x1 = Math.max(x1, f.x + hw); y0 = Math.min(y0, f.y - hh); y1 = Math.max(y1, f.y + hh);
   }
-  document.querySelectorAll('.zone').forEach(z => {
+  document.querySelectorAll('.cal, .bk').forEach(z => {
     const x = z.offsetLeft, y = z.offsetTop;
     x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + z.offsetWidth); y1 = Math.max(y1, y + z.offsetHeight);
   });
@@ -133,10 +162,10 @@ function fly(to, instant) {
   anim = requestAnimationFrame(tick);
 }
 function reveal() {
-  const seen = {};
-  D.stops.forEach((s, i) => { if (i <= cur) seen[s.f] = Math.max(seen[s.f] || 0, s.step); });
+  // only the frame in view builds up step by step; every other frame shows its full state
+  const s = D.stops[cur];
   document.querySelectorAll('.frame').forEach(fr => {
-    const n = overview ? 99 : (seen[fr.dataset.id] ?? 0);
+    const n = (!overview && s.f === fr.dataset.id) ? s.step : 99;
     fr.querySelectorAll('[data-step]').forEach(el => el.classList.toggle('hide', +el.dataset.step > n));
   });
 }

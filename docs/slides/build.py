@@ -141,16 +141,6 @@ def frame(fid, x, y, s, r, html, cls=""):
     FRAMES[fid] = {"x": x, "y": y, "s": s, "r": r, "html": html, "cls": cls}
 
 
-frame("cover", 0, 0, 1.0, 0, '''
-<div class="cover">
-  <p class="kicker">CSE 321 Data Systems, Checkpoint 1, 12 November 2026</p>
-  <h1>aculator turns grades into program outcome scores</h1>
-  <div class="cover-foot">
-    <p>Django Unchained<br><span class="muted">Yaren Sargın, Esin Sarıaltın, Rana İlgi Yılmaz, Ramiz Özdemir</span></p>
-    <p class="muted right">github.com/rmz-oz/aculator</p>
-  </div>
-</div>''')
-
 frame("elif", 2300, -150, 1.0, -3, f'''
 {h2("Elif’s PO 1 is 85.0, not 84")}
 <div class="row">
@@ -271,52 +261,135 @@ frame("access", 1250, 3290, 0.28, 0, f'''
 <pre>{ACCESS}</pre>
 {p("No role, inactive or anonymous: nothing. Pull request #68.", "muted")}''', "detail")
 
-frame("next", 0, 4020, 0.7, -3, f'''
-{h2("Next: measure what we designed")}
-<table class="t big">
-<tr><th>Work</th><th>Report section</th><th class="r">Sprint</th></tr>
-<tr><td>Materialized views and refresh</td><td>Scalability</td><td class="r">2</td></tr>
-<tr><td>Table sizes with real course loads, indexes</td><td>Data model</td><td class="r">3</td></tr>
-<tr><td>Bulk import in one transaction</td><td>Consistency</td><td class="r">3</td></tr>
-<tr><td>Grades partitioned by term</td><td>Scalability</td><td class="r">4</td></tr>
-<tr><td>Backups and a failure plan</td><td>Fault tolerance</td><td class="r">4</td></tr>
-<tr><td>Load test with and without views</td><td>Scalability</td><td class="r">5</td></tr>
-</table>''')
-
-frame("end", 2470, 1960, 0.42, 0, '''
+frame("end", 0, 0, 0.8, 0, '''
 <div class="closing">
   <div class="name">aculator</div>
   <div class="quote"><span class="dot"></span><i>Every score can be explained.</i><p class="muted">github.com/rmz-oz/aculator</p></div>
 </div>''')
 
-# ---------------------------------------------------------------- the path
-# (frame, step, zoom rect in frame px or None, speaker, note)
-STOPS = [
-    ("cover", 0, None, "Ramiz", "One sentence: a department enters grades once, and every student gets a profile against the eleven program outcomes."),
-    ("elif", 1, None, "Esin", "Start with the two grades: midterm 90, project 80."),
-    ("elif", 2, None, "Esin", "They feed two learning outcomes. Line width is the weight: LO 1 is 86.0, LO 2 is 82.857."),
-    ("elif", 3, None, "Esin", "The outcomes feed PO 1: 85.0. Nothing was rounded on the way."),
-    ("elif", 4, None, "Esin", "The brief rounds LO 2 to 82 first and gets 84. We keep the exact value; both numbers are unit tests."),
-    ("ring", 2, None, "Esin", "Because it is linear, 85.0 splits exactly: 44.6 from the midterm, 40.4 from the project. This answers the instructor's question, where does this number come from."),
-    ("arch", 0, None, "Ramiz", "One Django app on Render, one PostgreSQL database, a worker for anything slow."),
-    ("arch", 0, (1150, 560, 1240), "Ramiz", "Follow the blue arrows: grades are written once into PostgreSQL, the worker refreshes the views. ALMS and mail are the only outside services."),
-    ("arch", 3, None, "Ramiz", "Server rendered with HTMX, slow work off the request, every green main ships."),
-    ("deploy", 0, None, "Ramiz", "If asked how deploys work: the health check returns the commit, so the workflow knows the new version is live."),
-    ("classes", 0, None, "Ramiz", "The decision is CourseOffering: outcomes belong to a course in a given term. The diagram is generated from the models."),
-    ("er", 1, None, "Yaren", "The ER diagram from the models. Grade, in blue, is the only table a score is written to."),
-    ("er", 2, None, "Yaren", "Everything else is computed from it."),
-    ("views", 0, None, "Yaren", "Three materialized views serve the pages. The SQL is tested; the Django version is this sprint's work."),
-    ("schema", 2, None, "Yaren", "Answer the report question directly: normalized for writes, a snowflake for reads, and why not a star."),
-    ("size", 2, None, "Yaren", "Measured, not estimated: ten times the students, ten times the rows and size."),
-    ("size", 3, None, "Yaren", "Ten years of a real department is around 33 MB."),
-    ("tables", 0, None, "Yaren", "Per table numbers, if asked."),
-    ("roles", 3, None, "Rana", "Student, instructor, head of department. Each sees exactly its part; one file decides it."),
-    ("access", 0, None, "Rana", "If asked: this is the actual rule for grades, with nine tests."),
-    ("next", 0, None, "Rana", "Close with the plan and the demo date, 29 December."),
-    ("end", 0, None, "Ramiz", "Thank you. Questions."),
-]
+# ---------------------------------------------------------------- the four main frames
+frame("problem", 0, 0, 1.0, 0, '''
+<p class="kicker">CSE 321 Data Systems, Checkpoint 1, 12 November 2026</p>
+<h2 class="big">A department has to show how every student meets its eleven program outcomes</h2>
+<div class="chain">
+  <div data-step="1"><span class="lab">Grades</span><b>90</b><b>80</b><span class="muted">midterm, project</span></div>
+  <div class="arrow" data-step="2">→</div>
+  <div data-step="2"><span class="lab">Learning outcomes</span><b>86.0</b><b>82.9</b><span class="muted">LO 1, LO 2 of the course</span></div>
+  <div class="arrow" data-step="3">→</div>
+  <div data-step="3"><span class="lab">Program outcome</span><b class="blue">85.0</b><span class="muted">PO 1 of the student</span></div>
+</div>
+<p data-step="3">Accreditation asks for evidence per program outcome, not a course grade. aculator computes it from the grades
+already entered, and shows where every number comes from.</p>
+<p class="muted small">Django Unchained: Yaren Sargın, Esin Sarıaltın, Rana İlgi Yılmaz, Ramiz Özdemir</p>''')
 
-ZONES = [("The number", -960, -1000), ("The system", 3840, -1000), ("The data", 3700, 3660), ("The team", -960, 4560)]
+
+def who(name, items, step):
+    lis = "".join(f"<li>{i}</li>" for i in items)
+    return f'<div data-step="{step}"><h3>{name}</h3><ul>{lis}</ul></div>'
+
+
+frame("s1", 0, 0, 1.0, 0, f'''
+<p class="kicker">Sprint 1, 29 October to 5 November</p>
+<h2>From an empty repository to a deployed app with its data model</h2>
+<div class="pts"><div class="bar"><i style="width:{20 / 22 * 100:.1f}%"></i></div><span><b>20 of 22</b> points done</span></div>
+<div class="grid4">
+{who("Ramiz", ["Django on PostgreSQL 16 (#23)", "CI fails on zero tests or a missing migration (#28)",
+                "Deploy to Render after every green main (#30)", "Architecture diagram (#24)"], 1)}
+{who("Esin", ["Core models: ten tables, unique keys and checks, admin, tests (#26)",
+               "Decision: LO to PO weights 1 to 5, courses by ECTS (#62)"], 1)}
+{who("Yaren", ["ER diagram (#64)", "Fake data command, same rows for the same seed, 11 POs (#66)"], 1)}
+{who("Rana", ["Screen sketches and sprint notes (#63)"], 1)}
+</div>
+<p class="muted" data-step="2">Review: a comment saying “looks good” is not an approval, so reviews took longer than the code.
+Since then we press Approve. The project board (#6) moved to Sprint 2.</p>''', "sprint")
+
+
+def status(title, items, step, cls=""):
+    lis = "".join(f"<li>{i}</li>" for i in items)
+    return f'<div data-step="{step}" class="{cls}"><h3>{title}</h3><ul>{lis}</ul></div>'
+
+
+frame("s2", 0, 0, 1.0, 0, f'''
+<p class="kicker">Sprint 2, 5 to 12 November, ends today</p>
+<h2>Roles, the calculation and this checkpoint</h2>
+<p class="muted">34 points planned.</p>
+<div class="grid3">
+{status("Merged", ["The deploy waits until the new commit is live (#60)"], 1, "done")}
+{status("In review", ["Roles and permissions, nine tests (#68, Ramiz)", "Class diagram generated from the models (#65, Ramiz)",
+                      "Getting Real notes (#59, Ramiz)", "These slides and the report (#69, Ramiz)"], 2)}
+{status("In progress", ["LO and PO calculation (#8, Esin)", "PO components (#25, Esin)",
+                        "Materialized views (#9, Yaren)", "Course report page (#11, Rana)", "Project board (#6, Rana)"], 3)}
+</div>''', "sprint")
+
+# ---------------------------------------------------------------- calendar (world coordinates)
+COLS = [  # key, label, dates, width, body lines
+    ("setup", "Before", "13 to 29 Oct", 1500, ["Team registered, 13 Oct", "Repository, rules, CI", "539 papers screened, 17 read",
+                                               "Data model draft"]),
+    ("s1", "Sprint 1", "29 Oct to 5 Nov", 2300, []),
+    ("s2", "Sprint 2", "5 to 12 Nov", 2300, []),
+    ("s3", "Sprint 3", "to 19 Nov", 1150, ["Grade import from CSV", "Student PO profile", "How a score was computed",
+                                          "Index and size measurements", "<b class='blue'>CSE 311 checkpoint, 17 Nov</b>"]),
+    ("s4", "Sprint 4", "to 26 Nov", 1150, ["Grades partitioned by term", "Backups and a failure plan", "Grade change history",
+                                          "Paste grades from Excel"]),
+    ("s5", "Sprint 5", "to 3 Dec", 1150, ["Load test", "Open API", "Turkish and English", "Course from the syllabus PDF"]),
+    ("s6", "Sprint 6", "to 10 Dec", 1150, ["Weak PO alerts", "Grades from ALMS", "User test with five people",
+                                          "Score change notice"]),
+    ("s7", "Sprint 7", "to 17 Dec", 1150, ["Department report export", "Average and threshold methods", "Report template"]),
+    ("s8", "Sprint 8", "to 24 Dec", 1150, ["Final reports", "Demo rehearsal"]),
+    ("demo", "Demo", "29 and 30 Dec", 1100, ["Final demo", "Printed report"]),
+]
+TOP, HEAD, BODY = 0, 440, 1200
+x = 0
+COLX = {}
+for key, _, _, w, _ in COLS:
+    COLX[key] = (x, w)
+    x += w
+CAL_W = x
+FY = TOP + HEAD + 60 + 540          # frame centre inside a column
+FRAMES["s1"].update(x=COLX["s1"][0] + COLX["s1"][1] / 2, y=FY)
+FRAMES["s2"].update(x=COLX["s2"][0] + COLX["s2"][1] / 2, y=FY)
+FRAMES["problem"].update(x=-1500, y=FY)
+FRAMES["end"].update(x=CAL_W + 1300, y=FY)
+
+
+def calendar():
+    out = [f'<div class="cal" style="left:0;top:{TOP}px;width:{CAL_W}px;height:{HEAD + BODY}px"></div>']
+    for key, label, dates, w, lines in COLS:
+        x0, _ = COLX[key]
+        now = " now" if key == "s2" else ""
+        body = "".join(f"<li>{t}</li>" for t in lines)
+        out.append(f'<div class="wk{now}" style="left:{x0}px;top:{TOP}px;width:{w}px;height:{HEAD + BODY}px">'
+                   f'<div class="ch"><b>{label}</b><span>{dates}</span></div><ul>{body}</ul></div>')
+    bx = COLX["s3"][0]
+    out.append(f'<div class="mark" style="left:{bx - 4}px;top:{TOP - 160}px;height:{HEAD + BODY + 160}px">'
+               f'<span>Checkpoint 1, 12 Nov</span></div>')
+    out.append(f'<div class="bk" style="left:-2460px;top:{BACK_Y - 520}px">Backup</div>')
+    return "".join(out)
+
+
+# ---------------------------------------------------------------- backups, in a row under the calendar
+BACKUPS = ["elif", "ring", "arch", "deploy", "er", "schema", "size", "tables", "classes", "roles", "access", "views"]
+BACK_Y = TOP + HEAD + BODY + 900
+for i, fid in enumerate(BACKUPS):
+    FRAMES[fid].update(x=-1500 + i * 1100, y=BACK_Y, s=0.5, r=0)
+
+STOPS = [
+    ("problem", 1, None, "Ramiz", "The problem in one line: the department has to show every student against eleven program outcomes."),
+    ("problem", 2, None, "Ramiz", "Grades go to learning outcomes of the course."),
+    ("problem", 3, None, "Ramiz", "Outcomes go to the student's program outcome: Elif's PO 1 is 85.0. Accreditation needs this per PO, and it has to be explainable."),
+    ({"world": [CAL_W / 2, TOP + (HEAD + BODY) / 2, CAL_W + 600]}, 0, None, "Ramiz",
+     "The calendar: two weeks of set up, two sprints done, six to go, demo on 29 December. One week sprints, Thursday to Thursday."),
+    ("s1", 1, None, "Ramiz", "Sprint 1, by person. Each line is a merged pull request reviewed by a teammate."),
+    ("s1", 2, None, "Ramiz", "What we changed after the review: press Approve, do not just comment."),
+    ("s2", 1, None, "Ramiz", "Sprint 2 ends today. Update these three columns on 11 November."),
+    ("s2", 2, None, "Ramiz", "In review: waiting for one teammate's approval."),
+    ("s2", 3, None, "Ramiz", "In progress: the calculation, the views and the report page, owned by Esin, Yaren and Rana."),
+    ({"world": [COLX["s3"][0] + 1725, TOP + (HEAD + BODY) / 2, 3520]}, 0, None, "Ramiz",
+     "Next three sprints: import, profile, measurements, then partitioning, backups and the load test. CSE 311 checkpoint on 17 November."),
+    ({"world": [COLX["s6"][0] + 2275, TOP + (HEAD + BODY) / 2, 4800]}, 0, None, "Ramiz",
+     "Then alerts, ALMS, a user test, the report export and the final reports. Demo on 29 and 30 December."),
+    ("end", 0, None, "Ramiz", "Thank you. Questions. Backup slides are under the calendar: press O."),
+] + [(fid, 9, None, "Backup", "Backup slide, open from the overview if asked.") for fid in BACKUPS]
 
 
 def build():
@@ -330,15 +403,15 @@ def build():
         f'<section class="frame {f["cls"]}" id="f-{fid}" data-id="{fid}" style="left:{f["x"] - 960}px;top:{f["y"] - 540}px;'
         f'transform:rotate({f["r"]}deg) scale({f["s"]})">{f["html"]}</section>'
         for fid, f in FRAMES.items())
-    zones = "".join(f'<div class="zone" style="left:{x}px;top:{y}px">{t}</div>' for t, x, y in ZONES)
-    pts = " ".join(f'{FRAMES[f]["x"]},{FRAMES[f]["y"]}' for f in dict.fromkeys(s[0] for s in STOPS))
-    path = (f'<svg class="path" style="left:-2000px;top:-2000px" width="10000" height="8000" viewBox="-2000 -2000 10000 8000">'
-            f'<polyline points="{pts}" fill="none" stroke="{LINE}" stroke-width="6" stroke-dasharray="2 22" stroke-linecap="round"/></svg>')
-    data = json.dumps({"frames": {k: {kk: v[kk] for kk in "xysr"} for k, v in FRAMES.items()},
-                       "stops": [{"f": f, "step": st, "rect": rc, "who": who, "note": n} for f, st, rc, who, n in STOPS]})
+    stops = []
+    for f, st, rc, who_, n in STOPS:
+        if isinstance(f, dict):
+            stops.append({"f": None, "world": f["world"], "step": st, "who": who_, "note": n})
+        else:
+            stops.append({"f": f, "step": st, "rect": rc, "who": who_, "note": n})
+    data = json.dumps({"frames": {k: {kk: v[kk] for kk in "xysr"} for k, v in FRAMES.items()}, "stops": stops})
     html = (HERE / "template.html").read_text()
-    html = (html.replace("/*FONTS*/", fonts).replace("<!--WORLD-->", path + zones + frames)
-            .replace("/*DATA*/", data))
+    html = html.replace("/*FONTS*/", fonts).replace("<!--WORLD-->", calendar() + frames).replace("/*DATA*/", data)
     (HERE / "checkpoint1.html").write_text(html)
     print("checkpoint1.html", round(len(html) / 1024), "kB,", len(STOPS), "stops")
 
