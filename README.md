@@ -16,6 +16,10 @@ Acıbadem University, Fall 2026.
 - Esin Sarıaltın: backend and calculation
 - Rana İlgi Yılmaz: product owner, frontend
 
+## Slides and reports
+
+[Slides and reports](https://rmz-oz.github.io/aculator/slides/) (password protected)
+
 ## Run locally
 
 ```
