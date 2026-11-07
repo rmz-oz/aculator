@@ -138,10 +138,10 @@ FRAMES = {}
 
 
 def frame(fid, x, y, s, r, html, cls=""):
-    FRAMES[fid] = dict(x=x, y=y, s=s, r=r, html=html, cls=cls)
+    FRAMES[fid] = {"x": x, "y": y, "s": s, "r": r, "html": html, "cls": cls}
 
 
-frame("cover", 0, 0, 1.0, 0, f'''
+frame("cover", 0, 0, 1.0, 0, '''
 <div class="cover">
   <p class="kicker">CSE 321 Data Systems, Checkpoint 1, 12 November 2026</p>
   <h1>aculator turns grades into program outcome scores</h1>
@@ -283,7 +283,7 @@ frame("next", 0, 4020, 0.7, -3, f'''
 <tr><td>Load test with and without views</td><td>Scalability</td><td class="r">5</td></tr>
 </table>''')
 
-frame("end", 2470, 1960, 0.42, 0, f'''
+frame("end", 2470, 1960, 0.42, 0, '''
 <div class="closing">
   <div class="name">aculator</div>
   <div class="quote"><span class="dot"></span><i>Every score can be explained.</i><p class="muted">github.com/rmz-oz/aculator</p></div>
