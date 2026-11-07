@@ -268,57 +268,105 @@ frame("end", 0, 0, 0.8, 0, '''
 </div>''')
 
 # ---------------------------------------------------------------- the four main frames
-frame("problem", 0, 0, 1.0, 0, '''
-<p class="kicker">CSE 321 Data Systems, Checkpoint 1, 12 November 2026</p>
-<h2 class="big">A department has to show how every student meets its eleven program outcomes</h2>
-<div class="chain">
-  <div data-step="1"><span class="lab">Grades</span><b>90</b><b>80</b><span class="muted">midterm, project</span></div>
-  <div class="arrow" data-step="2">→</div>
-  <div data-step="2"><span class="lab">Learning outcomes</span><b>86.0</b><b>82.9</b><span class="muted">LO 1, LO 2 of the course</span></div>
-  <div class="arrow" data-step="3">→</div>
-  <div data-step="3"><span class="lab">Program outcome</span><b class="blue">85.0</b><span class="muted">PO 1 of the student</span></div>
-</div>
-<p data-step="3">Accreditation asks for evidence per program outcome, not a course grade. aculator computes it from the grades
-already entered, and shows where every number comes from.</p>
-<p class="muted small">Django Unchained: Yaren Sargın, Esin Sarıaltın, Rana İlgi Yılmaz, Ramiz Özdemir</p>''')
+def png_img(name, style):
+    return f'<img src="data:image/png;base64,{b64(name)}" style="{style}" alt="Acıbadem University">'
 
 
-def who(name, items, step):
-    lis = "".join(f"<li>{i}</li>" for i in items)
-    return f'<div data-step="{step}"><h3>{name}</h3><ul>{lis}</ul></div>'
+frame("cover", 0, 0, 1.0, 0, f'''
+<div class="cv">
+  <div class="cv-top ani" style="--d:0">{png_img("acu_shield.png", "height:150px")}
+    <div><b>Acıbadem University</b><span>Computer Engineering</span></div></div>
+  <div class="cv-mid">
+    <p class="kicker ani" style="--d:1">CSE 321 Data Systems, Checkpoint 1</p>
+    <h1 class="ani" style="--d:2">aculator</h1>
+    <p class="cv-sub ani" style="--d:3">Program outcome assessment from course grades</p>
+  </div>
+  <div class="cv-team">
+    <p class="cv-name ani" style="--d:4">Team Django Unchained</p>
+    <div class="cv-people">
+      <div class="ani" style="--d:5"><b>Ramiz Özdemir</b><span>Team lead, architecture</span></div>
+      <div class="ani" style="--d:6"><b>Esin Sarıaltın</b><span>Backend, calculation</span></div>
+      <div class="ani" style="--d:7"><b>Yaren Sargın</b><span>Database</span></div>
+      <div class="ani" style="--d:8"><b>Rana İlgi Yılmaz</b><span>Product owner, interface</span></div>
+    </div>
+  </div>
+</div>''', "intro")
+
+
+def flow_svg():
+    """Guideline example (p. 6): Midterm 90, Project 80 -> LO 1, LO 2 -> PO 1, PO 2."""
+    W, H = 900, 640
+    X = (90, 430, 770)
+    Y = (190, 470)
+    nodes = [("Midterm", X[0], Y[0], "90", 1), ("Project", X[0], Y[1], "80", 1),
+             ("LO 1", X[1], Y[0], "86.0", 2), ("LO 2", X[1], Y[1], "82.9", 2),
+             ("PO 1", X[2], Y[0], "85.0", 3), ("PO 2", X[2], Y[1], "82.9", 3)]
+    pos = {n[0]: (n[1], n[2]) for n in nodes}
+    edges = [("Midterm", "LO 1", "0.6", 2), ("Project", "LO 1", "0.4", 2), ("Midterm", "LO 2", "0.4", 2),
+             ("Project", "LO 2", "1.0", 2), ("LO 1", "PO 1", "1.0", 3), ("LO 2", "PO 1", "0.5", 3), ("LO 2", "PO 2", "1.0", 3)]
+    o = [f'<svg viewBox="0 0 {W} {H}" width="{W}" height="{H}" font-family="Schibsted Grotesk">']
+    for a, b, w, st in edges:
+        (x1, y1), (x2, y2) = pos[a], pos[b]
+        x1, x2 = x1 + 18, x2 - 18
+        o.append(f'<path class="draw" data-step="{st}" pathLength="1" d="M{x1},{y1} C{(x1 + x2) / 2},{y1} {(x1 + x2) / 2},{y2} {x2},{y2}" '
+                 f'fill="none" stroke="{INK}" stroke-width="{3 + float(w) * 5:.1f}" stroke-opacity=".8"/>')
+        t = .3 if y1 != y2 else .5
+        mx, my = x1 + (x2 - x1) * t, y1 + (y2 - y1) * (0.5 if y1 != y2 else 0) - 14
+        o.append(f'<text data-step="{st}" x="{mx:.0f}" y="{my:.0f}" text-anchor="middle" font-size="24" fill="{MUTED}" '
+                 f'stroke="#fff" stroke-width="7" paint-order="stroke">{w}</text>')
+    for label, x, y, val, st in nodes:
+        col = BLUE if label.startswith("PO") else INK
+        o.append(f'<g data-step="{st}"><circle cx="{x}" cy="{y}" r="14" fill="{col}"/>'
+                 f'<text x="{x}" y="{y - 70}" text-anchor="middle" font-size="26" fill="{MUTED}">{label}</text>'
+                 f'<text x="{x}" y="{y - 30}" text-anchor="middle" font-size="44" font-weight="800" fill="{col}" '
+                 f'data-count="{val}">{val}</text></g>')
+    o.append(f'<g font-size="24" fill="{MUTED}"><text x="{X[0]}" y="{H - 20}" text-anchor="middle">Assessments</text>'
+             f'<text x="{X[1]}" y="{H - 20}" text-anchor="middle">Learning outcomes</text>'
+             f'<text x="{X[2]}" y="{H - 20}" text-anchor="middle">Program outcomes</text></g>')
+    o.append("</svg>")
+    return "".join(o)
+
+
+frame("problem", 0, 0, 1.0, 0, f'''
+<p class="kicker">The problem</p>
+<h2>Every grade has to become evidence for the program outcomes</h2>
+<div class="row">
+  <div class="col steps">
+    <p data-step="1"><b>Assessments</b> are graded in every course.</p>
+    <p data-step="2"><b>Learning outcomes</b> of a course are weighted averages of its assessments.</p>
+    <p data-step="3"><b>Program outcomes</b>, eleven for the department, are weighted averages of learning outcomes from every course.</p>
+    <p data-step="4" class="strong">The department needs this for every student, every course and every term, and has to show where each number comes from.</p>
+  </div>
+  <div class="col">{flow_svg()}</div>
+</div>''')
+
+
+def theme(title, text, owners, step, state=""):
+    tag = f'<span class="tag {state}">{ {"done": "Done", "review": "Done, in review", "prog": "In progress"}[state] }</span>' if state else ""
+    return (f'<div class="th" data-step="{step}"><h3>{title}{tag}</h3><p>{text}</p>'
+            f'<span class="own">{owners}</span></div>')
 
 
 frame("s1", 0, 0, 1.0, 0, f'''
 <p class="kicker">Sprint 1, 29 October to 5 November</p>
-<h2>From an empty repository to a deployed app with its data model</h2>
-<div class="pts"><div class="bar"><i style="width:{20 / 22 * 100:.1f}%"></i></div><span><b>20 of 22</b> points done</span></div>
-<div class="grid4">
-{who("Ramiz", ["Django on PostgreSQL 16 (#23)", "CI fails on zero tests or a missing migration (#28)",
-                "Deploy to Render after every green main (#30)", "Architecture diagram (#24)"], 1)}
-{who("Esin", ["Core models: ten tables, unique keys and checks, admin, tests (#26)",
-               "Decision: LO to PO weights 1 to 5, courses by ECTS (#62)"], 1)}
-{who("Yaren", ["ER diagram (#64)", "Fake data command, same rows for the same seed, 11 POs (#66)"], 1)}
-{who("Rana", ["Screen sketches and sprint notes (#63)"], 1)}
-</div>
-<p class="muted" data-step="2">Review: a comment saying “looks good” is not an approval, so reviews took longer than the code.
-Since then we press Approve. The project board (#6) moved to Sprint 2.</p>''', "sprint")
-
-
-def status(title, items, step, cls=""):
-    lis = "".join(f"<li>{i}</li>" for i in items)
-    return f'<div data-step="{step}" class="{cls}"><h3>{title}</h3><ul>{lis}</ul></div>'
-
+<h2>Foundation: platform, data model and delivery pipeline</h2>
+<div class="pts" data-step="1"><div class="bar"><i style="width:{20 / 22 * 100:.1f}%"></i></div><span><b>20 of 22</b> story points completed</span></div>
+<div class="grid2">
+{theme("Platform", "Django 5.2 on PostgreSQL 16. Every change is tested in continuous integration and deployed automatically to the cloud.", "Ramiz", 2)}
+{theme("Data model", "Ten core tables with integrity constraints, documented in an ER diagram and an architecture diagram.", "Esin, Yaren, Ramiz", 2)}
+{theme("Synthetic data", "A reproducible data set: 400 students, eight terms and all eleven program outcomes, for testing and measurement.", "Yaren", 3)}
+{theme("Design decisions", "Weighting model, no intermediate rounding, screen sketches and a one week sprint routine.", "Esin, Rana, Ramiz", 3)}
+</div>''', "sprint")
 
 frame("s2", 0, 0, 1.0, 0, f'''
-<p class="kicker">Sprint 2, 5 to 12 November, ends today</p>
-<h2>Roles, the calculation and this checkpoint</h2>
-<p class="muted">34 points planned.</p>
-<div class="grid3">
-{status("Merged", ["The deploy waits until the new commit is live (#60)"], 1, "done")}
-{status("In review", ["Roles and permissions, nine tests (#68, Ramiz)", "Class diagram generated from the models (#65, Ramiz)",
-                      "Getting Real notes (#59, Ramiz)", "These slides and the report (#69, Ramiz)"], 2)}
-{status("In progress", ["LO and PO calculation (#8, Esin)", "PO components (#25, Esin)",
-                        "Materialized views (#9, Yaren)", "Course report page (#11, Rana)", "Project board (#6, Rana)"], 3)}
+<p class="kicker">Sprint 2, 5 to 12 November</p>
+<h2>Access control, the calculation engine and reporting</h2>
+<div class="pts" data-step="1"><span><b>34</b> story points planned</span></div>
+<div class="grid2">
+{theme("Access control", "Three roles, student, instructor and head of department, each limited to its own data and covered by tests.", "Ramiz", 2, "review")}
+{theme("Calculation engine", "Learning outcome and program outcome scores computed from the grades, with program outcome components.", "Esin", 2, "prog")}
+{theme("Read performance", "Materialized views for student and course scores, refreshed after grade changes.", "Yaren", 3, "prog")}
+{theme("Reporting", "Course report page, class diagram generated from the code, and this checkpoint.", "Rana, Ramiz", 3, "prog")}
 </div>''', "sprint")
 
 # ---------------------------------------------------------------- calendar (world coordinates)
@@ -349,6 +397,7 @@ FY = TOP + HEAD + 60 + 540          # frame centre inside a column
 FRAMES["s1"].update(x=COLX["s1"][0] + COLX["s1"][1] / 2, y=FY)
 FRAMES["s2"].update(x=COLX["s2"][0] + COLX["s2"][1] / 2, y=FY)
 FRAMES["problem"].update(x=-1500, y=FY)
+FRAMES["cover"].update(x=-3700, y=FY)
 FRAMES["end"].update(x=CAL_W + 1300, y=FY)
 
 
@@ -374,16 +423,19 @@ for i, fid in enumerate(BACKUPS):
     FRAMES[fid].update(x=-1500 + i * 1100, y=BACK_Y, s=0.5, r=0)
 
 STOPS = [
-    ("problem", 1, None, "Ramiz", "The problem in one line: the department has to show every student against eleven program outcomes."),
-    ("problem", 2, None, "Ramiz", "Grades go to learning outcomes of the course."),
-    ("problem", 3, None, "Ramiz", "Outcomes go to the student's program outcome: Elif's PO 1 is 85.0. Accreditation needs this per PO, and it has to be explainable."),
+    ("cover", 0, None, "Ramiz", "Introduce the team: Ramiz, Esin, Yaren, Rana. aculator measures program outcomes from course grades."),
+    ("problem", 1, None, "Ramiz", "Start from what exists: graded assessments in every course."),
+    ("problem", 2, None, "Ramiz", "Each learning outcome is a weighted average of assessments: LO 1 = 0.6 of the midterm and 0.4 of the project, 86.0."),
+    ("problem", 3, None, "Ramiz", "Program outcomes are weighted averages of learning outcomes: PO 1 = 85.0. This is the guideline example, computed exactly."),
+    ("problem", 4, None, "Ramiz", "The real problem is scale and trust: all students, all courses, every term, and every number traceable."),
     ({"world": [CAL_W / 2, TOP + (HEAD + BODY) / 2, CAL_W + 600]}, 0, None, "Ramiz",
      "The calendar: two weeks of set up, two sprints done, six to go, demo on 29 December. One week sprints, Thursday to Thursday."),
-    ("s1", 1, None, "Ramiz", "Sprint 1, by person. Each line is a merged pull request reviewed by a teammate."),
-    ("s1", 2, None, "Ramiz", "What we changed after the review: press Approve, do not just comment."),
-    ("s2", 1, None, "Ramiz", "Sprint 2 ends today. Update these three columns on 11 November."),
-    ("s2", 2, None, "Ramiz", "In review: waiting for one teammate's approval."),
-    ("s2", 3, None, "Ramiz", "In progress: the calculation, the views and the report page, owned by Esin, Yaren and Rana."),
+    ("s1", 1, None, "Ramiz", "Sprint 1 closed with 20 of 22 points."),
+    ("s1", 2, None, "Ramiz", "Platform and data model: the system runs in the cloud from the first week, on the agreed data model."),
+    ("s1", 3, None, "Ramiz", "Synthetic data for testing and measurement, and the design decisions behind the calculation."),
+    ("s2", 1, None, "Ramiz", "Sprint 2 ends today, 34 points planned."),
+    ("s2", 2, None, "Ramiz", "Access control is done and in review; the calculation engine is in progress."),
+    ("s2", 3, None, "Ramiz", "Materialized views and the course report page complete the sprint."),
     ({"world": [COLX["s3"][0] + 1725, TOP + (HEAD + BODY) / 2, 3520]}, 0, None, "Ramiz",
      "Next three sprints: import, profile, measurements, then partitioning, backups and the load test. CSE 311 checkpoint on 17 November."),
     ({"world": [COLX["s6"][0] + 2275, TOP + (HEAD + BODY) / 2, 4800]}, 0, None, "Ramiz",
