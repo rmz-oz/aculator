@@ -46,25 +46,26 @@ Extra work, no points: decision notes on outcome weights ([#62](https://github.c
 | | points |
 |---|---|
 | Planned | 34 |
-| Done (as of 2026-11-11) | 16 |
+| Done (as of 2026-11-11) | 29 |
 
 | # | Issue | Assignee | Points | Status |
 |---|---|---|---|---|
-| [#6](https://github.com/rmz-oz/aculator/issues/6) | Project board and sprint routine | ranayilmazz | 2 | carried over from Sprint 1, this doc |
+| [#6](https://github.com/rmz-oz/aculator/issues/6) | Project board and sprint routine | ranayilmazz | 2 | carried over from Sprint 1, closing now |
 | [#8](https://github.com/rmz-oz/aculator/issues/8) | LO and PO calculation | esinsarialtin | 5 | done, PR [#71](https://github.com/rmz-oz/aculator/pull/71) |
 | [#9](https://github.com/rmz-oz/aculator/issues/9) | Materialized views for student profiles | sarginyaren | 8 | done, PR [#74](https://github.com/rmz-oz/aculator/pull/74) |
-| [#10](https://github.com/rmz-oz/aculator/issues/10) | Roles and permissions | rmz-oz | 5 | PR [#68](https://github.com/rmz-oz/aculator/pull/68) open, review pending |
-| [#11](https://github.com/rmz-oz/aculator/issues/11) | Course report page | ranayilmazz | 5 | PR [#75](https://github.com/rmz-oz/aculator/pull/75) open, review pending |
+| [#10](https://github.com/rmz-oz/aculator/issues/10) | Roles and permissions | rmz-oz | 5 | done, PR [#68](https://github.com/rmz-oz/aculator/pull/68) |
+| [#11](https://github.com/rmz-oz/aculator/issues/11) | Course report page | ranayilmazz | 5 | done, PR [#75](https://github.com/rmz-oz/aculator/pull/75) |
 | [#12](https://github.com/rmz-oz/aculator/issues/12) | CSE 321 checkpoint presentation and report | rmz-oz | 3 | PR [#73](https://github.com/rmz-oz/aculator/pull/73) open, review pending |
-| [#25](https://github.com/rmz-oz/aculator/issues/25) | PO components | esinsarialtin | 3 | open |
+| [#25](https://github.com/rmz-oz/aculator/issues/25) | PO components | esinsarialtin | 3 | done |
 | [#31](https://github.com/rmz-oz/aculator/issues/31) | Class diagram | rmz-oz | 1 | done, PR [#65](https://github.com/rmz-oz/aculator/pull/65) |
 | [#34](https://github.com/rmz-oz/aculator/issues/34) | Getting Real notes | rmz-oz | 1 | done, PR [#59](https://github.com/rmz-oz/aculator/pull/59) |
 | [#60](https://github.com/rmz-oz/aculator/issues/60) | Deploy check can pass on the old version | rmz-oz | 1 | done |
 
 ### Planning (2026-11-05)
 
-<!-- TODO: short note — what was decided, who took what. -->
+- Sprint 2 goal: get the LO/PO calculation running end-to-end, ship the first real views (course report, student profile), add roles and permissions, and reach the CSE 321 checkpoint on Nov 12.
+- Carried over from Sprint 1: #6 (this board). Landed during the sprint: class diagram PR #65, Getting Real notes PR #59.
 
 ### Review (2026-11-12)
 
-<!-- TODO: final points once the open PRs land, what carries over to Sprint 3. -->
+<!-- TODO: final points once #73 lands, what carries over to Sprint 3. -->
