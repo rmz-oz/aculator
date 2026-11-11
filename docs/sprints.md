@@ -3,6 +3,8 @@
 Velocity and short meeting notes, one section per sprint. Points come from the `points:` labels on issues
 (planning poker). `main` is tagged `sprint-N` when the sprint closes.
 
+Board: [GitHub Projects](https://github.com/users/rmz-oz/projects/1), set up by Ramiz, run by Rana as product owner.
+
 ## Sprint 1 (2026-10-29 to 2026-11-05): Skeleton, models, diagrams
 
 | | points |
