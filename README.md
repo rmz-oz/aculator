@@ -18,7 +18,7 @@ Acıbadem University, Fall 2026.
 
 ## Slides and reports
 
-[Slides and reports](https://rmz-oz.github.io/aculator/slides/) (password protected)
+[Slides and reports](https://rmz-oz.github.io/aculator/slides/)
 
 ## Run locally
 
