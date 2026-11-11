@@ -150,3 +150,8 @@ class Command(BaseCommand):
                 grades.append(Grade(enrollment=enrollment, assessment=assessment, score=score))
         Grade.objects.bulk_create(grades, ignore_conflicts=True, batch_size=1000)
         self.stdout.write(self.style.SUCCESS(f"{len(enrollments)} enrollments, {len(grades)} grades."))
+        from grading.materialized_views import refresh_materialized_views
+        refresh_materialized_views()
+        self.stdout.write(
+            self.style.SUCCESS("Materialized views refreshed successfully!")
+        )
