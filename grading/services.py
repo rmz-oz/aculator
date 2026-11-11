@@ -1,7 +1,9 @@
 from collections import defaultdict
 from decimal import ROUND_HALF_UP, Decimal
 
-from .models import AssessmentLOWeight, Enrollment, LOPOWeight
+from django.db.models import F
+
+from .models import AssessmentLOWeight, Enrollment, Grade, LOPOWeight
 
 ZERO = Decimal(0)
 ONE = Decimal(1)
@@ -34,45 +36,70 @@ def display(value, places="0.1"):
     )
 
 
-def lo_scores(enrollment):
-    """Return {lo_id: Decimal} scores on a 0–100 scale.
+def _means(groups):
+    """Weighted mean of each group; groups with zero weight are left out."""
+    results = {}
+    for key, pairs in groups.items():
+        score = weighted_mean(pairs)
+        if score is not None:
+            results[key] = score
+    return results
+
+
+def _scores(enrollments):
+    """Return {enrollment_id: (lo_scores, po_scores)} in three queries.
 
     Missing grades and assessments with max_score=0 are excluded.
     Available contributions are normalized by their total weight.
     A missing result is omitted; an actual score of zero is retained.
     """
-    grades = {
-        grade.assessment_id: grade
-        for grade in enrollment.grades.select_related("assessment")
-    }
+    offering_of = {e.pk: e.offering_id for e in enrollments}
+    offerings = set(offering_of.values())
 
-    weights = AssessmentLOWeight.objects.filter(
-        learning_outcome__offering_id=enrollment.offering_id,
-        assessment__offering_id=enrollment.offering_id,
-    )
+    percentages = defaultdict(dict)
+    grades = Grade.objects.filter(
+        enrollment_id__in=offering_of,
+    ).select_related("assessment")
+    for grade in grades:
+        max_score = grade.assessment.max_score
+        if max_score != ZERO:
+            percentages[grade.enrollment_id][grade.assessment_id] = grade.score / max_score * HUNDRED
 
-    per_lo = defaultdict(list)
+    lo_weights = defaultdict(list)
+    for offering_id, assessment_id, lo_id, weight in AssessmentLOWeight.objects.filter(
+        learning_outcome__offering_id__in=offerings,
+        assessment__offering_id=F("learning_outcome__offering_id"),
+    ).values_list("learning_outcome__offering_id", "assessment_id", "learning_outcome_id", "weight"):
+        lo_weights[offering_id].append((assessment_id, lo_id, weight))
 
-    for weight in weights:
-        grade = grades.get(weight.assessment_id)
-
-        if grade is None or grade.assessment.max_score == ZERO:
-            continue
-
-        percentage = (
-            grade.score / grade.assessment.max_score * HUNDRED
-        )
-        per_lo[weight.learning_outcome_id].append(
-            (percentage, weight.weight)
-        )
+    po_weights = defaultdict(list)
+    for offering_id, lo_id, po_code, level in LOPOWeight.objects.filter(
+        learning_outcome__offering_id__in=offerings,
+    ).values_list("learning_outcome__offering_id", "learning_outcome_id", "program_outcome__code", "weight"):
+        po_weights[offering_id].append((lo_id, po_code, Decimal(level)))
 
     results = {}
-    for lo_id, pairs in per_lo.items():
-        score = weighted_mean(pairs)
-        if score is not None:
-            results[lo_id] = score
+    for enrollment_id, offering_id in offering_of.items():
+        own = percentages.get(enrollment_id, {})
 
+        per_lo = defaultdict(list)
+        for assessment_id, lo_id, weight in lo_weights[offering_id]:
+            if assessment_id in own:
+                per_lo[lo_id].append((own[assessment_id], weight))
+        los = _means(per_lo)
+
+        per_po = defaultdict(list)
+        for lo_id, po_code, level in po_weights[offering_id]:
+            if lo_id in los:
+                per_po[po_code].append((los[lo_id], level))
+
+        results[enrollment_id] = (los, _means(per_po))
     return results
+
+
+def lo_scores(enrollment):
+    """Return {lo_id: Decimal} scores on a 0-100 scale."""
+    return _scores([enrollment])[enrollment.pk][0]
 
 
 def course_po_scores(enrollment):
@@ -80,29 +107,7 @@ def course_po_scores(enrollment):
 
     LO scores are weighted by their LO-to-PO contribution levels.
     """
-    los = lo_scores(enrollment)
-
-    weights = LOPOWeight.objects.filter(
-        learning_outcome_id__in=los,
-    ).select_related("program_outcome")
-
-    per_po = defaultdict(list)
-
-    for weight in weights:
-        per_po[weight.program_outcome.code].append(
-            (
-                los[weight.learning_outcome_id],
-                Decimal(weight.weight),
-            )
-        )
-
-    results = {}
-    for po_code, pairs in per_po.items():
-        score = weighted_mean(pairs)
-        if score is not None:
-            results[po_code] = score
-
-    return results
+    return _scores([enrollment])[enrollment.pk][1]
 
 
 def student_po_scores(student):
@@ -111,25 +116,17 @@ def student_po_scores(student):
     Only courses with an available score contribute to each PO.
     All enrollments are included, including repeated courses.
     """
-    enrollments = Enrollment.objects.filter(
-        student=student,
-    ).select_related("offering__course")
+    enrollments = list(
+        Enrollment.objects.filter(student=student).select_related("offering__course"),
+    )
+    scores = _scores(enrollments)
 
     per_po = defaultdict(list)
-
     for enrollment in enrollments:
         ects = Decimal(enrollment.offering.course.ects)
-
-        for po_code, score in course_po_scores(enrollment).items():
+        for po_code, score in scores[enrollment.pk][1].items():
             per_po[po_code].append((score, ects))
-
-    results = {}
-    for po_code, pairs in per_po.items():
-        score = weighted_mean(pairs)
-        if score is not None:
-            results[po_code] = score
-
-    return results
+    return _means(per_po)
 
 
 def offering_po_scores(offering):
@@ -138,15 +135,7 @@ def offering_po_scores(offering):
     Students without a score for a PO are excluded from that PO's mean.
     """
     per_po = defaultdict(list)
-
-    for enrollment in offering.enrollments.all():
-        for po_code, score in course_po_scores(enrollment).items():
+    for _, po_scores in _scores(list(offering.enrollments.all())).values():
+        for po_code, score in po_scores.items():
             per_po[po_code].append((score, ONE))
-
-    results = {}
-    for po_code, pairs in per_po.items():
-        score = weighted_mean(pairs)
-        if score is not None:
-            results[po_code] = score
-
-    return results
+    return _means(per_po)

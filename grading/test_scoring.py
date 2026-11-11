@@ -366,3 +366,15 @@ class ElifExampleTests(TestCase):
         )
 
         self.assertEqual(student_po_scores(student), {})
+
+    def test_student_scores_query_count(self):
+        # enrollments, grades, assessment weights, outcome weights
+        with self.assertNumQueries(4):
+            student_po_scores(self.elif_)
+
+    def test_offering_scores_query_count(self):
+        for n in range(5):
+            student = get_user_model().objects.create_user(username=f"s{n}")
+            Enrollment.objects.create(offering=self.offering, student=student)
+        with self.assertNumQueries(4):
+            offering_po_scores(self.offering)
