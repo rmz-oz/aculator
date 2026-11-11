@@ -19,7 +19,7 @@ def delete_role_groups(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('grading', '0001_initial'),
+        ('grading', '0002_materialized_views'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
