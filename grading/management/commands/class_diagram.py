@@ -126,6 +126,16 @@ def render(app_label="grading"):
             lines.append(f'  style: {{stroke: "{color}"; stroke-width: 2; font-color: "{color}"}}')
             lines.append("}")
 
+    # Many to many links: many on both sides.
+    for model in app_models:
+        for field in model._meta.many_to_many:
+            target = field.related_model.__name__
+            lines.append(f'{model.__name__} -> {target}: "{field.name}" {{')
+            lines.append('  source-arrowhead.label: "*"')
+            lines.append('  target-arrowhead.label: "*"')
+            lines.append('  style: {stroke: "#41464E"; stroke-width: 2; stroke-dash: 4; font-color: "#41464E"}')
+            lines.append("}")
+
     return "\n".join(lines) + "\n"
 
 
