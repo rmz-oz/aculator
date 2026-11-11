@@ -16,6 +16,10 @@ Acıbadem University, Fall 2026.
 - Esin Sarıaltın: backend and calculation
 - Rana İlgi Yılmaz: product owner, frontend
 
+## Slides and reports
+
+[Slides and reports](https://rmz-oz.github.io/aculator/slides/) (password protected)
+
 ## Run locally
 
 ```
@@ -35,6 +39,16 @@ Every green `main` is built into `ghcr.io/rmz-oz/aculator` and deployed to Rende
 
 ```
 docker build -t aculator . && docker run --rm -p 8000:8000 -e DATABASE_URL=postgres://postgres:postgres@host.docker.internal:5432/aculator aculator
+```
+
+## Diagrams
+
+[Architecture](docs/architecture.png) and [classes](docs/classes.png). The class diagram is generated from the models;
+a test fails if it is out of date. After changing a model:
+
+```
+python manage.py class_diagram
+d2 --layout elk --font-regular SchibstedGrotesk-Regular.ttf --font-bold SchibstedGrotesk-Bold.ttf docs/classes.d2 docs/classes.png
 ```
 
 ## How we work
