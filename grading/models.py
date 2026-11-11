@@ -63,6 +63,10 @@ class CourseOffering(models.Model):
 
     course = models.ForeignKey(Course, on_delete=models.PROTECT, related_name="offerings")
     term = models.ForeignKey(Term, on_delete=models.PROTECT, related_name="offerings")
+    # Who teaches this offering. Instructors see only the offerings listed here.
+    instructors = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name="teaching"
+    )
 
     class Meta:
         ordering = ("-term__year", "term__season", "course__code")
