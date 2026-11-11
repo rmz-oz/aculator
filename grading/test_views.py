@@ -15,6 +15,7 @@ from .models import (
     Grade,
     LearningOutcome,
     LOPOWeight,
+    POComponent,
     ProgramOutcome,
     Term,
 )
@@ -30,7 +31,8 @@ class CourseReportViewTests(TestCase):
         cls.offering = CourseOffering.objects.create(course=cls.course, term=cls.term)
         cls.po1 = ProgramOutcome.objects.create(code="PO1")
         cls.lo1 = LearningOutcome.objects.create(offering=cls.offering, code="LO1")
-        LOPOWeight.objects.create(learning_outcome=cls.lo1, program_outcome=cls.po1, weight=1)
+        component = POComponent.objects.create(program_outcome=cls.po1, code="a")
+        LOPOWeight.objects.create(learning_outcome=cls.lo1, component=component, weight=1)
 
         cls.midterm = Assessment.objects.create(offering=cls.offering, name="Midterm", max_score=D("100"))
         AssessmentLOWeight.objects.create(assessment=cls.midterm, learning_outcome=cls.lo1, weight=D("1"))

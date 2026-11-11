@@ -38,6 +38,27 @@ class ProgramOutcome(models.Model):
         return self.code
 
 
+class POComponent(models.Model):
+    """A separately evidenced component of a program outcome (MÜDEK 3.3, #25)."""
+
+    program_outcome = models.ForeignKey(
+        ProgramOutcome,
+        on_delete=models.CASCADE,
+        related_name="components",
+    )
+    code = models.CharField(max_length=10)  # e.g. "a", unique within the PO
+    description = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ("program_outcome__code", "code")
+        constraints = (
+            models.UniqueConstraint(fields=["program_outcome", "code"], name="uniq_po_component"),
+        )
+
+    def __str__(self):
+        return f"{self.program_outcome.code}.{self.code}"
+
+
 class Course(models.Model):
     """A course in the catalog. Term-independent; see CourseOffering."""
 
@@ -241,15 +262,15 @@ class AssessmentLOWeight(models.Model):
 
 
 class LOPOWeight(models.Model):
-    """An LO's contribution level to a PO, on an integer scale from 1 to 5."""
+    """An LO's contribution level to a PO component, on an integer scale from 1 to 5."""
 
     learning_outcome = models.ForeignKey(
         LearningOutcome,
         on_delete=models.CASCADE,
         related_name="po_weights",
     )
-    program_outcome = models.ForeignKey(
-        ProgramOutcome,
+    component = models.ForeignKey(
+        POComponent,
         on_delete=models.CASCADE,
         related_name="lo_weights",
     )
@@ -260,8 +281,8 @@ class LOPOWeight(models.Model):
     class Meta:
         constraints = (
             models.UniqueConstraint(
-                fields=["learning_outcome", "program_outcome"],
-                name="uniq_lo_po",
+                fields=["learning_outcome", "component"],
+                name="uniq_lo_component",
             ),
             models.CheckConstraint(
                 condition=models.Q(weight__gte=1, weight__lte=5),
@@ -272,5 +293,5 @@ class LOPOWeight(models.Model):
     def __str__(self):
         return (
             f"{self.learning_outcome.code} -> "
-            f"{self.program_outcome.code}: {self.weight}"
+            f"{self.component}: {self.weight}"
         )
