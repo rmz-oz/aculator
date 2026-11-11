@@ -54,6 +54,7 @@ class CourseOfferingAdmin(admin.ModelAdmin):
     list_select_related = ("course", "term")
     search_fields = ("course__code", "course__name")
     autocomplete_fields = ("course",)
+    filter_horizontal = ("instructors",)
     inlines = (LearningOutcomeInline, AssessmentInline, EnrollmentInline)
 
 
