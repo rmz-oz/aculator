@@ -1,9 +1,11 @@
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.urls import reverse
 
+from .access import HEAD, INSTRUCTOR, STUDENT
 from .models import (
     Assessment,
     AssessmentLOWeight,
@@ -42,6 +44,19 @@ class CourseReportViewTests(TestCase):
         cls.ungraded = get_user_model().objects.create_user(username="can")
         Enrollment.objects.create(offering=cls.offering, student=cls.ungraded)
 
+        users = get_user_model().objects
+        cls.head = users.create_user(username="head")
+        cls.head.groups.add(Group.objects.get(name=HEAD))
+        cls.teacher = users.create_user(username="teacher")
+        cls.teacher.groups.add(Group.objects.get(name=INSTRUCTOR))
+        cls.offering.instructors.add(cls.teacher)
+        cls.other_teacher = users.create_user(username="other-teacher")
+        cls.other_teacher.groups.add(Group.objects.get(name=INSTRUCTOR))
+        cls.graded.groups.add(Group.objects.get(name=STUDENT))
+
+    def setUp(self):
+        self.client.force_login(self.head)
+
     def test_renders_scores_and_class_average(self):
         response = self.client.get(reverse("course_report", args=[self.offering.pk]))
 
@@ -78,5 +93,22 @@ class CourseReportViewTests(TestCase):
             student = get_user_model().objects.create_user(username=f"extra{i}")
             Enrollment.objects.create(offering=self.offering, student=student)
 
-        with self.assertNumQueries(6):  # offering, LOs, enrollments, grades, LO weights, PO weights
+        # session, user, role, then offering, LOs, enrollments, grades, LO weights, PO weights
+        with self.assertNumQueries(9):
             self.client.get(reverse("course_report", args=[self.offering.pk]))
+
+    def test_only_head_and_own_instructor_can_open_the_report(self):
+        url = reverse("course_report", args=[self.offering.pk])
+        cases = [
+            (None, 404),
+            (self.graded, 404),  # a student, even one in this course
+            (self.other_teacher, 404),
+            (self.teacher, 200),
+            (self.head, 200),
+        ]
+        for user, status in cases:
+            with self.subTest(user=user):
+                self.client.logout()
+                if user:
+                    self.client.force_login(user)
+                self.assertEqual(self.client.get(url).status_code, status)

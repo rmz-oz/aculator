@@ -47,6 +47,20 @@ def visible_offerings(user):
     return qs.none()
 
 
+def report_offerings(user):
+    """Offerings whose class report the user may open.
+
+    A class report lists every student's scores, so students get none, even in
+    courses they take: the head sees every offering, an instructor the ones they teach.
+    """
+    role = role_of(user)
+    if role == HEAD:
+        return CourseOffering.objects.all()
+    if role == INSTRUCTOR:
+        return CourseOffering.objects.filter(instructors=user)
+    return CourseOffering.objects.none()
+
+
 def visible_enrollments(user):
     role = role_of(user)
     qs = Enrollment.objects.all()

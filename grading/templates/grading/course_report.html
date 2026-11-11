@@ -29,7 +29,6 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      font-variant-numeric: tabular-nums;
       font-size: 0.95rem;
     }
     caption {
@@ -41,27 +40,29 @@
     th, td {
       padding: 8px 10px;
       text-align: right;
-      border-bottom: 1px solid var(--line);
       white-space: nowrap;
     }
     th:first-child, td:first-child { text-align: left; }
-    thead th { font-weight: 700; border-bottom: 2px solid var(--ink); }
-    tbody tr:last-child td { border-bottom: 2px solid var(--ink); }
-    tfoot td { font-weight: 700; }
+    /* Tabular figures only in number cells, they widen commas in running text (decision 0006). */
+    td { font-variant-numeric: tabular-nums; }
+    thead th { font-weight: 700; }
+    tbody tr:nth-child(odd) { background: #F4F5F7; }
+    tfoot td { font-weight: 700; padding-top: 14px; }
     .po-col { color: var(--blue); }
+    /* Missing evidence is its own state, hatched, never a number (decision 0006). */
     .missing {
-      color: var(--muted);
-      border: 1px dashed var(--line);
-      border-radius: 4px;
-      padding: 2px 6px;
+      display: inline-block;
+      min-width: 2.6em;
+      color: transparent;
+      background: repeating-linear-gradient(135deg, #C9CCD1 0 2px, transparent 2px 6px);
     }
     .empty { color: var(--muted); font-style: italic; }
   </style>
 </head>
 <body>
 <main>
-  <h1>{{ offering.course.code }} &mdash; {{ offering.course.name }}</h1>
-  <p class="subtitle">{{ offering.term }} &middot; {{ rows|length }} student{{ rows|length|pluralize }}</p>
+  <h1>{{ offering.course.code }} {{ offering.course.name }}</h1>
+  <p class="subtitle">{{ offering.term }}, {{ rows|length }} student{{ rows|length|pluralize }}</p>
 
   {% if rows %}
   <table>
@@ -81,10 +82,10 @@
       <tr>
         <th scope="row">{{ row.student.get_full_name|default:row.student.username }}</th>
         {% for cell in row.lo_cells %}
-          <td>{% if cell is not None %}{{ cell }}{% else %}<span class="missing" title="Not enough evidence">&ndash;</span>{% endif %}</td>
+          <td>{% if cell is not None %}{{ cell }}{% else %}<span class="missing" title="Not enough evidence">&nbsp;</span>{% endif %}</td>
         {% endfor %}
         {% for cell in row.po_cells %}
-          <td class="po-col">{% if cell is not None %}{{ cell }}{% else %}<span class="missing" title="Not enough evidence">&ndash;</span>{% endif %}</td>
+          <td class="po-col">{% if cell is not None %}{{ cell }}{% else %}<span class="missing" title="Not enough evidence">&nbsp;</span>{% endif %}</td>
         {% endfor %}
       </tr>
       {% endfor %}
@@ -93,10 +94,10 @@
       <tr>
         <td>Class average</td>
         {% for cell in lo_class_avg %}
-          <td>{% if cell is not None %}{{ cell }}{% else %}<span class="missing">&ndash;</span>{% endif %}</td>
+          <td>{% if cell is not None %}{{ cell }}{% else %}<span class="missing">&nbsp;</span>{% endif %}</td>
         {% endfor %}
         {% for cell in po_class_avg %}
-          <td class="po-col">{% if cell is not None %}{{ cell }}{% else %}<span class="missing">&ndash;</span>{% endif %}</td>
+          <td class="po-col">{% if cell is not None %}{{ cell }}{% else %}<span class="missing">&nbsp;</span>{% endif %}</td>
         {% endfor %}
       </tr>
     </tfoot>

@@ -2,8 +2,8 @@ from decimal import Decimal
 
 from django.shortcuts import get_object_or_404, render
 
-from .models import CourseOffering
-from .services import _scores, display, weighted_mean
+from .access import report_offerings
+from .services import display, scores_by_enrollment, weighted_mean
 
 ONE = Decimal(1)
 
@@ -16,10 +16,12 @@ def _po_sort_key(code):
 def course_report(request, offering_id):
     """Instructor view of one offering: per-student and class LO/PO scores.
 
-    No access check yet: who may view which offering is #68's `grading.access`.
+    Only the head of department and the offering's instructors may open it
+    (grading.access.report_offerings); everyone else gets 404, so the page does
+    not even confirm that the offering exists.
     """
     offering = get_object_or_404(
-        CourseOffering.objects.select_related("course", "term"),
+        report_offerings(request.user).select_related("course", "term"),
         pk=offering_id,
     )
     los = list(offering.learning_outcomes.all())
@@ -30,7 +32,7 @@ def course_report(request, offering_id):
     )
 
     # One batched call for the whole class, not one query per student.
-    scores = _scores(enrollments)
+    scores = scores_by_enrollment(enrollments)
 
     lo_values = {lo.pk: [] for lo in los}
     po_values = {}

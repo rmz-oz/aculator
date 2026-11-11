@@ -46,7 +46,7 @@ def _means(groups):
     return results
 
 
-def _scores(enrollments):
+def scores_by_enrollment(enrollments):
     """Return {enrollment_id: (lo_scores, po_scores)} in three queries.
 
     Missing grades and assessments with max_score=0 are excluded.
@@ -99,7 +99,7 @@ def _scores(enrollments):
 
 def lo_scores(enrollment):
     """Return {lo_id: Decimal} scores on a 0-100 scale."""
-    return _scores([enrollment])[enrollment.pk][0]
+    return scores_by_enrollment([enrollment])[enrollment.pk][0]
 
 
 def course_po_scores(enrollment):
@@ -107,7 +107,7 @@ def course_po_scores(enrollment):
 
     LO scores are weighted by their LO-to-PO contribution levels.
     """
-    return _scores([enrollment])[enrollment.pk][1]
+    return scores_by_enrollment([enrollment])[enrollment.pk][1]
 
 
 def student_po_scores(student):
@@ -119,7 +119,7 @@ def student_po_scores(student):
     enrollments = list(
         Enrollment.objects.filter(student=student).select_related("offering__course"),
     )
-    scores = _scores(enrollments)
+    scores = scores_by_enrollment(enrollments)
 
     per_po = defaultdict(list)
     for enrollment in enrollments:
@@ -135,7 +135,7 @@ def offering_po_scores(offering):
     Students without a score for a PO are excluded from that PO's mean.
     """
     per_po = defaultdict(list)
-    for _, po_scores in _scores(list(offering.enrollments.all())).values():
+    for _, po_scores in scores_by_enrollment(list(offering.enrollments.all())).values():
         for po_code, score in po_scores.items():
             per_po[po_code].append((score, ONE))
     return _means(per_po)
