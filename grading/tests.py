@@ -17,6 +17,7 @@ from .models import (
     Grade,
     LearningOutcome,
     LOPOWeight,
+    POComponent,
     ProgramOutcome,
     Term,
 )
@@ -62,12 +63,15 @@ class GradingModelTests(TestCase):
             code="LO1",
         )
         cls.po = ProgramOutcome.objects.create(code="PO1")
+        cls.component = POComponent.objects.create(
+            program_outcome=cls.po,
+            code="a",
+        )
 
     def assert_database_rejects(self, model, **fields):
         # The savepoint keeps this TestCase's transaction usable after failure.
         with self.assertRaises(IntegrityError), transaction.atomic():
             model.objects.create(**fields)
-
 
     def test_grade_above_max_score_is_rejected(self):
         grade = Grade(
@@ -178,7 +182,7 @@ class GradingModelTests(TestCase):
             with self.subTest(weight=value):
                 fields = {
                     "learning_outcome": self.lo,
-                    "program_outcome": self.po,
+                    "component": self.component,
                     "weight": value,
                 }
 
@@ -192,12 +196,45 @@ class GradingModelTests(TestCase):
             with self.subTest(weight=value):
                 weight = LOPOWeight(
                     learning_outcome=self.lo,
-                    program_outcome=self.po,
+                    component=self.component,
                     weight=value,
                 )
                 weight.full_clean()
                 weight.save()
                 weight.delete()
+
+    def test_duplicate_lo_component_weight_is_rejected(self):
+        fields = {
+            "learning_outcome": self.lo,
+            "component": self.component,
+            "weight": 3,
+        }
+        LOPOWeight.objects.create(**fields)
+
+        with self.assertRaises(ValidationError):
+            LOPOWeight(**fields).full_clean()
+
+        self.assert_database_rejects(LOPOWeight, **fields)
+
+    def test_lo_can_contribute_to_multiple_components_of_same_po(self):
+        other_component = POComponent.objects.create(
+            program_outcome=self.po,
+            code="b",
+        )
+
+        for component in (self.component, other_component):
+            weight = LOPOWeight(
+                learning_outcome=self.lo,
+                component=component,
+                weight=3,
+            )
+            weight.full_clean()
+            weight.save()
+
+        self.assertEqual(
+            LOPOWeight.objects.filter(learning_outcome=self.lo).count(),
+            2,
+        )
 
     def test_negative_assessment_max_score_is_rejected(self):
         fields = {
@@ -218,10 +255,16 @@ class FakeDataTests(TestCase):
 
     def snapshot(self):
         return (
-            list(Grade.objects.order_by("enrollment__student__username", "assessment__offering_id", "assessment__name")
-                 .values_list("score", flat=True)),
+            list(
+                Grade.objects.order_by(
+                    "enrollment__student__username",
+                    "assessment__offering_id",
+                    "assessment__name",
+                ).values_list("score", flat=True)
+            ),
             LOPOWeight.objects.count(),
             Enrollment.objects.count(),
+            POComponent.objects.count(),
         )
 
     def test_rerun_adds_nothing(self):
@@ -232,17 +275,31 @@ class FakeDataTests(TestCase):
 
     def test_data_passes_model_validation(self):
         self.run_command()
-        for model in (Grade, AssessmentLOWeight, LOPOWeight):
+        for model in (Grade, AssessmentLOWeight, LOPOWeight, POComponent):
             for obj in model.objects.all():
                 obj.full_clean()
 
     def test_each_student_takes_a_course_once(self):
         self.run_command()
         repeats = (
-            Enrollment.objects.values("student", "offering__course").annotate(n=Count("id")).filter(n__gt=1)
+            Enrollment.objects.values("student", "offering__course")
+            .annotate(n=Count("id"))
+            .filter(n__gt=1)
         )
         self.assertFalse(repeats.exists())
 
     def test_eleven_program_outcomes(self):
         self.run_command()
         self.assertEqual(ProgramOutcome.objects.count(), 11)
+
+    def test_each_program_outcome_has_initial_component(self):
+        self.run_command()
+
+        self.assertEqual(POComponent.objects.count(), 11)
+        self.assertEqual(
+            POComponent.objects.filter(code="a").count(),
+            11,
+        )
+        self.assertFalse(
+            ProgramOutcome.objects.filter(components__isnull=True).exists()
+        )

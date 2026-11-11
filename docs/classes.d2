@@ -36,6 +36,18 @@ ProgramOutcome: {
   }
 }
 
+POComponent: {
+  shape: class
+  "code": "str(10)"
+  "description": "text"
+  style: {
+    fill: "#0D1117"
+    stroke: "#FFFFFF"
+    font-color: "#FFFFFF"
+    font-size: 16
+  }
+}
+
 Course: {
   shape: class
   "code": "str(20) unique"
@@ -139,6 +151,11 @@ User: {
   }
 }
 
+POComponent -> ProgramOutcome: "program_outcome" {
+  source-arrowhead.label: "*"
+  target-arrowhead.label: "1"
+  style: {stroke: "#41464E"; stroke-width: 2; font-color: "#41464E"}
+}
 CourseOffering -> Course: "course, PROTECT" {
   source-arrowhead.label: "*"
   target-arrowhead.label: "1"
@@ -194,7 +211,7 @@ LOPOWeight -> LearningOutcome: "learning_outcome" {
   target-arrowhead.label: "1"
   style: {stroke: "#41464E"; stroke-width: 2; font-color: "#41464E"}
 }
-LOPOWeight -> ProgramOutcome: "program_outcome" {
+LOPOWeight -> POComponent: "component" {
   source-arrowhead.label: "*"
   target-arrowhead.label: "1"
   style: {stroke: "#41464E"; stroke-width: 2; font-color: "#41464E"}

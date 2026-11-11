@@ -12,6 +12,7 @@ from .models import (
     Grade,
     LearningOutcome,
     LOPOWeight,
+    POComponent,
     ProgramOutcome,
     Term,
 )
@@ -70,6 +71,15 @@ class ElifExampleTests(TestCase):
         )
         cls.po1 = ProgramOutcome.objects.create(code="PO1")
         cls.po2 = ProgramOutcome.objects.create(code="PO2")
+
+        cls.component1 = POComponent.objects.create(
+            program_outcome=cls.po1,
+            code="a",
+        )
+        cls.component2 = POComponent.objects.create(
+            program_outcome=cls.po2,
+            code="a",
+        )
 
         cls.course = Course.objects.create(
             code="CSE311",
@@ -131,17 +141,17 @@ class ElifExampleTests(TestCase):
         # Levels 2:1 preserve the guidelines' weight ratio 1.0:0.5.
         LOPOWeight.objects.create(
             learning_outcome=cls.lo1,
-            program_outcome=cls.po1,
+            component=cls.component1,
             weight=2,
         )
         LOPOWeight.objects.create(
             learning_outcome=cls.lo2,
-            program_outcome=cls.po1,
+            component=cls.component1,
             weight=1,
         )
         LOPOWeight.objects.create(
             learning_outcome=cls.lo2,
-            program_outcome=cls.po2,
+            component=cls.component2,
             weight=1,
         )
 
@@ -228,7 +238,7 @@ class ElifExampleTests(TestCase):
         )
         LOPOWeight.objects.create(
             learning_outcome=lo,
-            program_outcome=self.po1,
+            component=self.component1,
             weight=1,
         )
 
@@ -368,13 +378,17 @@ class ElifExampleTests(TestCase):
         self.assertEqual(student_po_scores(student), {})
 
     def test_student_scores_query_count(self):
-        # enrollments, grades, assessment weights, outcome weights
+        # Enrollments, grades, assessment weights, component weights.
         with self.assertNumQueries(4):
             student_po_scores(self.elif_)
 
     def test_offering_scores_query_count(self):
         for n in range(5):
             student = get_user_model().objects.create_user(username=f"s{n}")
-            Enrollment.objects.create(offering=self.offering, student=student)
+            Enrollment.objects.create(
+                offering=self.offering,
+                student=student,
+            )
+
         with self.assertNumQueries(4):
             offering_po_scores(self.offering)

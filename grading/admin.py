@@ -34,11 +34,27 @@ class TermAdmin(admin.ModelAdmin):
     list_display = ("year", "season")
     list_filter = ("season",)
 
+class POComponentInline(admin.TabularInline):
+    model = m.POComponent
+    extra = 0
+
+
+@admin.register(m.POComponent)
+class POComponentAdmin(admin.ModelAdmin):
+    list_display = ("program_outcome", "code", "description")
+    list_filter = ("program_outcome",)
+    search_fields = (
+        "program_outcome__code",
+        "code",
+        "description",
+    )
+    list_select_related = ("program_outcome",)
 
 @admin.register(m.ProgramOutcome)
 class ProgramOutcomeAdmin(admin.ModelAdmin):
     list_display = ("code", "description")
     search_fields = ("code", "description")
+    inlines = (POComponentInline,)
 
 
 @admin.register(m.Course)
@@ -106,6 +122,9 @@ class AssessmentLOWeightAdmin(admin.ModelAdmin):
 
 @admin.register(m.LOPOWeight)
 class LOPOWeightAdmin(admin.ModelAdmin):
-    list_display = ("learning_outcome", "program_outcome", "weight")
-    list_select_related = ("learning_outcome", "program_outcome")
+    list_display = ("learning_outcome", "component", "weight")
+    list_select_related = (
+        "learning_outcome",
+        "component__program_outcome",
+    )
 

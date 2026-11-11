@@ -41,7 +41,11 @@ class MaterializedViewTests(TestCase):
         Grade.objects.create(enrollment=enrollment, assessment=final, score=Decimal(35))
         lo = LearningOutcome.objects.create(offering=offering, code="LO1")
         AssessmentLOWeight.objects.create(assessment=final, learning_outcome=lo, weight=Decimal(1))
-        LOPOWeight.objects.create(learning_outcome=lo, program_outcome=cls.po1, weight=3)
+        LOPOWeight.objects.create(
+            learning_outcome=lo,
+            component=cls.component1,
+            weight=3,
+        )
 
     def setUp(self):
         # Grades made in setUpTestData queued refreshes on the class transaction,
