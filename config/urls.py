@@ -21,6 +21,8 @@ from django.db import connection
 from django.http import JsonResponse
 from django.urls import path
 
+from grading import views as grading_views
+
 
 def healthz(request):
     """Used by Render's health check and the Deploy workflow. Fails if the database is unreachable.
@@ -35,4 +37,5 @@ def healthz(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('healthz/', healthz),
+    path('offerings/<int:offering_id>/report/', grading_views.course_report, name='course_report'),
 ]

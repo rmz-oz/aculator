@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ offering.course.code }} course report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #0D1117;
+      --muted: #5F646C;
+      --line: #B9BCC1;
+      --blue: #1D4ED8;
+      --red: #C21F32;
+    }
+    * { box-sizing: border-box; }
+    body {
+      background: #FFFFFF;
+      color: var(--ink);
+      font-family: "Schibsted Grotesk", system-ui, sans-serif;
+      margin: 0;
+      padding: 24px 16px 48px;
+    }
+    main { max-width: 960px; margin: 0 auto; }
+    h1 { font-size: 1.4rem; margin: 0 0 2px; }
+    .subtitle { color: var(--muted); margin: 0 0 24px; font-size: 0.95rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+    caption {
+      text-align: left;
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+    }
+    th, td {
+      padding: 8px 10px;
+      text-align: right;
+      white-space: nowrap;
+    }
+    th:first-child, td:first-child { text-align: left; }
+    /* Tabular figures only in number cells, they widen commas in running text (decision 0006). */
+    td { font-variant-numeric: tabular-nums; }
+    thead th { font-weight: 700; }
+    tbody tr:nth-child(odd) { background: #F4F5F7; }
+    tfoot td { font-weight: 700; padding-top: 14px; }
+    .po-col { color: var(--blue); }
+    /* Missing evidence is its own state, hatched, never a number (decision 0006). */
+    .missing {
+      display: inline-block;
+      min-width: 2.6em;
+      color: transparent;
+      background: repeating-linear-gradient(135deg, #C9CCD1 0 2px, transparent 2px 6px);
+    }
+    .empty { color: var(--muted); font-style: italic; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>{{ offering.course.code }} {{ offering.course.name }}</h1>
+  <p class="subtitle">{{ offering.term }}, {{ rows|length }} student{{ rows|length|pluralize }}</p>
+
+  {% if rows %}
+  <table>
+    <caption>
+      Learning outcome and program outcome scores for every student enrolled in {{ offering.course.code }},
+      {{ offering.term }}. Missing scores mean not enough graded evidence yet.
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Student</th>
+        {% for lo in los %}<th scope="col">{{ lo.code }}</th>{% endfor %}
+        {% for code in po_codes %}<th scope="col" class="po-col">{{ code }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <th scope="row">{{ row.student.get_full_name|default:row.student.username }}</th>
+        {% for cell in row.lo_cells %}
+          <td>{% if cell is not None %}{{ cell }}{% else %}<span class="missing" title="Not enough evidence">&nbsp;</span>{% endif %}</td>
+        {% endfor %}
+        {% for cell in row.po_cells %}
+          <td class="po-col">{% if cell is not None %}{{ cell }}{% else %}<span class="missing" title="Not enough evidence">&nbsp;</span>{% endif %}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td>Class average</td>
+        {% for cell in lo_class_avg %}
+          <td>{% if cell is not None %}{{ cell }}{% else %}<span class="missing">&nbsp;</span>{% endif %}</td>
+        {% endfor %}
+        {% for cell in po_class_avg %}
+          <td class="po-col">{% if cell is not None %}{{ cell }}{% else %}<span class="missing">&nbsp;</span>{% endif %}</td>
+        {% endfor %}
+      </tr>
+    </tfoot>
+  </table>
+  {% else %}
+  <p class="empty">No students enrolled yet.</p>
+  {% endif %}
+</main>
+</body>
+</html>

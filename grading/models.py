@@ -28,7 +28,7 @@ class Term(models.Model):
 class ProgramOutcome(models.Model):
     """A program-level outcome (PO) of the department, shared by all courses."""
 
-    code = models.CharField(max_length=10, unique=True)
+    code = models.CharField(max_length=10, unique=True)  # e.g. "PO1"
     description = models.TextField(blank=True)
 
     class Meta:
@@ -39,23 +39,20 @@ class ProgramOutcome(models.Model):
 
 
 class POComponent(models.Model):
-    """A separately evidenced component of a program outcome."""
+    """A separately evidenced component of a program outcome (MÜDEK 3.3, #25)."""
 
     program_outcome = models.ForeignKey(
         ProgramOutcome,
         on_delete=models.CASCADE,
         related_name="components",
     )
-    code = models.CharField(max_length=10)
+    code = models.CharField(max_length=10)  # e.g. "a", unique within the PO
     description = models.TextField(blank=True)
 
     class Meta:
         ordering = ("program_outcome__code", "code")
         constraints = (
-            models.UniqueConstraint(
-                fields=["program_outcome", "code"],
-                name="uniq_po_component",
-            ),
+            models.UniqueConstraint(fields=["program_outcome", "code"], name="uniq_po_component"),
         )
 
     def __str__(self):
@@ -85,20 +82,17 @@ class CourseOffering(models.Model):
     its grading data.
     """
 
-    course = models.ForeignKey(
-        Course, on_delete=models.PROTECT, related_name="offerings"
-    )
-    term = models.ForeignKey(
-        Term, on_delete=models.PROTECT, related_name="offerings"
+    course = models.ForeignKey(Course, on_delete=models.PROTECT, related_name="offerings")
+    term = models.ForeignKey(Term, on_delete=models.PROTECT, related_name="offerings")
+    # Who teaches this offering. Instructors see only the offerings listed here.
+    instructors = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name="teaching"
     )
 
     class Meta:
         ordering = ("-term__year", "term__season", "course__code")
         constraints = (
-            models.UniqueConstraint(
-                fields=["course", "term"],
-                name="uniq_offering_course_term",
-            ),
+            models.UniqueConstraint(fields=["course", "term"], name="uniq_offering_course_term"),
         )
 
     def __str__(self):
@@ -113,20 +107,15 @@ class LearningOutcome(models.Model):
     """
 
     offering = models.ForeignKey(
-        CourseOffering,
-        on_delete=models.CASCADE,
-        related_name="learning_outcomes",
+        CourseOffering, on_delete=models.CASCADE, related_name="learning_outcomes"
     )
-    code = models.CharField(max_length=10)
+    code = models.CharField(max_length=10)  # e.g. "LO1", unique within the offering
     description = models.TextField(blank=True)
 
     class Meta:
         ordering = ("offering", "code")
         constraints = (
-            models.UniqueConstraint(
-                fields=["offering", "code"],
-                name="uniq_lo_code_per_offering",
-            ),
+            models.UniqueConstraint(fields=["offering", "code"], name="uniq_lo_code_per_offering"),
         )
 
     def __str__(self):
@@ -137,16 +126,12 @@ class Assessment(models.Model):
     """A graded item of an offering (midterm, quiz, project, ...)."""
 
     offering = models.ForeignKey(
-        CourseOffering,
-        on_delete=models.CASCADE,
-        related_name="assessments",
+        CourseOffering, on_delete=models.CASCADE, related_name="assessments"
     )
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100)  # e.g. "Midterm"
     # Upper bound for Grade.score, checked in Grade.clean().
     max_score = models.DecimalField(
-        max_digits=6,
-        decimal_places=2,
-        default=100,
+        max_digits=6, decimal_places=2, default=100,
         validators=[MinValueValidator(0)],
     )
 
@@ -163,6 +148,7 @@ class Assessment(models.Model):
             ),
         )
 
+
     def __str__(self):
         return f"{self.offering} / {self.name}"
 
@@ -176,22 +162,15 @@ class Enrollment(models.Model):
     """
 
     offering = models.ForeignKey(
-        CourseOffering,
-        on_delete=models.CASCADE,
-        related_name="enrollments",
+        CourseOffering, on_delete=models.CASCADE, related_name="enrollments"
     )
     student = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="enrollments",
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="enrollments"
     )
 
     class Meta:
         constraints = (
-            models.UniqueConstraint(
-                fields=["offering", "student"],
-                name="uniq_enrollment",
-            ),
+            models.UniqueConstraint(fields=["offering", "student"], name="uniq_enrollment"),
         )
 
     def __str__(self):
@@ -201,20 +180,10 @@ class Enrollment(models.Model):
 class Grade(models.Model):
     """A student's score on one assessment (one grade per enrollment/assessment)."""
 
-    enrollment = models.ForeignKey(
-        Enrollment,
-        on_delete=models.CASCADE,
-        related_name="grades",
-    )
-    assessment = models.ForeignKey(
-        Assessment,
-        on_delete=models.CASCADE,
-        related_name="grades",
-    )
+    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, related_name="grades")
+    assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="grades")
     score = models.DecimalField(
-        max_digits=6,
-        decimal_places=2,
-        validators=[MinValueValidator(0)],
+        max_digits=6, decimal_places=2, validators=[MinValueValidator(0)]
     )
 
     class Meta:
@@ -256,19 +225,12 @@ class AssessmentLOWeight(models.Model):
     to the calculation layer.
     """
 
-    assessment = models.ForeignKey(
-        Assessment,
-        on_delete=models.CASCADE,
-        related_name="lo_weights",
-    )
+    assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="lo_weights")
     learning_outcome = models.ForeignKey(
-        LearningOutcome,
-        on_delete=models.CASCADE,
-        related_name="assessment_weights",
+        LearningOutcome, on_delete=models.CASCADE, related_name="assessment_weights"
     )
     weight = models.DecimalField(
-        max_digits=5,
-        decimal_places=4,
+        max_digits=5, decimal_places=4,
         validators=[MinValueValidator(0), MaxValueValidator(1)],
     )
 
@@ -292,15 +254,15 @@ class AssessmentLOWeight(models.Model):
         super().clean()
         if not (self.assessment_id and self.learning_outcome_id):
             return
-
         if self.assessment.offering_id != self.learning_outcome.offering_id:
             raise ValidationError(
                 "Assessment and learning outcome must belong to the same offering."
             )
 
 
+
 class LOPOWeight(models.Model):
-    """An LO's contribution level to a PO component, from 1 to 5."""
+    """An LO's contribution level to a PO component, on an integer scale from 1 to 5."""
 
     learning_outcome = models.ForeignKey(
         LearningOutcome,

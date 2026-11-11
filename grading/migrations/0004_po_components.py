@@ -109,7 +109,7 @@ ON cross_course_po_scores (student_id, program_outcome_id);
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("grading", "0002_materialized_views"),
+        ("grading", "0003_offering_instructors_and_roles"),
     ]
 
     operations = [

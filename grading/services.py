@@ -127,8 +127,8 @@ def _po_display_scores(components):
     return _means(groups)
 
 
-def _scores(enrollments):
-    """Keep the existing internal LO/PO result shape."""
+def scores_by_enrollment(enrollments):
+    """Return {enrollment_id: (lo_scores, po_scores)}; the course report page reads this."""
     results = {}
     for enrollment_id, (los, components) in _component_results(
         enrollments,
