@@ -1,12 +1,11 @@
 from collections import defaultdict
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from .models import AssessmentLOWeight, Enrollment, LOPOWeight
 
-
-ZERO = Decimal("0")
-ONE = Decimal("1")
-HUNDRED = Decimal("100")
+ZERO = Decimal(0)
+ONE = Decimal(1)
+HUNDRED = Decimal(100)
 
 
 def weighted_mean(pairs):

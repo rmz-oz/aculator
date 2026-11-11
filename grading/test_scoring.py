@@ -24,7 +24,6 @@ from .services import (
     weighted_mean,
 )
 
-
 D = Decimal
 
 
