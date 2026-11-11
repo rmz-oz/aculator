@@ -1,6 +1,5 @@
 from django.db import connections
 
-
 MATERIALIZED_VIEWS = (
     "student_lo_scores",
     "course_po_scores",

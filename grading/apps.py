@@ -6,4 +6,4 @@ class GradingConfig(AppConfig):
     name = "grading"
 
     def ready(self):
-        import grading.signals
+        pass
