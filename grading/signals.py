@@ -1,4 +1,6 @@
-from django.db import transaction
+from functools import partial
+
+from django.db import connections, transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
@@ -7,10 +9,14 @@ from grading.models import Grade
 
 
 def schedule_refresh(using):
-    transaction.on_commit(
-        lambda: refresh_materialized_views(using=using),
-        using=using,
-    )
+    """Refresh the views once after the transaction commits, however many grades changed.
+
+    A rolled back transaction drops its callbacks, so nothing is left behind.
+    """
+    pending = connections[using].run_on_commit
+    if any(getattr(func, "func", None) is refresh_materialized_views for _, func, _ in pending):
+        return
+    transaction.on_commit(partial(refresh_materialized_views, using=using), using=using)
 
 
 @receiver(post_save, sender=Grade)

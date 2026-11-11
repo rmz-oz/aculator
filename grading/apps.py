@@ -6,4 +6,4 @@ class GradingConfig(AppConfig):
     name = "grading"
 
     def ready(self):
-        pass
+        from . import signals  # noqa: F401  connects the grade signals
