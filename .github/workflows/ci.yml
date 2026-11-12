@@ -32,3 +32,36 @@ jobs:
           set -o pipefail
           python manage.py test 2>&1 | tee test.log
           grep -qE "^Ran [1-9][0-9]* test" test.log
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aculator
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/aculator
+      E2E_SCREENSHOTS: e2e-screenshots
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt -r requirements-e2e.txt
+      - run: playwright install --with-deps chromium
+      - name: Browser tests (fail if none ran)
+        run: |
+          set -o pipefail
+          python manage.py test e2e 2>&1 | tee e2e.log
+          grep -qE "^Ran [1-9][0-9]* test" e2e.log
+          ! grep -q "skipped=" e2e.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: e2e-screenshots/
