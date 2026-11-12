@@ -43,25 +43,25 @@ Extra work, no points: decision notes on outcome weights ([#62](https://github.c
 - Fake data is reproducible with `--seed`, covers 11 POs and is tested (18 tests).
 - Carry over to Sprint 2: #6, class diagram PR #65, Getting Real notes PR #59.
 
-## Sprint 2 (2026-11-05 – 2026-11-12) — Calculation, views. CSE 321 checkpoint Nov 12
+## Sprint 2 (2026-11-05 to 2026-11-12): Calculation, views, mid semester presentation
 
 | | points |
 |---|---|
 | Planned | 34 |
-| Done (as of 2026-11-11) | 29 |
+| Done | 34 |
 
 | # | Issue | Assignee | Points | Status |
 |---|---|---|---|---|
-| [#6](https://github.com/rmz-oz/aculator/issues/6) | Project board and sprint routine | ranayilmazz | 2 | carried over from Sprint 1, closing now |
+| [#6](https://github.com/rmz-oz/aculator/issues/6) | Project board and sprint routine | ranayilmazz | 2 | done, PR [#76](https://github.com/rmz-oz/aculator/pull/76) |
 | [#8](https://github.com/rmz-oz/aculator/issues/8) | LO and PO calculation | esinsarialtin | 5 | done, PR [#71](https://github.com/rmz-oz/aculator/pull/71) |
 | [#9](https://github.com/rmz-oz/aculator/issues/9) | Materialized views for student profiles | sarginyaren | 8 | done, PR [#74](https://github.com/rmz-oz/aculator/pull/74) |
 | [#10](https://github.com/rmz-oz/aculator/issues/10) | Roles and permissions | rmz-oz | 5 | done, PR [#68](https://github.com/rmz-oz/aculator/pull/68) |
 | [#11](https://github.com/rmz-oz/aculator/issues/11) | Course report page | ranayilmazz | 5 | done, PR [#75](https://github.com/rmz-oz/aculator/pull/75) |
-| [#12](https://github.com/rmz-oz/aculator/issues/12) | CSE 321 checkpoint presentation and report | rmz-oz | 3 | PR [#73](https://github.com/rmz-oz/aculator/pull/73) open, review pending |
-| [#25](https://github.com/rmz-oz/aculator/issues/25) | PO components | esinsarialtin | 3 | done |
+| [#12](https://github.com/rmz-oz/aculator/issues/12) | CSE 321 checkpoint presentation and report | rmz-oz | 3 | done, PR [#73](https://github.com/rmz-oz/aculator/pull/73) |
+| [#25](https://github.com/rmz-oz/aculator/issues/25) | PO components | esinsarialtin | 3 | done, PR [#78](https://github.com/rmz-oz/aculator/pull/78) |
 | [#31](https://github.com/rmz-oz/aculator/issues/31) | Class diagram | rmz-oz | 1 | done, PR [#65](https://github.com/rmz-oz/aculator/pull/65) |
 | [#34](https://github.com/rmz-oz/aculator/issues/34) | Getting Real notes | rmz-oz | 1 | done, PR [#59](https://github.com/rmz-oz/aculator/pull/59) |
-| [#60](https://github.com/rmz-oz/aculator/issues/60) | Deploy check can pass on the old version | rmz-oz | 1 | done |
+| [#60](https://github.com/rmz-oz/aculator/issues/60) | Deploy check can pass on the old version | rmz-oz | 1 | done in Sprint 1, PR [#61](https://github.com/rmz-oz/aculator/pull/61) |
 
 ### Planning (2026-11-05)
 
@@ -70,4 +70,36 @@ Extra work, no points: decision notes on outcome weights ([#62](https://github.c
 
 ### Review (2026-11-12)
 
-<!-- TODO: final points once #73 lands, what carries over to Sprint 3. -->
+- 34 of 34 points done. #60 (1 point) was finished in Sprint 1 but only labelled for Sprint 2, so real Sprint 2 work is 33. Velocity so far: 20, 34. Average 27.
+- Calculation, materialized views, roles, PO components and the course report run on Render from `main`.
+- Mid semester slides and report presented in CSE 321 on Nov 12. The same slides cover CSE 311, which has no presentation date yet (#16).
+- Found while preparing the slides, opened for Sprint 4: the course report does not read the materialized views (#79), changing a course's ECTS changes old reports (#80), `docker compose` starts only the database (#81). The free Render database expires on Dec 3 (#82).
+- Student profile (#14) was in the Sprint 2 goal but not in the sprint, it is in Sprint 3.
+- Nothing carries over.
+
+`main` tagged `sprint-2` when this lands.
+
+## Sprint 3 (2026-11-12 to 2026-11-19): Grade entry, student profile, login
+
+| | points |
+|---|---|
+| Planned | 29 |
+
+| # | Issue | Assignee | Points |
+|---|---|---|---|
+| [#13](https://github.com/rmz-oz/aculator/issues/13) | Bulk grade import from CSV | esinsarialtin | 5 |
+| [#14](https://github.com/rmz-oz/aculator/issues/14) | Student PO profile page | ranayilmazz | 5 |
+| [#15](https://github.com/rmz-oz/aculator/issues/15) | Index and table size measurements | sarginyaren | 3 |
+| [#41](https://github.com/rmz-oz/aculator/issues/41) | How a score was computed | rmz-oz | 5 |
+| [#42](https://github.com/rmz-oz/aculator/issues/42) | Not enough evidence state | esinsarialtin | 2 |
+| [#43](https://github.com/rmz-oz/aculator/issues/43) | Property tests for the calculation | esinsarialtin | 2 |
+| [#44](https://github.com/rmz-oz/aculator/issues/44) | Playwright tests and screenshots in CI | rmz-oz | 3 |
+| [#72](https://github.com/rmz-oz/aculator/issues/72) | Missing grade vs absent | rmz-oz | 2 |
+| [#77](https://github.com/rmz-oz/aculator/issues/77) | Login page for instructors and students | ranayilmazz | 2 |
+
+### Planning (2026-11-12)
+
+- Goal: an instructor logs in and enters grades (CSV, optical reader lists), a student sees their own PO profile, absent and not yet entered grades are told apart.
+- 29 points, close to the average of 27.
+- #16 (CSE 311 presentation) left the sprint: no presentation on Nov 17, it comes back when there is a new date.
+- #17 and #18 were 8 points each and are split into sub-issues (#83, #84 and #85 to #87).
