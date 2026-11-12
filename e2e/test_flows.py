@@ -76,8 +76,11 @@ class BrowserFlowTests(StaticLiveServerTestCase):
         self.page.screenshot(path=SHOTS / f"{name}.png", full_page=True)
 
     def po1_cell(self):
+        """Elif's cell in the PO1 column, found by the header text, not by position."""
+        headers = self.page.locator("thead th").all_inner_texts()
+        column = [h.strip() for h in headers].index("PO1")
         row = self.page.get_by_role("row").filter(has_text="Demir")
-        return row.get_by_role("cell").nth(-2)
+        return row.locator("th, td").nth(column)
 
     def test_head_logs_in_and_reads_the_course_report(self):
         self.log_in("head", reverse("course_report", args=[self.offering.pk]))
@@ -95,7 +98,7 @@ class BrowserFlowTests(StaticLiveServerTestCase):
         self.page.get_by_role("button", name="Save", exact=True).click()
         expect(self.page.locator(".messagelist")).to_contain_text("was changed successfully")
 
-        # LO1 = 0.6 * 70 + 0.4 * 80 = 74, LO2 = (0.4 * 70 + 80) / 1.4, PO1 = (2 * LO1 + LO2) / 3 = 75.05
+        # LO1 = 0.6 * 70 + 0.4 * 80 = 74, LO2 = (0.4 * 70 + 80) / 1.4, PO1 = (2 * LO1 + LO2) / 3 = 75.048
         self.page.goto(self.report_url())
         expect(self.po1_cell()).to_have_text("75.0")
         self.assertEqual(Grade.objects.get(pk=grade.pk).score, Decimal(70))
