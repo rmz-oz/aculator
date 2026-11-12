@@ -89,9 +89,18 @@ class MaterializedViewTests(TestCase):
         # 6 ECTS at 84.952 and 3 ECTS at 70 give 79.968, a plain average would give 77.476.
         self.assertEqual(got["PO1"].quantize(Decimal("0.1")), Decimal("80.0"))
 
-    def test_zero_max_score_and_zero_weights_leave_no_null_rows(self):
-        self.midterm.max_score = Decimal(0)
-        self.midterm.save(update_fields=["max_score"])
+    def test_absent_grade_matches_the_service(self):
+        Grade.objects.filter(enrollment=self.enrollment, assessment=self.project).update(
+            status=Grade.Status.ABSENT, score=Decimal(0),
+        )
+        self.test_views_match_the_service()
+        got = dict(rows(
+            "select learning_outcome_id, score from student_lo_scores "
+            f"where student_id = {self.elif_.pk} and offering_id = {self.offering.pk}"
+        ))
+        self.assertEqual(got[self.lo1.pk], Decimal(54))
+
+    def test_zero_weights_leave_no_null_rows(self):
         AssessmentLOWeight.objects.filter(learning_outcome=self.lo2).update(weight=Decimal(0))
         refresh_materialized_views()
         for view in ("student_lo_scores", "course_po_scores", "cross_course_po_scores"):

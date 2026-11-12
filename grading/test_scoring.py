@@ -1,6 +1,8 @@
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.test import SimpleTestCase, TestCase
 
 from .models import (
@@ -311,14 +313,58 @@ class ElifExampleTests(TestCase):
         self.assertEqual(scores[self.lo1.pk], D("90"))
         self.assertEqual(scores[self.lo2.pk], D("90"))
 
-    def test_zero_max_score_is_excluded(self):
-        self.midterm.max_score = D("0")
-        self.midterm.save(update_fields=["max_score"])
+    def mark_project_absent(self):
+        Grade.objects.filter(
+            enrollment=self.enrollment,
+            assessment=self.project,
+        ).update(status=Grade.Status.ABSENT, score=D("0"))
+
+    def test_absent_counts_as_zero(self):
+        """#72: Elif absent from the project. Missing would give LO1 90, absent gives 54."""
+        self.mark_project_absent()
 
         scores = lo_scores(self.enrollment)
 
-        self.assertEqual(scores[self.lo1.pk], D("80"))
-        self.assertEqual(scores[self.lo2.pk], D("80"))
+        # LO1 = (90 * 0.6 + 0 * 0.4) / 1.0, LO2 = (90 * 0.4 + 0 * 1.0) / 1.4
+        self.assertEqual(scores[self.lo1.pk], D("54"))
+        self.assert_decimal_close(scores[self.lo2.pk], D("36") / D("1.4"))
+        expected_po1 = (D("54") * 2 + D("36") / D("1.4")) / 3
+        self.assert_decimal_close(course_po_scores(self.enrollment)["PO1"], expected_po1)
+
+    def test_absent_scores_lower_than_not_entered(self):
+        self.mark_project_absent()
+        absent = lo_scores(self.enrollment)[self.lo1.pk]
+        Grade.objects.filter(enrollment=self.enrollment, assessment=self.project).delete()
+        not_entered = lo_scores(self.enrollment)[self.lo1.pk]
+
+        self.assertLess(absent, not_entered)
+
+    def test_absent_with_a_score_is_rejected_by_the_database(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Grade.objects.filter(
+                enrollment=self.enrollment,
+                assessment=self.project,
+            ).update(status=Grade.Status.ABSENT, score=D("5"))
+
+    def test_clean_sets_absent_score_to_zero(self):
+        grade = Grade.objects.get(enrollment=self.enrollment, assessment=self.project)
+        grade.status = Grade.Status.ABSENT
+        grade.score = None
+        grade.full_clean()
+        self.assertEqual(grade.score, D("0"))
+
+        grade.score = D("5")
+        with self.assertRaises(ValidationError):
+            grade.full_clean()
+
+        grade.status = Grade.Status.GRADED
+        grade.score = None
+        with self.assertRaises(ValidationError):
+            grade.full_clean()
+
+    def test_zero_max_score_is_rejected_by_the_database(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Assessment.objects.filter(pk=self.midterm.pk).update(max_score=D("0"))
 
     def test_zero_lo_weights_produce_no_scores(self):
         AssessmentLOWeight.objects.filter(

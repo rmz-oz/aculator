@@ -105,8 +105,8 @@ class EnrollmentAdmin(admin.ModelAdmin):
 
 @admin.register(m.Grade)
 class GradeAdmin(admin.ModelAdmin):
-    list_display = ("enrollment", "assessment", "score")
-    list_filter = ("assessment__offering__term",)
+    list_display = ("enrollment", "assessment", "status", "score")
+    list_filter = ("status", "assessment__offering__term")
     list_select_related = (
         "enrollment__student",
         "enrollment__offering__course",
