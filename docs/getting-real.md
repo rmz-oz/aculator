@@ -7,7 +7,7 @@ Everyone adds at least two of their own (#34).
 
 | Chapter | What we did | Where | Who |
 |---|---|---|---|
-| 7. Fix Time and Budget, Flex Scope | Dates are fixed (12 and 17 Nov, 29 Dec) and sprints are one week; scope moves instead. The animated character has no sprint and only happens if there is time. | milestones, #40 | Ramiz |
+| 7. Fix Time and Budget, Flex Scope | Dates are fixed (12 Nov mid semester, 29 Dec demo) and sprints are one week; scope moves instead. The animated character has no sprint and only happens if there is time. | milestones, #40 | Ramiz |
 | 8. Have an Enemy | We read the closest existing project (a Django CO-PO tool, IJERT 2025) and did the opposite where it breaks: it rounds between steps and ties LOs to the course. | decisions 0002, 0003 | Ramiz |
 | 20. Make Opinionated Software | One way to weight outcomes (1 to 5 levels, ECTS across courses) instead of a settings page with every option. | decision 0004 | Ramiz |
 | 29. Race to Running Software | The first pull request was a running Django app on PostgreSQL with CI; deployment came in the first sprint, before any feature. | #23, #30 | Ramiz |

@@ -61,7 +61,7 @@ Extra work, no points: decision notes on outcome weights ([#62](https://github.c
 | [#25](https://github.com/rmz-oz/aculator/issues/25) | PO components | esinsarialtin | 3 | done, PR [#78](https://github.com/rmz-oz/aculator/pull/78) |
 | [#31](https://github.com/rmz-oz/aculator/issues/31) | Class diagram | rmz-oz | 1 | done, PR [#65](https://github.com/rmz-oz/aculator/pull/65) |
 | [#34](https://github.com/rmz-oz/aculator/issues/34) | Getting Real notes | rmz-oz | 1 | done, PR [#59](https://github.com/rmz-oz/aculator/pull/59) |
-| [#60](https://github.com/rmz-oz/aculator/issues/60) | Deploy check can pass on the old version | rmz-oz | 1 | done |
+| [#60](https://github.com/rmz-oz/aculator/issues/60) | Deploy check can pass on the old version | rmz-oz | 1 | done in Sprint 1, PR [#61](https://github.com/rmz-oz/aculator/pull/61) |
 
 ### Planning (2026-11-05)
 
@@ -70,9 +70,9 @@ Extra work, no points: decision notes on outcome weights ([#62](https://github.c
 
 ### Review (2026-11-12)
 
-- 34 of 34 points done. Velocity so far: 20, 34. Average 27.
+- 34 of 34 points done. #60 (1 point) was finished in Sprint 1 but only labelled for Sprint 2, so real Sprint 2 work is 33. Velocity so far: 20, 34. Average 27.
 - Calculation, materialized views, roles, PO components and the course report run on Render from `main`.
-- Mid semester slides and report for both courses presented on Nov 12.
+- Mid semester slides and report presented in CSE 321 on Nov 12. The same slides cover CSE 311, which has no presentation date yet (#16).
 - Found while preparing the slides, opened for Sprint 4: the course report does not read the materialized views (#79), changing a course's ECTS changes old reports (#80), `docker compose` starts only the database (#81). The free Render database expires on Dec 3 (#82).
 - Student profile (#14) was in the Sprint 2 goal but not in the sprint, it is in Sprint 3.
 - Nothing carries over.
