@@ -86,7 +86,7 @@ LearningOutcome: {
 Assessment: {
   shape: class
   "name": "str(100)"
-  "max_score": "Decimal(6,2) >= 0"
+  "max_score": "Decimal(6,2) >= 0.01"
   style: {
     fill: "#0D1117"
     stroke: "#FFFFFF"
@@ -107,6 +107,7 @@ Enrollment: {
 
 Grade: {
   shape: class
+  "status": "choice(graded, absent)"
   "score": "Decimal(6,2) >= 0"
   "clean()": ""
   style: {
