@@ -211,6 +211,10 @@ class Grade(models.Model):
                 name="grade_score_nonnegative",
             ),
             models.CheckConstraint(
+                condition=models.Q(status__in=["graded", "absent"]),
+                name="grade_status_valid",
+            ),
+            models.CheckConstraint(
                 condition=~models.Q(status="absent") | models.Q(score=0),
                 name="grade_absent_is_zero",
             ),
