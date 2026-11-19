@@ -142,3 +142,16 @@ class MaterializedViewTests(TestCase):
         ))
         # LO1: 0.6 * 90 + 0.4 * 100 = 94
         self.assertEqual(got[self.lo1.pk], Decimal(94))
+
+    def test_weight_change_reaches_the_view(self):
+        refresh_materialized_views()
+        weight = AssessmentLOWeight.objects.get(assessment=self.midterm, learning_outcome=self.lo1)
+        with self.captureOnCommitCallbacks(execute=True):
+            weight.weight = Decimal(1)
+            weight.save()
+        got = dict(rows(
+            "select learning_outcome_id, score from student_lo_scores "
+            f"where student_id = {self.elif_.pk} and offering_id = {self.offering.pk}"
+        ))
+        # LO1 now 1 * 90 + 0.4 * 80, over 1.4
+        self.assertClose(got[self.lo1.pk], (Decimal(90) + Decimal("0.4") * 80) / Decimal("1.4"))
