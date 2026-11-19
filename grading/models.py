@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -59,6 +57,37 @@ class POComponent(models.Model):
 
     def __str__(self):
         return f"{self.program_outcome.code}.{self.code}"
+
+
+class StudentPOScore(models.Model):
+    """Read-only mapping onto the `cross_course_po_scores` materialized view (#9).
+
+    Precomputed per student/PO, so the department-wide average on the
+    student profile page (#14) does not recompute every grade on every
+    request. A student's own number still comes from services.student_po_scores,
+    which is always current.
+
+    Django's migration for this model won't list `program_outcome`: it skips
+    relation fields on `managed=False` models since there's no ALTER TABLE to
+    run against a view. The model itself still has the field.
+    """
+
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.DO_NOTHING,
+        primary_key=True,
+        related_name="+",
+    )
+    program_outcome = models.ForeignKey(
+        ProgramOutcome,
+        on_delete=models.DO_NOTHING,
+        related_name="+",
+    )
+    score = models.DecimalField(max_digits=12, decimal_places=6)
+
+    class Meta:
+        managed = False
+        db_table = "cross_course_po_scores"
 
 
 class Course(models.Model):
@@ -131,11 +160,10 @@ class Assessment(models.Model):
         CourseOffering, on_delete=models.CASCADE, related_name="assessments"
     )
     name = models.CharField(max_length=100)  # e.g. "Midterm"
-    # Upper bound for Grade.score, checked in Grade.clean(). Must be positive,
-    # the calculation divides by it.
+    # Upper bound for Grade.score, checked in Grade.clean().
     max_score = models.DecimalField(
         max_digits=6, decimal_places=2, default=100,
-        validators=[MinValueValidator(Decimal("0.01"))],
+        validators=[MinValueValidator(0)],
     )
 
     class Meta:
@@ -146,10 +174,11 @@ class Assessment(models.Model):
                 name="uniq_assessment_name_per_offering",
             ),
             models.CheckConstraint(
-                condition=models.Q(max_score__gt=0),
-                name="assessment_max_score_positive",
+                condition=models.Q(max_score__gte=0),
+                name="assessment_max_score_nonnegative",
             ),
         )
+
 
     def __str__(self):
         return f"{self.offering} / {self.name}"
@@ -180,24 +209,12 @@ class Enrollment(models.Model):
 
 
 class Grade(models.Model):
-    """A student's score on one assessment (one grade per enrollment/assessment).
-
-    No row means the grade is not entered yet and the assessment is left out
-    of the calculation. An absent student has a row with status ABSENT and
-    score 0, which counts as 0 (#72).
-    """
-
-    class Status(models.TextChoices):
-        GRADED = "graded", "Graded"
-        ABSENT = "absent", "Absent"
+    """A student's score on one assessment (one grade per enrollment/assessment)."""
 
     enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, related_name="grades")
     assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="grades")
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.GRADED)
-    # blank=True so a form can leave it empty for an absent student; clean()
-    # fills in 0 or asks for a score. The column stays NOT NULL.
     score = models.DecimalField(
-        max_digits=6, decimal_places=2, blank=True, validators=[MinValueValidator(0)]
+        max_digits=6, decimal_places=2, validators=[MinValueValidator(0)]
     )
 
     class Meta:
@@ -210,29 +227,13 @@ class Grade(models.Model):
                 condition=models.Q(score__gte=0),
                 name="grade_score_nonnegative",
             ),
-            models.CheckConstraint(
-                condition=models.Q(status__in=["graded", "absent"]),
-                name="grade_status_valid",
-            ),
-            models.CheckConstraint(
-                condition=~models.Q(status="absent") | models.Q(score=0),
-                name="grade_absent_is_zero",
-            ),
         )
 
     def __str__(self):
-        shown = "absent" if self.status == self.Status.ABSENT else self.score
-        return f"{self.enrollment} / {self.assessment.name}: {shown}"
+        return f"{self.enrollment} / {self.assessment.name}: {self.score}"
 
     def clean(self):
         """Cross-field checks. Runs in admin and on full_clean(), not on save()."""
-        if self.status == self.Status.ABSENT:
-            if self.score is None:
-                self.score = Decimal(0)
-            elif self.score != 0:
-                raise ValidationError({"score": "An absent student's score must be 0."})
-        elif self.score is None:
-            raise ValidationError({"score": "Enter a score or mark the student absent."})
         super().clean()
         if not (self.enrollment_id and self.assessment_id):
             return

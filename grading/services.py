@@ -1,7 +1,7 @@
 from collections import defaultdict
 from decimal import ROUND_HALF_UP, Decimal
 
-from django.db.models import F
+from django.db.models import Avg, F
 
 from .models import (
     AssessmentLOWeight,
@@ -9,6 +9,7 @@ from .models import (
     Grade,
     LOPOWeight,
     ProgramOutcome,
+    StudentPOScore,
 )
 
 ZERO = Decimal(0)
@@ -63,12 +64,12 @@ def _component_results(enrollments):
         assessment__offering_id=F("enrollment__offering_id"),
     ).select_related("assessment")
 
-    # Absent grades are stored as 0 and count. max_score > 0 is a database
-    # constraint, so the division is safe.
     for grade in grades:
-        percentages[grade.enrollment_id][grade.assessment_id] = (
-            grade.score / grade.assessment.max_score * HUNDRED
-        )
+        maximum = grade.assessment.max_score
+        if maximum > ZERO:
+            percentages[grade.enrollment_id][grade.assessment_id] = (
+                grade.score / maximum * HUNDRED
+            )
 
     lo_weights = defaultdict(list)
     rows = AssessmentLOWeight.objects.filter(
@@ -249,3 +250,14 @@ def course_po_report(enrollment, threshold):
 def student_po_report(student, threshold):
     """Return component evidence and PO attainment across courses."""
     return po_report(student_component_scores(student), threshold)
+
+
+def department_po_scores():
+    """Equal-weight mean, across every student, of each student's cross-course PO score.
+
+    Reads the cross_course_po_scores materialized view (#9) instead of
+    recomputing every grade in the department on every profile page view.
+    The comparison is anonymous: only the per-PO average is returned (#14).
+    """
+    rows = StudentPOScore.objects.values("program_outcome__code").annotate(score=Avg("score"))
+    return {row["program_outcome__code"]: row["score"] for row in rows}

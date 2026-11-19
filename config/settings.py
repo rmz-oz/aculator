@@ -37,6 +37,10 @@ if os.environ.get('RENDER_EXTERNAL_HOSTNAME'):
 # Render terminates TLS in front of the app.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# A logged out user hitting a @login_required page lands here instead of a 404 (#77).
+LOGIN_URL = 'login'
+LOGOUT_REDIRECT_URL = 'login'
+
 
 # Application definition
 
@@ -142,3 +146,7 @@ STORAGES = {
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# cross_course_po_scores (grading.StudentPOScore, #9/#14) has no single-column key;
+# marking one FK as the Django pk is the standard way to map such a view.
+SILENCED_SYSTEM_CHECKS = ['fields.W342']
