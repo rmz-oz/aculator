@@ -63,12 +63,12 @@ def _component_results(enrollments):
         assessment__offering_id=F("enrollment__offering_id"),
     ).select_related("assessment")
 
+    # Absent grades are stored as 0 and count. max_score > 0 is a database
+    # constraint, so the division is safe.
     for grade in grades:
-        maximum = grade.assessment.max_score
-        if maximum > ZERO:
-            percentages[grade.enrollment_id][grade.assessment_id] = (
-                grade.score / maximum * HUNDRED
-            )
+        percentages[grade.enrollment_id][grade.assessment_id] = (
+            grade.score / grade.assessment.max_score * HUNDRED
+        )
 
     lo_weights = defaultdict(list)
     rows = AssessmentLOWeight.objects.filter(
