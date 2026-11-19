@@ -1,0 +1,31 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}aculator{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'grading/aculator.css' %}">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="masthead">
+  <a class="wordmark" href="{% if user.is_authenticated %}{% url 'home' %}{% else %}{% url 'login' %}{% endif %}">aculator</a>
+  {% if user.is_authenticated %}
+  <nav class="nav" aria-label="Main">
+    <a href="{% url 'home' %}"{% if nav == 'home' %} aria-current="page"{% endif %}>{% if role == 'Student' %}My outcomes{% else %}Courses{% endif %}</a>
+  </nav>
+  <div class="who">
+    <span>{{ user.get_full_name|default:user.username }}{% if role %}, {{ role|lower }}{% endif %}</span>
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="action quiet" type="submit">Sign out</button></form>
+  </div>
+  {% endif %}
+</header>
+<main id="content">
+{% block content %}{% endblock %}
+</main>
+{% block scripts %}{% endblock %}
+</body>
+</html>

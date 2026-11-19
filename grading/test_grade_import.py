@@ -166,7 +166,7 @@ class GradeImportTests(TransactionTestCase):
         )
         response = self.upload(csv_file(HEADER + b"20230001,40\n20230003,45\n"), action="preview")
 
-        self.assertContains(response, "2 grades will be saved.")
+        self.assertContains(response, "2 grades will be saved, 1 of them replacing an existing grade.")
         self.assertContains(response, "20230003: 5.00 to 45.00")
         self.assertContains(response, 'value="20230002"')
         self.assertContains(response, 'value="20230004"')

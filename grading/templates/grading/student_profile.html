@@ -1,87 +1,45 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ student.get_full_name|default:student.username }} — PO profile</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-  <style>
-    :root { --ink: #0D1117; --muted: #5F646C; --line: #B9BCC1; --blue: #1D4ED8; --red: #C21F32; }
-    * { box-sizing: border-box; }
-    body {
-      background: #FFFFFF;
-      color: var(--ink);
-      font-family: "Schibsted Grotesk", system-ui, sans-serif;
-      margin: 0;
-      padding: 24px 16px 48px;
-    }
-    main { max-width: 640px; margin: 0 auto; }
-    h1 { font-size: 1.4rem; margin: 0 0 2px; }
-    .subtitle { color: var(--muted); margin: 0 0 24px; font-size: 0.95rem; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.95rem;
-    }
-    caption {
-      text-align: left;
-      color: var(--muted);
-      font-size: 0.85rem;
-      margin-bottom: 8px;
-    }
-    th, td {
-      padding: 8px 10px;
-      text-align: right;
-      white-space: nowrap;
-    }
-    th:first-child, td:first-child { text-align: left; }
-    td { font-variant-numeric: tabular-nums; }
-    thead th { font-weight: 700; }
-    tbody tr:nth-child(odd) { background: #F4F5F7; }
-    .own { color: var(--blue); font-weight: 700; }
-    .own.below { color: var(--red); }
-    .department { color: var(--muted); }
-    .missing {
-      display: inline-block;
-      min-width: 2.6em;
-      color: transparent;
-      background: repeating-linear-gradient(135deg, #C9CCD1 0 2px, transparent 2px 6px);
-    }
-  </style>
-</head>
-<body>
-<main>
-  <h1>{{ student.get_full_name|default:student.username }}</h1>
-  <p class="subtitle">Program outcome scores, against the department average</p>
+{% extends "base.html" %}
+{% block title %}{{ student.get_full_name|default:student.username }}, program outcomes{% endblock %}
+{% block content %}
+<p class="eyebrow">{% if own_profile %}Your program outcomes{% else %}Program outcomes{% endif %}</p>
+<h1>{{ student.get_full_name|default:student.username }}</h1>
+<p class="lede">Each score is weighted across every course {% if own_profile %}you have{% else %}the student has{% endif %} taken,
+  by ECTS. The department figure is the mean of all students, no one else's score is shown.</p>
 
-  <table>
-    <caption>
-      Your score next to the anonymous department average for every program outcome. Missing scores mean
-      not enough graded evidence yet.
-    </caption>
-    <thead>
-      <tr>
-        <th scope="col">PO</th>
-        <th scope="col">You</th>
-        <th scope="col">Department</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in rows %}
-      <tr>
-        <th scope="row">{{ row.code }}</th>
-        <td class="own{% if row.below_average %} below{% endif %}">
-          {% if row.own is not None %}{{ row.own }}{% else %}<span class="missing" title="Not enough evidence">&nbsp;</span>{% endif %}
-        </td>
-        <td class="department">
-          {% if row.department is not None %}{{ row.department }}{% else %}<span class="missing" title="Not enough evidence">&nbsp;</span>{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</main>
-</body>
-</html>
+{% if rows %}
+<div class="outcomes">
+  {% for row in rows %}
+  <section class="outcome" aria-label="{{ row.code }}">
+    <p class="code">{{ row.code }}</p>
+    <p class="score{% if row.below_average %} below{% endif %}">{% if row.own is not None %}{{ row.own }}{% else %}<span class="missing" title="Not enough evidence"></span>{% endif %}</p>
+    <p class="versus">{% if row.department is not None %}department {{ row.department }}{% else %}no department figure yet{% endif %}{% if row.own is None %}<br>not enough graded evidence{% endif %}</p>
+  </section>
+  {% endfor %}
+</div>
+
+<div class="legend">
+  <span><span class="blue">Blue</span> at or above the department mean</span>
+  <span><span class="red">Red</span> below it</span>
+  <span><span class="missing" aria-hidden="true"></span> not enough evidence yet</span>
+</div>
+
+<h2>As a table</h2>
+<div class="table-wrap">
+<table>
+  <caption>The same scores for screen readers and printing.</caption>
+  <thead><tr><th scope="col">PO</th><th scope="col">{% if own_profile %}You{% else %}Student{% endif %}</th><th scope="col">Department</th></tr></thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      <th scope="row">{{ row.code }}</th>
+      <td class="{% if row.below_average %}below{% else %}po{% endif %}">{% if row.own is not None %}{{ row.own }}{% else %}<span class="missing" title="Not enough evidence"></span>{% endif %}</td>
+      <td>{% if row.department is not None %}{{ row.department }}{% else %}<span class="missing" title="Not enough evidence"></span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="empty">No graded work yet, so there is nothing to show.</p>
+{% endif %}
+{% endblock %}

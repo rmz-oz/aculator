@@ -28,11 +28,12 @@ def role_of(user):
         return None
     if user.is_superuser:
         return HEAD
-    names = set(user.groups.values_list("name", flat=True))
-    for role in (HEAD, INSTRUCTOR, STUDENT):
-        if role in names:
-            return role
-    return None
+    # One group query per request: the views, access checks and the masthead
+    # all ask. Group changes show up on the next request.
+    if not hasattr(user, "_aculator_role"):
+        names = set(user.groups.values_list("name", flat=True))
+        user._aculator_role = next((r for r in (HEAD, INSTRUCTOR, STUDENT) if r in names), None)
+    return user._aculator_role
 
 
 def visible_offerings(user):
