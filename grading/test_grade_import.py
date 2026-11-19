@@ -81,19 +81,29 @@ class GradeImportTests(TransactionTestCase):
         self.assertEqual(self.grade(0).score, D("34.80"))
         self.assertIsNone(self.grade(1))
 
-    def test_only_instructors_of_the_offering_and_head_may_import(self):
+    def test_only_instructors_of_the_offering_may_import(self):
+        head = self.make_user("head", HEAD)
+        superuser = get_user_model().objects.create_superuser("root", password=None)
         other = self.make_user("other-teacher", INSTRUCTOR)
-        for user in (other, self.enrollments[0].student, None):
-            self.client.logout()
-            if user:
-                self.client.force_login(user)
-            with self.subTest(user=user):
+        for user in (head, superuser, other, self.enrollments[0].student):
+            self.client.force_login(user)
+            with self.subTest(user=user.username):
                 self.assertEqual(self.client.get(self.url).status_code, 404)
                 self.assertEqual(self.upload(csv_file(HEADER + b"20230001,10\n")).status_code, 404)
         self.assertFalse(Grade.objects.exists())
 
-        self.client.force_login(self.make_user("head", HEAD))
+    def test_head_who_teaches_the_offering_may_import(self):
+        head = self.make_user("teaching-head", HEAD)
+        self.offering.instructors.add(head)
+        self.client.force_login(head)
         self.assertContains(self.upload(csv_file(HEADER + b"20230001,10\n")), "1 grade saved")
+
+    def test_logged_out_user_is_sent_to_login(self):
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertRedirects(response, f"{reverse('login')}?next={self.url}", fetch_redirect_response=False)
+        self.assertFalse(Grade.objects.exists())
+
 
     def test_header_and_number_variants(self):
         files = [
@@ -156,7 +166,7 @@ class GradeImportTests(TransactionTestCase):
         )
         response = self.upload(csv_file(HEADER + b"20230001,40\n20230003,45\n"), action="preview")
 
-        self.assertContains(response, "2 grades will be saved.")
+        self.assertContains(response, "2 grades will be saved, 1 of them replacing an existing grade.")
         self.assertContains(response, "20230003: 5.00 to 45.00")
         self.assertContains(response, 'value="20230002"')
         self.assertContains(response, 'value="20230004"')

@@ -28,11 +28,12 @@ def role_of(user):
         return None
     if user.is_superuser:
         return HEAD
-    names = set(user.groups.values_list("name", flat=True))
-    for role in (HEAD, INSTRUCTOR, STUDENT):
-        if role in names:
-            return role
-    return None
+    # One group query per request: the views, access checks and the masthead
+    # all ask. Group changes show up on the next request.
+    if not hasattr(user, "_aculator_role"):
+        names = set(user.groups.values_list("name", flat=True))
+        user._aculator_role = next((r for r in (HEAD, INSTRUCTOR, STUDENT) if r in names), None)
+    return user._aculator_role
 
 
 def visible_offerings(user):
@@ -64,11 +65,13 @@ def report_offerings(user):
 def grade_entry_offerings(user):
     """Offerings whose grades the user may write, e.g. by CSV import.
 
-    The same people as report_offerings() for now: the offering's instructors
-    and the head. Kept apart so entering grades can be narrowed without
-    touching who may read the report.
+    Only the people who teach the offering (CourseOffering.instructors). The
+    head reads every report but enters no grades, and neither does a superuser
+    unless they are listed as an instructor of that offering.
     """
-    return report_offerings(user)
+    if role_of(user) not in (INSTRUCTOR, HEAD):
+        return CourseOffering.objects.none()
+    return CourseOffering.objects.filter(instructors=user)
 
 
 def visible_enrollments(user):

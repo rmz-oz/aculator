@@ -11,8 +11,9 @@ Look:
 
 - White background. Black (#0D1117) for text and marks, blue (#1D4ED8) for the measured value or the selected path,
   red (#C21F32) only for below target or "you". No other colors, no gradients, no colored stripes on cards.
-- One typeface, Schibsted Grotesk. No Inter or Roboto. Tabular figures only in number columns, they widen commas in
-  running text.
+- One typeface, Schibsted Grotesk. No Inter or Roboto. Proportional figures everywhere: its tabular set gives the
+  decimal point a full figure width. Pages share `grading/static/grading/aculator.css` and `templates/base.html`.
+- No rules, cards or boxed buttons. Space, weight and size separate things; actions are bold blue text.
 - Every chart has a table view and a one line text summary for screen readers.
 - Missing or thin evidence is its own state (hatched or outlined), never a confident number.
 

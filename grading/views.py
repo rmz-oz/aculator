@@ -1,13 +1,32 @@
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
 from django.core import signing
 from django.db import OperationalError
-from django.shortcuts import get_object_or_404, render
+from django.db.models import Case, Count, IntegerField, Prefetch, Value, When
+from django.http import Http404
+from django.shortcuts import get_object_or_404, redirect, render
 
-from .access import grade_entry_offerings, report_offerings
+from .access import (
+    HEAD,
+    STUDENT,
+    can_view_student,
+    grade_entry_offerings,
+    report_offerings,
+    role_of,
+    visible_enrollments,
+)
 from .grade_import import grades_fingerprint, is_serialization_failure, parse_grade_files, serializable_transaction
-from .models import Assessment, Grade
-from .services import display, scores_by_enrollment, weighted_mean
+from .models import Assessment, Grade, Term
+from .services import (
+    DEPARTMENT_MIN_STUDENTS,
+    department_po_scores,
+    display,
+    scores_by_enrollment,
+    student_po_scores,
+    weighted_mean,
+)
 
 ONE = Decimal(1)
 
@@ -17,12 +36,42 @@ def _po_sort_key(code):
     return int(digits) if digits else 0
 
 
+@login_required
+def home(request):
+    """Start page. Students go to their own profile; instructors and the head
+    get the offerings they may open, newest term first, with the assessments
+    an instructor can import grades for."""
+    role = role_of(request.user)
+    if role == STUDENT:
+        return redirect("student_profile", student_id=request.user.pk)
+
+    writable = set(grade_entry_offerings(request.user).values_list("pk", flat=True))
+    assessments = Assessment.objects.annotate(graded=Count("grades")).order_by("name")
+    offerings = (
+        report_offerings(request.user)
+        .select_related("course", "term")
+        .annotate(students=Count("enrollments", distinct=True))
+        .prefetch_related(Prefetch("assessments", queryset=assessments))
+        .annotate(season_order=Case(
+            When(term__season=Term.Season.FALL, then=Value(3)),
+            When(term__season=Term.Season.SUMMER, then=Value(2)),
+            default=Value(1),
+            output_field=IntegerField(),
+        ))
+        .order_by("-term__year", "-season_order", "course__code")
+    )
+    courses = [{"offering": o, "can_import": o.pk in writable} for o in offerings]
+    return render(request, "grading/home.html", {"nav": "home", "courses": courses})
+
+
+@login_required
 def course_report(request, offering_id):
     """Instructor view of one offering: per-student and class LO/PO scores.
 
     Only the head of department and the offering's instructors may open it
     (grading.access.report_offerings); everyone else gets 404, so the page does
-    not even confirm that the offering exists.
+    not even confirm that the offering exists. A logged out visitor is sent to
+    the login page instead (#77).
     """
     offering = get_object_or_404(
         report_offerings(request.user).select_related("course", "term"),
@@ -75,6 +124,53 @@ def course_report(request, offering_id):
         "rows": rows,
         "lo_class_avg": lo_class_avg,
         "po_class_avg": po_class_avg,
+        "can_import": grade_entry_offerings(request.user).filter(pk=offering.pk).exists(),
+        "assessments": offering.assessments.order_by("name"),
+        "nav": "home",
+    })
+
+
+@login_required
+def student_profile(request, student_id):
+    """A student's cross-course PO scores next to the anonymous department average (#14).
+
+    Open to the student themselves, their instructors and the head
+    (grading.access.can_view_student); everyone else gets 404. An instructor
+    sees the scores from the courses they teach only, not the student's other
+    courses (grading.access.visible_enrollments).
+    """
+    student = get_object_or_404(get_user_model(), pk=student_id)
+    if not can_view_student(request.user, student):
+        raise Http404
+
+    own_profile = student.pk == request.user.pk
+    # The student reads all their own courses, even if they also teach one.
+    enrollments = None if own_profile else visible_enrollments(request.user)
+    own = student_po_scores(student, enrollments)
+    department = department_po_scores()
+    po_codes = sorted(set(own) | set(department), key=_po_sort_key)
+
+    rows = [
+        {
+            "code": code,
+            "own": display(own.get(code)),
+            "department": display(department.get(code)),
+            # Compare what is shown: the view and the service round differently
+            # in the last digits, and 85.0 must not read as below 85.0.
+            "below_average": (
+                code in own and code in department and display(own[code]) < display(department[code])
+            ),
+        }
+        for code in po_codes
+    ]
+
+    return render(request, "grading/student_profile.html", {
+        "student": student,
+        "rows": rows,
+        "own_profile": own_profile,
+        "all_courses": own_profile or role_of(request.user) == HEAD,
+        "min_students": DEPARTMENT_MIN_STUDENTS,
+        "nav": "home" if own_profile else None,
     })
 
 
@@ -82,6 +178,7 @@ PREVIEW_SALT = "grade-import-preview"
 PREVIEW_MAX_AGE = 15 * 60
 
 
+@login_required
 def grade_import(request, assessment_id):
     """Import grades for one assessment from one or more CSV files (#13).
 
@@ -89,7 +186,7 @@ def grade_import(request, assessment_id):
     the changes and the enrolled students missing from every file, and the
     instructor can mark those absent before confirming. Each POST runs in one
     SERIALIZABLE transaction (docs/decisions/0008), so any error saves
-    nothing. Only the offering's instructors and the head get past the 404.
+    nothing. Only the offering's instructors get past the 404.
     """
     if request.method != "POST":
         return _import_page(request, _gradable_assessment(request, assessment_id))
@@ -120,7 +217,9 @@ def _gradable_assessment(request, assessment_id):
 
 
 def _import_page(request, assessment, status=200, **context):
-    return render(request, "grading/grade_import.html", {"assessment": assessment, **context}, status=status)
+    return render(
+        request, "grading/grade_import.html", {"assessment": assessment, "nav": "home", **context}, status=status,
+    )
 
 
 def _upload(request, assessment):

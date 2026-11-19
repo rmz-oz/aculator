@@ -1,80 +1,92 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Import grades{% if assessment %}, {{ assessment.name }}{% endif %}</title>
-  <style>
-    :root { --ink: #0D1117; --muted: #5F646C; --red: #C21F32; }
-    body {
-      background: #FFFFFF;
-      color: var(--ink);
-      font-family: "Schibsted Grotesk", system-ui, sans-serif;
-      margin: 0;
-      padding: 24px 16px 48px;
-    }
-    main { max-width: 720px; margin: 0 auto; }
-    h1 { font-size: 1.4rem; margin: 0 0 2px; }
-    h2 { font-size: 1.05rem; margin: 28px 0 8px; }
-    .subtitle, .hint { color: var(--muted); font-size: 0.95rem; }
-    .errors { color: var(--red); }
-    ul { padding-left: 20px; }
-    li { margin: 4px 0; }
-  </style>
-</head>
-<body>
-<main>
-  <h1>Import grades</h1>
-  {% if assessment %}<p class="subtitle">{{ assessment }}, out of {{ assessment.max_score }}</p>{% endif %}
+{% extends "base.html" %}
+{% block title %}Import grades{% if assessment %}, {{ assessment.offering.course.code }} {{ assessment.name }}{% endif %}{% endblock %}
+{% block content %}
+{% if assessment %}<p class="eyebrow"><a href="{% url 'course_report' assessment.offering.pk %}">{{ assessment.offering.course.code }} {{ assessment.offering.course.name }}</a>, {{ assessment.offering.term }}</p>{% endif %}
+<h1>Import {% if assessment %}{{ assessment.name }} {% endif %}grades</h1>
+{% if assessment %}<p class="lede">Scores out of {{ assessment.max_score|floatformat:"-2" }}. Preview first to see what changes and to mark students who missed the assessment; nothing is saved until you confirm.</p>{% endif %}
 
-  {% if errors %}
-    <h2 class="errors">Nothing was saved</h2>
-    <ul class="errors">
-      {% for error in errors %}<li>{{ error }}</li>{% endfor %}
-    </ul>
-  {% endif %}
+{% if errors %}
+<section class="problems" role="alert" aria-labelledby="problems-title">
+  <h2 id="problems-title">Nothing was saved</h2>
+  <ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
 
-  {% if saved_count or absent_count %}
-    <p>{{ saved_count }} grade{{ saved_count|pluralize }} saved{% if absent_count %}, {{ absent_count }} student{{ absent_count|pluralize }} marked absent{% endif %}.</p>
-  {% endif %}
+{% if saved_count or absent_count %}
+<p class="notice done" role="status">{{ saved_count }} grade{{ saved_count|pluralize }} saved{% if absent_count %}, {{ absent_count }} student{{ absent_count|pluralize }} marked absent{% endif %}.
+  {% if assessment %}<a href="{% url 'course_report' assessment.offering.pk %}">Open the class report</a>.{% endif %}</p>
+{% endif %}
 
-  {% if preview_token %}
-    <h2>Preview</h2>
-    <p>{{ preview_count }} grade{{ preview_count|pluralize }} will be saved.</p>
+{% if preview_token %}
+<h2>Preview</h2>
+<p class="notice">{{ preview_count }} grade{{ preview_count|pluralize }} will be saved{% if changes %}, {{ changes|length }} of them replacing an existing grade{% endif %}.</p>
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="confirm">
+  <input type="hidden" name="preview_token" value="{{ preview_token }}">
+  <div class="split">
     {% if changes %}
-      <p>These replace an existing grade:</p>
+    <div>
+      <h3>Replaced grades</h3>
       <ul>{% for change in changes %}<li>{{ change }}</li>{% endfor %}</ul>
+    </div>
     {% endif %}
-    <form method="post">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="confirm">
-      <input type="hidden" name="preview_token" value="{{ preview_token }}">
-      {% if absent_candidates %}
-        <p>Not in any file. Tick the students who missed the assessment:</p>
-        <ul>
-          {% for number in absent_candidates %}
-            <li><label><input type="checkbox" name="absent_students" value="{{ number }}"> {{ number }} was absent</label></li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-      {% if kept %}
-        <p class="hint">Not in any file, existing grade kept: {{ kept|join:", " }}</p>
-      {% endif %}
-      <button type="submit">Confirm and save</button>
-    </form>
-  {% endif %}
+    {% if absent_candidates %}
+    <div>
+      <h3>In no file</h3>
+      <p class="muted">Tick the students who missed the assessment. They count as 0. Leave the rest without a grade.</p>
+      {% for number in absent_candidates %}
+        <label class="check"><input type="checkbox" name="absent_students" value="{{ number }}"> {{ number }} was absent</label>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if kept %}
+    <div>
+      <h3>Kept as they are</h3>
+      <p class="muted">In no file, but already graded.</p>
+      <ul>{% for number in kept %}<li>{{ number }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+  </div>
+  <div class="actions"><button class="action large" type="submit">Confirm and save</button></div>
+</form>
+{% endif %}
 
-  <h2>Files</h2>
-  <p class="hint">
-    CSV with a header row <code>student_number,score</code>. Semicolons and a decimal comma also work.
-    Every student may appear in only one row across all files.
-  </p>
-  <form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    <input id="csv_file" name="csv_file" type="file" accept=".csv,text/csv" multiple required aria-label="CSV files">
-    <button type="submit" name="action" value="preview">Preview</button>
-    <button type="submit" name="action" value="import">Import</button>
-  </form>
-</main>
-</body>
-</html>
+{% if assessment %}
+<h2>{% if preview_token %}Different files{% else %}Files{% endif %}</h2>
+<form method="post" enctype="multipart/form-data" id="upload">
+  {% csrf_token %}
+  <div class="drop" id="drop">
+    <input id="csv_file" name="csv_file" type="file" accept=".csv,text/csv" multiple required aria-label="CSV files" aria-describedby="csv-format">
+    <p class="prompt">Drop CSV files here or <strong>choose files</strong></p>
+    <p class="format" id="csv-format">A header row <span class="num">student_number,score</span>, then one row per student. Semicolons and a decimal comma also work. A student may appear only once across all files.</p>
+    <ul class="chosen" id="chosen" aria-live="polite"></ul>
+  </div>
+  <div class="actions">
+    <button class="action large" type="submit" name="action" value="preview">Preview</button>
+    <button class="action quiet" type="submit" name="action" value="import">Import without preview</button>
+  </div>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const drop = document.getElementById("drop");
+  if (!drop) return;
+  const input = document.getElementById("csv_file");
+  const list = document.getElementById("chosen");
+  const show = () => {
+    list.replaceChildren(...[...input.files].map((file) => {
+      const item = document.createElement("li");
+      item.textContent = `${file.name}, ${Math.max(1, Math.round(file.size / 1024))} KB`;
+      return item;
+    }));
+  };
+  input.addEventListener("change", show);
+  ["dragenter", "dragover"].forEach((type) => drop.addEventListener(type, () => drop.classList.add("over")));
+  ["dragleave", "drop"].forEach((type) => drop.addEventListener(type, () => drop.classList.remove("over")));
+})();
+</script>
+{% endblock %}
