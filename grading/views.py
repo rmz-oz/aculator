@@ -1,12 +1,11 @@
-import csv
-from decimal import Decimal, InvalidOperation
-from io import StringIO
+from decimal import Decimal
 
 from django.core import signing
-from django.db import OperationalError, connection, transaction
+from django.db import OperationalError
 from django.shortcuts import get_object_or_404, render
 
-from .access import report_offerings
+from .access import grade_entry_offerings, report_offerings
+from .grade_import import grades_fingerprint, is_serialization_failure, parse_grade_files, serializable_transaction
 from .models import Assessment, Grade
 from .services import display, scores_by_enrollment, weighted_mean
 
@@ -77,204 +76,143 @@ def course_report(request, offering_id):
         "lo_class_avg": lo_class_avg,
         "po_class_avg": po_class_avg,
     })
+
+
+PREVIEW_SALT = "grade-import-preview"
+PREVIEW_MAX_AGE = 15 * 60
+
+
 def grade_import(request, assessment_id):
+    """Import grades for one assessment from one or more CSV files (#13).
+
+    "Import" saves the files right away. "Preview" saves nothing; it lists
+    the changes and the enrolled students missing from every file, and the
+    instructor can mark those absent before confirming. Each POST runs in one
+    SERIALIZABLE transaction (docs/decisions/0008), so any error saves
+    nothing. Only the offering's instructors and the head get past the 404.
+    """
     if request.method != "POST":
-        return _grade_import(request, assessment_id)
+        return _import_page(request, _gradable_assessment(request, assessment_id))
 
     try:
-        with transaction.atomic():
-            with connection.cursor() as cursor:
-                cursor.execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
-            return _grade_import(request, assessment_id)
+        with serializable_transaction():
+            assessment = _gradable_assessment(request, assessment_id)
+            if request.POST.get("action") == "confirm":
+                return _confirm_preview(request, assessment)
+            return _upload(request, assessment)
     except OperationalError as error:
-        if getattr(error.__cause__, "sqlstate", None) != "40001":
+        if not is_serialization_failure(error):
             raise
-
-        return render(
-            request,
-            "grading/grade_import.html",
-            {
-                "errors": [
-                    "Eşzamanlı bir işlem nedeniyle bu yükleme kaydedilemedi. "
-                    "CSV dosyalarını yeniden seçip tekrar dene."
-                ],
-            },
-            status=409,
-        )
-
-def _grade_import(request, assessment_id):
-    assessment = get_object_or_404(
-        Assessment,
-        pk=assessment_id,
-        offering__in=report_offerings(request.user),
+    return _import_page(
+        request,
+        _gradable_assessment(request, assessment_id),
+        errors=["Someone changed these grades at the same time, so nothing was saved. Choose the files again."],
+        status=409,
     )
-    errors = []
-    valid_rows = []
-    saved_count = 0
-    missing_students = None
-    preview_token = None
-
-    if request.method == "POST" and request.POST.get("action") == "confirm":
-        try:
-            preview = signing.loads(
-                request.POST.get("preview_token", ""),
-                salt="grade-import-preview",
-                max_age=900,
-            )
-        except signing.BadSignature:
-            preview = None
-
-        if (
-            preview is None
-            or preview["assessment_id"] != assessment.pk
-            or preview["user_id"] != request.user.pk
-        ):
-            errors.append("Önizleme geçersiz veya süresi dolmuş. Dosyaları yeniden önizle.")
-        else:
-            selected = set(request.POST.getlist("absent_students"))
-            missing = preview["missing"]
-            scores = [
-                (enrollment_id, Decimal(score))
-                for enrollment_id, score in preview["scores"]
-            ]
-            current_ids = set(
-                assessment.offering.enrollments.values_list("pk", flat=True)
-            )
-            preview_ids = {enrollment_id for enrollment_id, _ in scores} | set(
-                missing.values()
-            )
-
-            if not selected.issubset(missing):
-                errors.append("Yalnızca önizlemede önerilen öğrenciler seçilebilir.")
-            elif current_ids != preview_ids:
-                errors.append("Ders kayıtları değişti. Dosyaları yeniden önizle.")
-            elif any(score > assessment.max_score for _, score in scores):
-                errors.append("Sınavın maksimum puanı değişti. Dosyaları yeniden önizle.")
-            else:
-                for enrollment_id, score in scores:
-                    Grade.objects.update_or_create(
-                        assessment=assessment,
-                        enrollment_id=enrollment_id,
-                        defaults={"score": score, "status": Grade.Status.GRADED},
-                    )
-
-                absent_count = 0
-                for number in sorted(selected):
-                    _, created = Grade.objects.get_or_create(
-                        assessment=assessment,
-                        enrollment_id=missing[number],
-                        defaults={"score": 0, "status": Grade.Status.ABSENT},
-                    )
-                    absent_count += int(created)
-
-                return render(request, "grading/grade_import.html", {
-                    "assessment": assessment,
-                    "saved_count": len(scores),
-                    "absent_count": absent_count,
-                })
-
-        return render(request, "grading/grade_import.html", {
-            "assessment": assessment,
-            "errors": errors,
-        })
-
-    if request.method == "POST":
-        uploaded_files = request.FILES.getlist("csv_file")
-
-        if not uploaded_files:
-            errors.append("En az bir CSV dosyası seç.")
-        else:
-            enrollments = {
-                enrollment.student.username: enrollment
-                for enrollment in assessment.offering.enrollments.select_related("student")
-            }
-            seen_numbers = {}
-
-            for uploaded_file in uploaded_files:
-                try:
-                    content = uploaded_file.read().decode("utf-8-sig")
-                    reader = csv.DictReader(StringIO(content), strict=True)
-
-                    if reader.fieldnames != ["student_number", "score"]:
-                        errors.append(
-                            f"{uploaded_file.name}: İlk satır student_number,score olmalı."
-                        )
-                        continue
-
-                    has_rows = False
-                    for row in reader:
-                        has_rows = True
-                        location = f"{uploaded_file.name}, {reader.line_num}. satır"
-                        number = (row.get("student_number") or "").strip()
-                        enrollment = enrollments.get(number)
-
-                        if None in row:
-                            errors.append(f"{location}: Fazladan sütun var.")
-
-                        if not number:
-                            errors.append(f"{location}: Öğrenci numarası boş.")
-                        else:
-                            if enrollment is None:
-                                errors.append(f"{location}: {number} bu derse kayıtlı değil.")
-                            if number in seen_numbers:
-                                errors.append(
-                                    f"{location}: {number} tekrar ediyor. "
-                                    f"İlk kayıt: {seen_numbers[number]}."
-                                )
-                            else:
-                                seen_numbers[number] = location
-
-                        try:
-                            score = Decimal(row.get("score") or "")
-                        except InvalidOperation:
-                            errors.append(f"{location}: Puan sayı olmalı.")
-                            continue
-
-                        if not score.is_finite() or not 0 <= score <= assessment.max_score:
-                            errors.append(
-                                f"{location}: Puan 0 ile {assessment.max_score} arasında olmalı."
-                            )
-                        elif score.as_tuple().exponent < -2:
-                            errors.append(f"{location}: Puan en fazla iki ondalık basamak içerebilir.")
-                        elif enrollment is not None:
-                            valid_rows.append((enrollment, score))
-
-                    if not has_rows:
-                        errors.append(f"{uploaded_file.name}: Dosyada not satırı yok.")
-                except (UnicodeDecodeError, csv.Error):
-                    errors.append(f"{uploaded_file.name}: Dosya okunamadı.")
 
 
-        if not errors and request.POST.get("action") == "preview":
-            missing_students = sorted(enrollments.keys() - seen_numbers.keys())
-            preview_token = signing.dumps({
-                "assessment_id": assessment.pk,
-                "user_id": request.user.pk,
-                "scores": [
-                    [enrollment.pk, str(score)]
-                    for enrollment, score in valid_rows
-                ],
-                "missing": {
-                    number: enrollments[number].pk
-                    for number in missing_students
-                },
-            }, salt="grade-import-preview")
-        elif not errors:
-            for enrollment, score in valid_rows:
-                Grade.objects.update_or_create(
-                    assessment=assessment,
-                    enrollment=enrollment,
-                    defaults={
-                        "score": score,
-                        "status": Grade.Status.GRADED,
-                    },
-                )
-            saved_count = len(valid_rows)
+def _gradable_assessment(request, assessment_id):
+    return get_object_or_404(
+        Assessment.objects.select_related("offering__course", "offering__term"),
+        pk=assessment_id,
+        offering__in=grade_entry_offerings(request.user),
+    )
 
-    return render(request, "grading/grade_import.html", {
-        "assessment": assessment,
-        "errors": errors,
-        "saved_count": saved_count,
-        "missing_students": missing_students,
-        "preview_token": preview_token,
-    })
+
+def _import_page(request, assessment, status=200, **context):
+    return render(request, "grading/grade_import.html", {"assessment": assessment, **context}, status=status)
+
+
+def _upload(request, assessment):
+    files = request.FILES.getlist("csv_file")
+    if not files:
+        return _import_page(request, assessment, errors=["Choose at least one CSV file."])
+
+    enrollments = {e.student.username: e for e in assessment.offering.enrollments.select_related("student")}
+    parsed = parse_grade_files(files, assessment, enrollments)
+    if parsed.errors:
+        return _import_page(request, assessment, errors=parsed.errors)
+
+    if request.POST.get("action") == "preview":
+        return _preview(request, assessment, enrollments, parsed)
+
+    _save_scores(assessment, [(e.pk, score) for e, score in parsed.rows])
+    return _import_page(request, assessment, saved_count=len(parsed.rows))
+
+
+def _preview(request, assessment, enrollments, parsed):
+    existing = {g.enrollment_id: g for g in assessment.grades.all()}
+    changes = []
+    for enrollment, score in parsed.rows:
+        old = existing.get(enrollment.pk)
+        if old is not None and (old.status, old.score) != (Grade.Status.GRADED, score):
+            shown = "absent" if old.status == Grade.Status.ABSENT else old.score
+            changes.append(f"{enrollment.student.username}: {shown} to {score}")
+
+    missing = sorted(enrollments.keys() - parsed.locations.keys())
+    # A student who already has a grade keeps it; only the rest can be marked absent.
+    absent_candidates = [n for n in missing if enrollments[n].pk not in existing]
+    kept = [n for n in missing if enrollments[n].pk in existing]
+
+    token = signing.dumps({
+        "assessment_id": assessment.pk,
+        "user_id": request.user.pk,
+        "max_score": str(assessment.max_score),
+        "enrollment_ids": sorted(e.pk for e in enrollments.values()),
+        "grades": grades_fingerprint(assessment),
+        "scores": [[e.pk, str(score)] for e, score in parsed.rows],
+        "absent_candidates": {n: enrollments[n].pk for n in absent_candidates},
+    }, salt=PREVIEW_SALT)
+
+    return _import_page(
+        request, assessment,
+        preview_token=token,
+        preview_count=len(parsed.rows),
+        changes=changes,
+        absent_candidates=absent_candidates,
+        kept=kept,
+    )
+
+
+def _confirm_preview(request, assessment):
+    try:
+        preview = signing.loads(request.POST.get("preview_token", ""), salt=PREVIEW_SALT, max_age=PREVIEW_MAX_AGE)
+    except signing.BadSignature:
+        preview = None
+
+    if preview is None or preview["assessment_id"] != assessment.pk or preview["user_id"] != request.user.pk:
+        error = "The preview is invalid or has expired. Preview the files again."
+    elif preview["max_score"] != str(assessment.max_score):
+        error = "The maximum score of this assessment changed. Preview the files again."
+    elif preview["enrollment_ids"] != sorted(assessment.offering.enrollments.values_list("pk", flat=True)):
+        error = "Enrollments in this course changed. Preview the files again."
+    elif preview["grades"] != grades_fingerprint(assessment):
+        error = "Grades for this assessment changed after the preview, or it was already saved. Preview again."
+    elif not set(request.POST.getlist("absent_students")) <= preview["absent_candidates"].keys():
+        error = "Only students suggested in the preview can be marked absent."
+    else:
+        error = None
+    if error:
+        return _import_page(request, assessment, errors=[error])
+
+    scores = [(enrollment_id, Decimal(score)) for enrollment_id, score in preview["scores"]]
+    _save_scores(assessment, scores)
+    absent = sorted(set(request.POST.getlist("absent_students")))
+    for number in absent:
+        # create(), not bulk_create(): the post_save signal refreshes the report views.
+        Grade.objects.create(
+            assessment=assessment,
+            enrollment_id=preview["absent_candidates"][number],
+            status=Grade.Status.ABSENT,
+            score=0,
+        )
+    return _import_page(request, assessment, saved_count=len(scores), absent_count=len(absent))
+
+
+def _save_scores(assessment, scores):
+    for enrollment_id, score in scores:
+        Grade.objects.update_or_create(
+            assessment=assessment,
+            enrollment_id=enrollment_id,
+            defaults={"score": score, "status": Grade.Status.GRADED},
+        )
