@@ -170,9 +170,17 @@ class BrowserFlowTests(StaticLiveServerTestCase):
 
         expect(self.page.get_by_role("heading", level=1)).to_have_text("Elif Demir")
         expect(self.page.locator(".outcome").first).to_contain_text("PO1")
+        expect(self.page.locator("[data-ring='ring-PO1'] svg")).to_be_visible()
         self.shot("10-student-profile")
         self.page.set_viewport_size({"width": 390, "height": 844})
         self.shot("11-student-profile-phone")
+
+        self.page.set_viewport_size({"width": 1280, "height": 800})
+        self.page.get_by_role("link", name="PO1 85.0, how it was computed").click()
+        expect(self.page.get_by_role("heading", level=1)).to_contain_text("PO1")
+        expect(self.page.locator(".sum")).to_contain_text("85.0 = Midterm 44.6 + Project 40.4")
+        expect(self.page.locator("#slope svg")).to_be_visible()
+        self.shot("12-po-detail")
 
         response = self.page.goto(self.report_url())
         self.assertEqual(response.status, 404)

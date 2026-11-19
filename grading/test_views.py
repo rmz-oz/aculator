@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .access import HEAD, INSTRUCTOR, STUDENT
@@ -310,6 +310,10 @@ class StudentProfileViewTests(TestCase):
         cls.lo1 = LearningOutcome.objects.create(offering=cls.offering, code="LO1")
         cls.assessment = Assessment.objects.create(offering=cls.offering, name="Midterm", max_score=D("100"))
         AssessmentLOWeight.objects.create(assessment=cls.assessment, learning_outcome=cls.lo1, weight=D("1"))
+        # A second assessment with the same score for everyone, so every PO1
+        # rests on two assessments and is shown as a number, not as thin evidence (#42).
+        cls.final = Assessment.objects.create(offering=cls.offering, name="Final", max_score=D("100"))
+        AssessmentLOWeight.objects.create(assessment=cls.final, learning_outcome=cls.lo1, weight=D("1"))
         LOPOWeight.objects.create(learning_outcome=cls.lo1, component=cls.component, weight=1)
 
         cls.elif_ = get_user_model().objects.create_user(
@@ -318,11 +322,13 @@ class StudentProfileViewTests(TestCase):
         cls.elif_.groups.add(Group.objects.get(name=STUDENT))
         enrollment = Enrollment.objects.create(offering=cls.offering, student=cls.elif_)
         Grade.objects.create(enrollment=enrollment, assessment=cls.assessment, score=D("90"))
+        Grade.objects.create(enrollment=enrollment, assessment=cls.final, score=D("90"))
 
         cls.can = get_user_model().objects.create_user(username="can")
         cls.can.groups.add(Group.objects.get(name=STUDENT))
         can_enrollment = Enrollment.objects.create(offering=cls.offering, student=cls.can)
         Grade.objects.create(enrollment=can_enrollment, assessment=cls.assessment, score=D("50"))
+        Grade.objects.create(enrollment=can_enrollment, assessment=cls.final, score=D("50"))
 
         # Three more classmates at 70, so five students have a PO1 score and
         # the department mean (90 + 50 + 3 * 70) / 5 = 70 may be shown.
@@ -331,6 +337,7 @@ class StudentProfileViewTests(TestCase):
             classmate.groups.add(Group.objects.get(name=STUDENT))
             enrollment = Enrollment.objects.create(offering=cls.offering, student=classmate)
             Grade.objects.create(enrollment=enrollment, assessment=cls.assessment, score=D("70"))
+            Grade.objects.create(enrollment=enrollment, assessment=cls.final, score=D("70"))
 
         cls.teacher = get_user_model().objects.create_user(username="teacher")
         cls.teacher.groups.add(Group.objects.get(name=INSTRUCTOR))
@@ -355,12 +362,47 @@ class StudentProfileViewTests(TestCase):
         self.assertContains(response, "90.0")
         self.assertContains(response, "70.0")  # average of 90 (Elif) and 50 (Can)
 
-    def test_below_average_score_is_flagged(self):
+    def test_below_target_is_red(self):
         self.client.force_login(self.can)
 
         response = self.client.get(reverse("student_profile", args=[self.can.pk]))
 
-        self.assertContains(response, "score below")
+        self.assertContains(response, "score below-target")
+        self.assertContains(response, "PO1.a below 70")
+
+    @override_settings(PO_TARGET="40")
+    def test_below_the_mean_but_on_target_is_black_not_red(self):
+        self.client.force_login(self.can)
+
+        response = self.client.get(reverse("student_profile", args=[self.can.pk]))
+
+        self.assertContains(response, "score below-mean")
+        self.assertNotContains(response, "below-target")
+
+    def test_profile_links_each_score_to_its_explanation(self):
+        self.client.force_login(self.elif_)
+
+        response = self.client.get(reverse("student_profile", args=[self.elif_.pk]))
+
+        self.assertContains(response, reverse("po_detail", args=[self.elif_.pk, "PO1"]))
+        self.assertContains(response, 'id="ring-PO1"')
+
+    def test_detail_splits_the_score_into_grades(self):
+        self.client.force_login(self.elif_)
+
+        response = self.client.get(reverse("po_detail", args=[self.elif_.pk, "PO1"]))
+
+        self.assertContains(response, "90.0 = Midterm")
+        self.assertContains(response, 'id="slope-data"')
+
+    def test_detail_follows_the_profile_rules(self):
+        url = reverse("po_detail", args=[self.elif_.pk, "PO1"])
+        for user, status in ((self.can, 404), (self.other_teacher, 404), (self.teacher, 200), (self.head, 200)):
+            self.client.force_login(user)
+            with self.subTest(user=user.username):
+                self.assertEqual(self.client.get(url).status_code, status)
+        self.client.force_login(self.elif_)
+        self.assertEqual(self.client.get(reverse("po_detail", args=[self.elif_.pk, "PO9"])).status_code, 404)
 
     def test_equal_to_the_average_is_not_flagged(self):
         # Everyone scored 90, so Elif's PO1 is the department average.
@@ -371,7 +413,7 @@ class StudentProfileViewTests(TestCase):
         response = self.client.get(reverse("student_profile", args=[self.elif_.pk]))
 
         self.assertContains(response, "department 90.0")
-        self.assertNotContains(response, "score below")
+        self.assertNotContains(response, "score below-")
 
     def test_too_few_students_give_no_department_figure(self):
         # With two students a mean gives the other one's score away; four is still too few.
@@ -384,7 +426,7 @@ class StudentProfileViewTests(TestCase):
         self.assertContains(response, "90.0")
         self.assertNotContains(response, "department 75.0")
         self.assertContains(response, "too few students")
-        self.assertNotContains(response, "score below")
+        self.assertNotContains(response, "score below-")
 
     def test_missing_scores_are_named_for_screen_readers(self):
         Grade.objects.filter(enrollment__student=self.elif_).delete()
@@ -420,6 +462,16 @@ class StudentProfileViewTests(TestCase):
         self.assertContains(response, "90.0")
         self.assertNotContains(response, "58.0")
         self.assertContains(response, "the courses you teach")
+
+    def test_one_assessment_shows_as_thin_evidence(self):
+        Grade.objects.filter(enrollment__student=self.can, assessment=self.final).delete()
+        self.client.force_login(self.can)
+
+        response = self.client.get(reverse("student_profile", args=[self.can.pk]))
+
+        self.assertContains(response, 'class="score thin"')
+        self.assertNotContains(response, "below-target")
+        self.assertNotContains(response, 'id="ring-PO1"')
 
     def test_instructor_of_a_shared_course_can_view_the_profile(self):
         self.client.force_login(self.teacher)

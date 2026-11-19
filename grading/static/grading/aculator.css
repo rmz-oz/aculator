@@ -283,16 +283,29 @@ thead .po { color: var(--blue); font-weight: 700; }
 
 .outcome .code { color: var(--muted); font-size: 15px; margin: 0; }
 
+.outcome-main {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 4px;
+}
+
 .outcome .score {
-  margin: 4px 0 0;
+  margin: 0;
   font-size: 56px;
   line-height: 1;
   font-weight: 700;
   letter-spacing: -0.04em;
   color: var(--blue);
+  text-decoration: none;
 }
-.outcome .score.below { color: var(--red); }
+a.score:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
+.outcome .score.below-mean { color: var(--ink); }
+.outcome .score.below-target { color: var(--red); }
+.outcome .score.thin { font-size: 28px; font-weight: 500; letter-spacing: -0.01em; color: var(--muted); font-style: italic; }
 .outcome .score .missing { width: 1.6em; height: 0.7em; }
+
+.ring { width: 64px; height: 64px; flex: none; }
 
 .outcome .versus {
   margin: 10px 0 0;
@@ -310,6 +323,8 @@ thead .po { color: var(--blue); font-weight: 700; }
 }
 .legend .blue { color: var(--blue); font-weight: 700; }
 .legend .red { color: var(--red); font-weight: 700; }
+.legend .ink { color: var(--ink); font-weight: 700; }
+.versus .red { color: var(--red); }
 
 /* Forms */
 
@@ -376,6 +391,13 @@ input[type="password"]:focus { outline: 2px solid var(--blue); outline-offset: 0
 .split ul { margin: 0; padding: 0; list-style: none; }
 .split li { padding: 5px 0; }
 .split h3 + p, .split h3 + ul { margin-top: 8px; }
+
+/* PO detail */
+
+.sum { color: var(--ink); }
+.slope { margin: 0; }
+.slope #slope { overflow-x: auto; }
+.slope figcaption { margin-top: 12px; font-size: 15px; }
 
 /* Sign in: two columns, left aligned. */
 
