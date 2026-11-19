@@ -1,0 +1,405 @@
+/* aculator, one stylesheet for every page (docs/decisions/0006-visual-language.md).
+
+   White ground, black type, blue for the measured value, red only for below
+   target. No rules, no cards, no boxed buttons: space, weight and size do the
+   separating. */
+
+:root {
+  --ink: #0D1117;
+  --muted: #5F646C;
+  --faint: #8A8F96;
+  --wash: #F5F6F7;
+  --blue: #1D4ED8;
+  --red: #C21F32;
+  --measure: 68ch;
+  --page: 1120px;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  background: #FFFFFF;
+  color: var(--ink);
+  font-family: "Schibsted Grotesk", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+.skip:focus {
+  left: 24px;
+  top: 16px;
+  background: #FFFFFF;
+  padding: 8px 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
+/* Masthead */
+
+.masthead {
+  max-width: var(--page);
+  margin: 0 auto;
+  padding: 28px 32px 0;
+  display: flex;
+  align-items: baseline;
+  gap: 40px;
+}
+
+.wordmark {
+  font-weight: 800;
+  font-size: 21px;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.nav {
+  display: flex;
+  align-items: baseline;
+  gap: 28px;
+  flex: 1;
+  font-size: 15px;
+}
+
+.nav a { color: var(--muted); text-decoration: none; }
+.nav a:hover { color: var(--ink); }
+.nav a[aria-current="page"] { color: var(--ink); font-weight: 700; }
+
+.who {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.who form { margin: 0; }
+
+/* Page */
+
+main {
+  max-width: var(--page);
+  margin: 0 auto;
+  padding: 72px 32px 120px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(34px, 4.4vw, 52px);
+  line-height: 1.04;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  max-width: 22ch;
+}
+
+.lede {
+  margin: 18px 0 0;
+  max-width: var(--measure);
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+h2 {
+  margin: 88px 0 20px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+p { max-width: var(--measure); }
+
+.muted { color: var(--muted); }
+
+/* Links and actions: coloured type, never a box. */
+
+a { color: var(--blue); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+
+.action,
+button.action {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--blue);
+  cursor: pointer;
+  text-decoration: none;
+}
+.action:hover { text-decoration: underline; }
+.action.quiet { color: var(--muted); font-weight: 500; }
+.action.quiet:hover { color: var(--ink); }
+.action.large { font-size: 19px; }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 32px;
+  margin-top: 36px;
+}
+
+/* Messages */
+
+.notice { margin: 40px 0 0; font-size: 18px; }
+h2 + .notice { margin-top: 0; }
+.notice.done { color: var(--ink); }
+.notice.done strong { color: var(--blue); }
+
+.problems { margin: 40px 0 0; color: var(--red); }
+.problems h2 { margin: 0 0 10px; color: var(--red); }
+.problems ul { margin: 0; padding: 0; list-style: none; }
+.problems li { margin: 6px 0; max-width: var(--measure); }
+
+/* Tables: zebra wash, no rules. Proportional figures throughout: Schibsted's
+   tabular set gives the decimal point a full figure width ("85 . 0"), and with
+   one decimal and right alignment the columns still line up. */
+
+.table-wrap { overflow-x: auto; margin: 0 -12px; }
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 15px;
+}
+
+caption {
+  caption-side: top;
+  text-align: left;
+  color: var(--muted);
+  padding: 0 12px 14px;
+  max-width: var(--measure);
+}
+
+th, td {
+  padding: 11px 12px;
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 400;
+}
+
+th:first-child, td:first-child { text-align: left; }
+thead th { color: var(--muted); font-weight: 500; padding-bottom: 8px; }
+tbody th { font-weight: 500; }
+tbody tr:nth-child(odd) { background: var(--wash); }
+tfoot td { font-weight: 700; padding-top: 18px; }
+
+.po { color: var(--blue); }
+thead .po { color: var(--blue); font-weight: 700; }
+.below { color: var(--red); }
+
+/* Missing evidence is its own state, hatched, never a number. */
+.missing {
+  display: inline-block;
+  width: 2.6em;
+  height: 0.9em;
+  vertical-align: -0.05em;
+  background: repeating-linear-gradient(135deg, #B9BCC1 0 1.5px, transparent 1.5px 5px);
+}
+
+.empty { color: var(--muted); font-size: 18px; margin-top: 40px; }
+
+/* Thin evidence: one assessment so far. Grey words, not a number (#42). */
+.thin { color: var(--muted); font-style: italic; }
+
+/* Home: a course is a block of type, not a card. */
+
+.courses { margin-top: 64px; display: grid; gap: 64px; }
+
+.course {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 2fr;
+  gap: 8px 48px;
+}
+
+.course .code {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.course p { margin: 0; }
+.course .name { margin: 10px 0 0; color: var(--muted); }
+
+.course ul { margin: 0; padding: 0; list-style: none; }
+.course ul { margin-top: -7px; }
+.course li {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 7px 0;
+}
+.course li .label { flex: 1; }
+.course li .meta { color: var(--muted); font-size: 15px; }
+
+/* Student profile: one large number per program outcome. */
+
+.outcomes {
+  margin-top: 64px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 56px 40px;
+}
+
+.outcome .code { color: var(--muted); font-size: 15px; margin: 0; }
+
+.outcome .score {
+  margin: 4px 0 0;
+  font-size: 56px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--blue);
+}
+.outcome .score.below { color: var(--red); }
+.outcome .score .missing { width: 1.6em; height: 0.7em; }
+
+.outcome .versus {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.legend {
+  margin-top: 56px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+  color: var(--muted);
+  font-size: 15px;
+}
+.legend .blue { color: var(--blue); font-weight: 700; }
+.legend .red { color: var(--red); font-weight: 700; }
+
+/* Forms */
+
+.field { margin-top: 28px; max-width: 420px; }
+
+label { display: block; font-weight: 500; margin-bottom: 8px; }
+
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 0;
+  background: var(--wash);
+  color: var(--ink);
+  font: inherit;
+  font-size: 17px;
+}
+input[type="text"]:focus,
+input[type="password"]:focus { outline: 2px solid var(--blue); outline-offset: 0; background: #FFFFFF; }
+
+.check {
+  display: block;
+  font-weight: 400;
+  margin: 0;
+  padding: 7px 0;
+  cursor: pointer;
+}
+.check input { accent-color: var(--blue); margin: 0 10px 0 0; vertical-align: -1px; }
+
+/* CSV drop area: a wash of grey, the only filled surface on the page. */
+
+.drop {
+  position: relative;
+  margin-top: 28px;
+  padding: 48px 40px;
+  background: var(--wash);
+  max-width: 760px;
+}
+.drop.over { background: #E9EEFB; }
+/* The file input is invisible, so the drop area shows its keyboard focus. */
+.drop:focus-within { outline: 2px solid var(--blue); outline-offset: 0; }
+.drop input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
+.drop .prompt { margin: 0; font-size: 19px; }
+.drop .prompt strong { color: var(--blue); }
+.drop .format { margin: 8px 0 0; color: var(--muted); font-size: 15px; }
+.drop .chosen { margin: 18px 0 0; padding: 0; list-style: none; }
+.drop .chosen:empty { display: none; }
+.drop .chosen li { padding: 2px 0; }
+
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  margin-top: 40px;
+  max-width: 900px;
+}
+.split ul { margin: 0; padding: 0; list-style: none; }
+.split li { padding: 5px 0; }
+.split h3 + p, .split h3 + ul { margin-top: 8px; }
+
+/* Sign in: two columns, left aligned. */
+
+.signin {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 80px;
+  align-items: start;
+}
+.signin form { padding-top: 6px; }
+.signin .actions { margin-top: 32px; }
+
+@media (max-width: 760px) {
+  .masthead { padding: 20px 20px 0; gap: 20px; flex-wrap: wrap; }
+  .who { margin-left: 0; width: 100%; }
+  main { padding: 48px 20px 80px; }
+  h2 { margin-top: 64px; }
+  .course, .signin, .split { grid-template-columns: 1fr; gap: 24px; }
+  .outcome .score { font-size: 44px; }
+  .drop { padding: 32px 24px; }
+}
+
+@media print {
+  .masthead, .actions, .skip { display: none; }
+  main { padding: 0; }
+  tbody tr:nth-child(odd) { background: #F3F3F3; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

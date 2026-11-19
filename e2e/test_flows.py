@@ -15,12 +15,15 @@ from unittest import skipUnless
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
-from django.test import Client, tag
+from django.test import tag
 from django.urls import reverse
 
 from grading import test_scoring
-from grading.models import Grade
+from grading.access import INSTRUCTOR, STUDENT
+from grading.materialized_views import refresh_materialized_views
+from grading.models import Enrollment, Grade
 
 try:
     from playwright.sync_api import expect, sync_playwright
@@ -55,8 +58,17 @@ class BrowserFlowTests(StaticLiveServerTestCase):
         test_scoring.ElifExampleTests.setUpTestData.__func__(self)
         self.elif_.first_name, self.elif_.last_name = "Elif", "Demir"
         self.elif_.save()
+        self.elif_.set_password(PASSWORD)
+        self.elif_.save()
+        self.elif_.groups.add(Group.objects.get_or_create(name=STUDENT)[0])
         users = get_user_model().objects
         self.head = users.create_superuser("head", password=PASSWORD)
+        self.teacher = users.create_user("ayse", password=PASSWORD, first_name="Ayşe", last_name="Kaya")
+        self.teacher.groups.add(Group.objects.get_or_create(name=INSTRUCTOR)[0])
+        self.offering.instructors.add(self.teacher)
+        self.can = users.create_user("20230002", first_name="Can", last_name="Arslan")
+        Enrollment.objects.create(offering=self.offering, student=self.can)
+        refresh_materialized_views()
         self.context = self.browser.new_context(viewport={"width": 1280, "height": 800})
         self.page = self.context.new_page()
 
@@ -66,11 +78,11 @@ class BrowserFlowTests(StaticLiveServerTestCase):
     def report_url(self):
         return self.live_server_url + reverse("course_report", args=[self.offering.pk])
 
-    def log_in(self, username, next_url):
-        self.page.goto(f"{self.live_server_url}/admin/login/?next={next_url}")
+    def log_in(self, username, next_url=""):
+        self.page.goto(f"{self.live_server_url}{reverse('login')}?next={next_url}")
         self.page.get_by_label("Username").fill(username)
         self.page.get_by_label("Password").fill(PASSWORD)
-        self.page.get_by_role("button", name="Log in").click()
+        self.page.get_by_role("button", name="Sign in").click()
 
     def shot(self, name):
         self.page.screenshot(path=SHOTS / f"{name}.png", full_page=True)
@@ -104,20 +116,67 @@ class BrowserFlowTests(StaticLiveServerTestCase):
         self.assertEqual(Grade.objects.get(pk=grade.pk).score, Decimal(70))
         self.shot("3-course-report-after-change")
 
-    def test_student_cannot_open_the_course_report(self):
-        # There is no login page for students yet (#77), so reuse a session
-        # made by Django's test client.
-        client = Client()
-        client.force_login(self.elif_)
-        cookie = client.cookies[settings.SESSION_COOKIE_NAME]
-        self.context.add_cookies([{
-            "name": settings.SESSION_COOKIE_NAME,
-            "value": cookie.value,
-            "url": self.live_server_url,
-        }])
+    def test_wrong_password_stays_on_the_sign_in_page(self):
+        self.page.goto(self.live_server_url + reverse("login"))
+        self.shot("0-sign-in")
+        self.page.get_by_label("Username").fill("ayse")
+        self.page.get_by_label("Password").fill("not-the-password")
+        self.page.get_by_role("button", name="Sign in").click()
+
+        expect(self.page.get_by_role("alert")).to_have_text("Wrong username or password.")
+
+    def test_instructor_imports_grades_with_preview_and_absence(self):
+        self.log_in("ayse")
+
+        expect(self.page.get_by_role("heading", level=1)).to_have_text("Your courses")
+        self.shot("5-instructor-home")
+        self.page.get_by_role("link", name="Import grades for CSE311 Midterm").click()
+
+        csv = SHOTS / "midterm.csv"
+        csv.write_text("student_number;score\nelif;70,0\n")
+        self.page.get_by_label("CSV files").set_input_files(csv)
+        expect(self.page.locator("#chosen")).to_contain_text("midterm.csv")
+        self.shot("6-import-chosen")
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        self.shot("6b-import-phone")
+        self.page.set_viewport_size({"width": 1280, "height": 800})
+        self.page.get_by_role("button", name="Preview", exact=True).click()
+
+        expect(self.page.get_by_text("1 grade will be saved, 1 of them replacing an existing grade.")).to_be_visible()
+        self.assertEqual(Grade.objects.get(enrollment=self.enrollment, assessment=self.midterm).score, Decimal(90))
+        self.page.get_by_label("20230002 was absent").check()
+        self.shot("7-import-preview")
+        self.page.get_by_role("button", name="Confirm and save").click()
+
+        expect(self.page.get_by_role("status")).to_contain_text("1 grade saved, 1 student marked absent.")
+        self.shot("8-import-saved")
+        self.page.get_by_role("link", name="Open the class report").click()
+
+        # Same arithmetic as the admin flow: midterm 70 gives PO1 75.0.
+        expect(self.po1_cell()).to_have_text("75.0")
+        self.assertEqual(Grade.objects.get(enrollment__student=self.can, assessment=self.midterm).status, "absent")
+        self.shot("9-report-after-import")
+
+    def test_head_sees_the_report_but_cannot_import(self):
+        self.log_in("head")
+
+        expect(self.page.get_by_role("heading", level=1)).to_have_text("Every course in the department")
+        expect(self.page.get_by_role("link", name="Import grades for CSE311 Midterm")).to_have_count(0)
+        response = self.page.goto(self.live_server_url + reverse("grade_import", args=[self.midterm.pk]))
+        self.assertEqual(response.status, 404)
+
+    def test_student_signs_in_to_their_profile_and_not_the_report(self):
+        self.log_in("elif")
+
+        expect(self.page.get_by_role("heading", level=1)).to_have_text("Elif Demir")
+        expect(self.page.locator(".outcome").first).to_contain_text("PO1")
+        self.shot("10-student-profile")
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        self.shot("11-student-profile-phone")
 
         response = self.page.goto(self.report_url())
-
         self.assertEqual(response.status, 404)
-        expect(self.page.get_by_text("Demir")).to_have_count(0)
+        # Her own name is in the masthead; nothing from the report is on the page.
+        expect(self.page.get_by_role("heading", level=1)).to_have_text("Page not found")
+        expect(self.page.locator("main").get_by_text("Demir")).to_have_count(0)
         self.shot("4-student-gets-404")

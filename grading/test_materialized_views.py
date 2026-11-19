@@ -142,3 +142,32 @@ class MaterializedViewTests(TestCase):
         ))
         # LO1: 0.6 * 90 + 0.4 * 100 = 94
         self.assertEqual(got[self.lo1.pk], Decimal(94))
+
+    def test_weight_change_reaches_the_view(self):
+        refresh_materialized_views()
+        weight = AssessmentLOWeight.objects.get(assessment=self.midterm, learning_outcome=self.lo1)
+        with self.captureOnCommitCallbacks(execute=True):
+            weight.weight = Decimal(1)
+            weight.save()
+        got = dict(rows(
+            "select learning_outcome_id, score from student_lo_scores "
+            f"where student_id = {self.elif_.pk} and offering_id = {self.offering.pk}"
+        ))
+        # LO1 now 1 * 90 + 0.4 * 80, over 1.4
+        self.assertClose(got[self.lo1.pk], (Decimal(90) + Decimal("0.4") * 80) / Decimal("1.4"))
+
+    def test_moving_an_offering_to_another_course_reaches_the_view(self):
+        # Only the offering changes inside the block: its course now has 6 ECTS, not 3.
+        math_two = Course.objects.create(code="MAT242", name="Math II", ects=6)
+        connection.run_on_commit.clear()
+        refresh_materialized_views()
+        math = CourseOffering.objects.get(course__code="MAT241")
+        with self.captureOnCommitCallbacks(execute=True):
+            math.course = math_two
+            math.save()
+        got = dict(rows(
+            "select program_outcome_id, score from cross_course_po_scores "
+            f"where student_id = {self.elif_.pk}"
+        ))
+        want = student_po_scores(self.elif_)
+        self.assertClose(got[self.po1.pk], want["PO1"])

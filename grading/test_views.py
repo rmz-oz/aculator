@@ -6,6 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from .access import HEAD, INSTRUCTOR, STUDENT
+from .materialized_views import refresh_materialized_views
 from .models import (
     Assessment,
     AssessmentLOWeight,
@@ -71,9 +72,9 @@ class CourseReportViewTests(TestCase):
 
         self.assertEqual(lo_counts, {self.lo1.pk: 1, lo2.pk: 1})
         self.assertEqual(po_counts, {"PO1": 1})
+
     def setUp(self):
         self.client.force_login(self.head)
-
 
     def test_renders_scores_and_class_average(self):
         final = Assessment.objects.create(offering=self.offering, name="Final", max_score=D(100))
@@ -92,7 +93,7 @@ class CourseReportViewTests(TestCase):
             <tr>
                 <th scope="row">Elif Demir</th>
                 <td>85.0</td>
-                <td class="po-col">85.0</td>
+                <td class="po">85.0</td>
             </tr>
             """,
             html=True,
@@ -108,8 +109,8 @@ class CourseReportViewTests(TestCase):
             """
             <tr>
                 <th scope="row">Elif Demir</th>
-                <td><span class="low-evidence">Not enough evidence</span></td>
-                <td class="po-col"><span class="low-evidence">Not enough evidence</span></td>
+                <td><span class="thin" title="Only 1 graded assessment so far">1 grade</span></td>
+                <td class="po"><span class="thin" title="Only 1 graded assessment so far">1 grade</span></td>
             </tr>
             """,
             html=True,
@@ -119,13 +120,25 @@ class CourseReportViewTests(TestCase):
             """
             <tr>
                 <th scope="row">can</th>
-                <td><span title="No evidence">—</span></td>
-                <td class="po-col"><span title="No evidence">—</span></td>
+                <td><span class="missing" title="No graded evidence"><span class="sr-only">no evidence</span></span></td>
+                <td class="po"><span class="missing" title="No graded evidence"><span class="sr-only">no evidence</span></span></td>
             </tr>
             """,
             html=True,
         )
 
+    def test_class_average_leaves_out_thin_evidence(self):
+        final = Assessment.objects.create(offering=self.offering, name="Final", max_score=D(100))
+        AssessmentLOWeight.objects.create(assessment=final, learning_outcome=self.lo1, weight=D(1))
+        Grade.objects.create(enrollment=self.graded_enrollment, assessment=final, score=D(80))
+        # Can has one grade only: shown as "1 grade" and left out of the average.
+        can_enrollment = Enrollment.objects.get(offering=self.offering, student=self.ungraded)
+        Grade.objects.create(enrollment=can_enrollment, assessment=self.midterm, score=D(10))
+
+        response = self.client.get(reverse("course_report", args=[self.offering.pk]))
+
+        self.assertEqual(response.context["lo_class_avg"], [D("85.0")])
+        self.assertEqual(response.context["po_class_avg"], [D("85.0")])
 
     def test_unknown_offering_is_404(self):
         response = self.client.get(reverse("course_report", args=[self.offering.pk + 999]))
@@ -148,14 +161,15 @@ class CourseReportViewTests(TestCase):
             student = get_user_model().objects.create_user(username=f"extra{i}")
             Enrollment.objects.create(offering=self.offering, student=student)
 
-        # session, user, role, then offering, LOs, enrollments, grades, LO weights, PO weights
-        with self.assertNumQueries(9):
+        # session, user, role, then offering, LOs, enrollments, grades, LO weights, PO weights,
+        # and whether the viewer may import grades here
+        with self.assertNumQueries(10):
             self.client.get(reverse("course_report", args=[self.offering.pk]))
 
     def test_only_head_and_own_instructor_can_open_the_report(self):
         url = reverse("course_report", args=[self.offering.pk])
         cases = [
-            (None, 404),
+            (None, 302),  # logged out, sent to the login page (#77)
             (self.graded, 404),  # a student, even one in this course
             (self.other_teacher, 404),
             (self.teacher, 200),
@@ -167,3 +181,275 @@ class CourseReportViewTests(TestCase):
                 if user:
                     self.client.force_login(user)
                 self.assertEqual(self.client.get(url).status_code, status)
+
+
+class HomeViewTests(TestCase):
+    """The start page, with the course report fixtures: one offering, a teacher, the head."""
+
+    setUpTestData = classmethod(CourseReportViewTests.setUpTestData.__func__)
+
+    def get_home(self, user):
+        self.client.force_login(user)
+        return self.client.get(reverse("home"))
+
+    def test_instructor_sees_their_course_with_import_links(self):
+        response = self.get_home(self.teacher)
+
+        self.assertContains(response, "CSE311")
+        self.assertContains(response, reverse("grade_import", args=[self.midterm.pk]))
+        self.assertContains(response, "1 of 2 graded")
+
+    def test_head_sees_the_report_but_no_import_link(self):
+        response = self.get_home(self.head)
+
+        self.assertContains(response, reverse("course_report", args=[self.offering.pk]))
+        self.assertNotContains(response, reverse("grade_import", args=[self.midterm.pk]))
+
+    def test_other_instructor_sees_no_course(self):
+        response = self.get_home(self.other_teacher)
+
+        self.assertNotContains(response, "CSE311")
+        self.assertContains(response, "You are not listed as an instructor of any course")
+
+    def test_head_with_no_offerings_is_not_told_they_teach_nothing(self):
+        CourseOffering.objects.all().delete()
+
+        response = self.get_home(self.head)
+
+        self.assertContains(response, "No course offerings yet")
+        self.assertNotContains(response, "instructor of any course")
+
+    def test_student_goes_to_their_profile(self):
+        response = self.get_home(self.graded)
+
+        self.assertRedirects(
+            response, reverse("student_profile", args=[self.graded.pk]), fetch_redirect_response=False,
+        )
+
+    def test_report_shows_import_links_only_to_the_instructor(self):
+        url = reverse("course_report", args=[self.offering.pk])
+        import_url = reverse("grade_import", args=[self.midterm.pk])
+        self.client.force_login(self.teacher)
+        self.assertContains(self.client.get(url), import_url)
+        self.client.force_login(self.head)
+        self.assertNotContains(self.client.get(url), import_url)
+
+    def test_logged_out_is_sent_to_login(self):
+        response = self.client.get(reverse("home"))
+
+        self.assertRedirects(response, f"{reverse('login')}?next=/", fetch_redirect_response=False)
+
+
+class LoginViewTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="elif", password="s3cret-pw")
+
+    def test_logged_out_user_is_sent_to_login_not_a_404(self):
+        report_url = reverse("course_report", args=[1])
+        response = self.client.get(report_url)
+
+        self.assertRedirects(
+            response, f"{reverse('login')}?next={report_url}", fetch_redirect_response=False,
+        )
+
+    def test_wrong_credentials_show_an_error(self):
+        response = self.client.post(reverse("login"), {"username": "elif", "password": "wrong"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Wrong username or password")
+
+    def test_correct_credentials_follow_next(self):
+        report_url = reverse("course_report", args=[1])
+        response = self.client.post(
+            reverse("login"),
+            {"username": "elif", "password": "s3cret-pw", "next": report_url},
+        )
+
+        self.assertRedirects(response, report_url, fetch_redirect_response=False)
+
+    def test_next_to_another_site_is_ignored(self):
+        response = self.client.post(
+            reverse("login"),
+            {"username": "elif", "password": "s3cret-pw", "next": "https://evil.example/"},
+        )
+
+        self.assertRedirects(response, reverse("home"), fetch_redirect_response=False)
+
+    def test_logout_needs_a_post(self):
+        self.client.force_login(self.user)
+
+        self.assertEqual(self.client.get(reverse("logout")).status_code, 405)
+        self.assertIn("_auth_user_id", self.client.session)
+
+    def test_404_uses_the_page_frame(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("course_report", args=[999]))
+
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, "aculator.css", status_code=404)
+        self.assertContains(response, "Page not found", status_code=404)
+
+    def test_logout_sends_back_to_login(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse("logout"))
+
+        self.assertRedirects(response, reverse("login"))
+
+
+class StudentProfileViewTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.term = Term.objects.create(year=2026, season=Term.Season.FALL)
+        cls.po1 = ProgramOutcome.objects.create(code="PO1")
+        cls.component = POComponent.objects.create(program_outcome=cls.po1, code="a")
+
+        cls.course = Course.objects.create(code="CSE311", name="Software Engineering", ects=6)
+        cls.offering = CourseOffering.objects.create(course=cls.course, term=cls.term)
+        cls.lo1 = LearningOutcome.objects.create(offering=cls.offering, code="LO1")
+        cls.assessment = Assessment.objects.create(offering=cls.offering, name="Midterm", max_score=D("100"))
+        AssessmentLOWeight.objects.create(assessment=cls.assessment, learning_outcome=cls.lo1, weight=D("1"))
+        LOPOWeight.objects.create(learning_outcome=cls.lo1, component=cls.component, weight=1)
+
+        cls.elif_ = get_user_model().objects.create_user(
+            username="elif", first_name="Elif", last_name="Demir",
+        )
+        cls.elif_.groups.add(Group.objects.get(name=STUDENT))
+        enrollment = Enrollment.objects.create(offering=cls.offering, student=cls.elif_)
+        Grade.objects.create(enrollment=enrollment, assessment=cls.assessment, score=D("90"))
+
+        cls.can = get_user_model().objects.create_user(username="can")
+        cls.can.groups.add(Group.objects.get(name=STUDENT))
+        can_enrollment = Enrollment.objects.create(offering=cls.offering, student=cls.can)
+        Grade.objects.create(enrollment=can_enrollment, assessment=cls.assessment, score=D("50"))
+
+        # Three more classmates at 70, so five students have a PO1 score and
+        # the department mean (90 + 50 + 3 * 70) / 5 = 70 may be shown.
+        for i in range(3):
+            classmate = get_user_model().objects.create_user(username=f"classmate{i}")
+            classmate.groups.add(Group.objects.get(name=STUDENT))
+            enrollment = Enrollment.objects.create(offering=cls.offering, student=classmate)
+            Grade.objects.create(enrollment=enrollment, assessment=cls.assessment, score=D("70"))
+
+        cls.teacher = get_user_model().objects.create_user(username="teacher")
+        cls.teacher.groups.add(Group.objects.get(name=INSTRUCTOR))
+        cls.offering.instructors.add(cls.teacher)
+
+        cls.other_teacher = get_user_model().objects.create_user(username="other-teacher")
+        cls.other_teacher.groups.add(Group.objects.get(name=INSTRUCTOR))
+
+        cls.head = get_user_model().objects.create_user(username="head")
+        cls.head.groups.add(Group.objects.get(name=HEAD))
+
+        # The department average (#14) reads the materialized view (#9), not live grades.
+        refresh_materialized_views()
+
+    def test_student_sees_their_own_score_and_the_department_average(self):
+        self.client.force_login(self.elif_)
+
+        response = self.client.get(reverse("student_profile", args=[self.elif_.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "PO1")
+        self.assertContains(response, "90.0")
+        self.assertContains(response, "70.0")  # average of 90 (Elif) and 50 (Can)
+
+    def test_below_average_score_is_flagged(self):
+        self.client.force_login(self.can)
+
+        response = self.client.get(reverse("student_profile", args=[self.can.pk]))
+
+        self.assertContains(response, "score below")
+
+    def test_equal_to_the_average_is_not_flagged(self):
+        # Everyone scored 90, so Elif's PO1 is the department average.
+        Grade.objects.update(score=D("90"))
+        refresh_materialized_views()
+        self.client.force_login(self.elif_)
+
+        response = self.client.get(reverse("student_profile", args=[self.elif_.pk]))
+
+        self.assertContains(response, "department 90.0")
+        self.assertNotContains(response, "score below")
+
+    def test_too_few_students_give_no_department_figure(self):
+        # With two students a mean gives the other one's score away; four is still too few.
+        Grade.objects.filter(enrollment__student=self.can).delete()
+        refresh_materialized_views()
+        self.client.force_login(self.elif_)
+
+        response = self.client.get(reverse("student_profile", args=[self.elif_.pk]))
+
+        self.assertContains(response, "90.0")
+        self.assertNotContains(response, "department 75.0")
+        self.assertContains(response, "too few students")
+        self.assertNotContains(response, "score below")
+
+    def test_missing_scores_are_named_for_screen_readers(self):
+        Grade.objects.filter(enrollment__student=self.elif_).delete()
+        self.client.force_login(self.elif_)
+
+        response = self.client.get(reverse("student_profile", args=[self.elif_.pk]))
+
+        self.assertContains(response, '<span class="sr-only">no evidence</span>')
+
+    def test_instructor_sees_only_the_courses_they_teach(self):
+        # Elif also takes CSE312 (4 ECTS) with another instructor and scored 10 there.
+        other = CourseOffering.objects.create(
+            course=Course.objects.create(code="CSE312", name="Databases", ects=4), term=self.term,
+        )
+        other.instructors.add(self.other_teacher)
+        lo = LearningOutcome.objects.create(offering=other, code="LO1")
+        final = Assessment.objects.create(offering=other, name="Final", max_score=D("100"))
+        AssessmentLOWeight.objects.create(assessment=final, learning_outcome=lo, weight=D("1"))
+        LOPOWeight.objects.create(learning_outcome=lo, component=self.component, weight=1)
+        enrollment = Enrollment.objects.create(offering=other, student=self.elif_)
+        Grade.objects.create(enrollment=enrollment, assessment=final, score=D("10"))
+        url = reverse("student_profile", args=[self.elif_.pk])
+
+        # Both courses: (90 * 6 + 10 * 4) / 10 = 58
+        self.client.force_login(self.elif_)
+        self.assertContains(self.client.get(url), "58.0")
+        self.client.force_login(self.head)
+        self.assertContains(self.client.get(url), "58.0")
+
+        # CSE311's instructor sees CSE311 only, and nothing from CSE312.
+        self.client.force_login(self.teacher)
+        response = self.client.get(url)
+        self.assertContains(response, "90.0")
+        self.assertNotContains(response, "58.0")
+        self.assertContains(response, "the courses you teach")
+
+    def test_instructor_of_a_shared_course_can_view_the_profile(self):
+        self.client.force_login(self.teacher)
+
+        response = self.client.get(reverse("student_profile", args=[self.elif_.pk]))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_unrelated_instructor_gets_404(self):
+        self.client.force_login(self.other_teacher)
+
+        response = self.client.get(reverse("student_profile", args=[self.elif_.pk]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_another_student_cannot_view_the_profile(self):
+        self.client.force_login(self.can)
+
+        response = self.client.get(reverse("student_profile", args=[self.elif_.pk]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_head_can_view_any_profile(self):
+        self.client.force_login(self.head)
+
+        response = self.client.get(reverse("student_profile", args=[self.can.pk]))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_logged_out_is_sent_to_login(self):
+        response = self.client.get(reverse("student_profile", args=[self.elif_.pk]))
+
+        self.assertEqual(response.status_code, 302)

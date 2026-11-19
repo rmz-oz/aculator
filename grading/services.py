@@ -1,6 +1,7 @@
 from collections import defaultdict
 from decimal import ROUND_HALF_UP, Decimal
 
+from django.db import connection
 from django.db.models import F
 
 from .models import (
@@ -128,12 +129,6 @@ def _component_results(enrollments):
             {lo_id: len(ids) for lo_id, ids in lo_assessment_ids.items()},
             {po_code: len(ids) for po_code, ids in po_assessment_ids.items()},
         )
-        results[enrollment_id] = (
-            los,
-            _means(per_component),
-            {lo_id: len(ids) for lo_id, ids in lo_assessment_ids.items()},
-            {po_code: len(ids) for po_code, ids in po_assessment_ids.items()},
-        )
 
     return results
 
@@ -179,10 +174,16 @@ def course_po_scores(enrollment):
     return _po_display_scores(course_component_scores(enrollment))
 
 
-def student_component_scores(student):
-    """Combine each component across courses using ECTS weights."""
+def student_component_scores(student, enrollments=None):
+    """Combine each component across courses using ECTS weights.
+
+    `enrollments` narrows the courses, e.g. to the ones a viewer may see;
+    by default every course the student has taken counts.
+    """
+    if enrollments is None:
+        enrollments = Enrollment.objects.all()
     enrollments = list(
-        Enrollment.objects.filter(student=student).select_related(
+        enrollments.filter(student=student).select_related(
             "offering__course",
         ),
     )
@@ -197,9 +198,9 @@ def student_component_scores(student):
     return _means(groups)
 
 
-def student_po_scores(student):
+def student_po_scores(student, enrollments=None):
     """Return display-only means of the student's component scores."""
-    return _po_display_scores(student_component_scores(student))
+    return _po_display_scores(student_component_scores(student, enrollments))
 
 
 def offering_component_scores(offering):
@@ -276,3 +277,31 @@ def course_po_report(enrollment, threshold):
 def student_po_report(student, threshold):
     """Return component evidence and PO attainment across courses."""
     return po_report(student_component_scores(student), threshold)
+
+
+# A mean of one or two students is not anonymous: with two, either of them
+# can work out the other's exact score from their own. Below this many
+# students a PO gets no department figure.
+DEPARTMENT_MIN_STUDENTS = 5
+
+
+def department_po_scores(min_students=DEPARTMENT_MIN_STUDENTS):
+    """Mean of every student's cross-course score per PO, keyed by PO code.
+
+    Reads the cross_course_po_scores materialized view (#9) instead of
+    recomputing every grade in the department on each profile view. Only the
+    per-PO mean leaves this function, and only for POs with at least
+    `min_students` scored students, so the comparison stays anonymous (#14).
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT po.code, AVG(s.score)
+            FROM cross_course_po_scores s
+            JOIN grading_programoutcome po ON po.id = s.program_outcome_id
+            GROUP BY po.code
+            HAVING COUNT(*) >= %s
+            """,
+            [min_students],
+        )
+        return {code: score for code, score in cursor.fetchall()}

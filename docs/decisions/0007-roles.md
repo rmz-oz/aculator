@@ -7,4 +7,8 @@ are in `grading/access.py`; views ask it instead of filtering on their own.
 There is no Department model. The POs belong to one program, so "head sees the department" means the head sees
 everything. If a second department comes in, Course gets a department FK and `access.py` filters on it.
 
+Reading and writing are separate. The head reads every report and profile but enters no grades; only the instructors
+of an offering write its grades (`grade_entry_offerings()`, CSV import #13). A head who also teaches an offering is
+listed as its instructor and can enter grades there. A superuser is treated as head, so the same rule applies.
+
 Status: proposed, team to confirm.

@@ -37,6 +37,11 @@ if os.environ.get('RENDER_EXTERNAL_HOSTNAME'):
 # Render terminates TLS in front of the app.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# A logged out user hitting a @login_required page lands here instead of a 404 (#77).
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'login'
+
 
 # Application definition
 
@@ -73,6 +78,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'grading.context_processors.role',
             ],
         },
     },
