@@ -238,6 +238,9 @@ thead .po { color: var(--blue); font-weight: 700; }
 
 .empty { color: var(--muted); font-size: 18px; margin-top: 40px; }
 
+/* Thin evidence: one assessment so far. Grey words, not a number (#42). */
+.thin { color: var(--muted); font-style: italic; }
+
 /* Home: a course is a block of type, not a card. */
 
 .courses { margin-top: 64px; display: grid; gap: 64px; }

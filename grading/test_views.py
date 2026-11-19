@@ -20,6 +20,7 @@ from .models import (
     ProgramOutcome,
     Term,
 )
+from .services import scores_with_evidence_by_enrollment
 
 D = Decimal
 
@@ -57,23 +58,87 @@ class CourseReportViewTests(TestCase):
         cls.other_teacher.groups.add(Group.objects.get(name=INSTRUCTOR))
         cls.graded.groups.add(Group.objects.get(name=STUDENT))
 
+    def test_po_counts_one_assessment_reaching_it_through_two_los(self):
+        lo2 = LearningOutcome.objects.create(offering=self.offering, code="LO2")
+        AssessmentLOWeight.objects.create(
+            assessment=self.midterm, learning_outcome=lo2, weight=D(1)
+        )
+        component = POComponent.objects.get(program_outcome=self.po1, code="a")
+        LOPOWeight.objects.create(learning_outcome=lo2, component=component, weight=1)
+
+        _, _, lo_counts, po_counts = scores_with_evidence_by_enrollment(
+            [self.graded_enrollment]
+        )[self.graded_enrollment.pk]
+
+        self.assertEqual(lo_counts, {self.lo1.pk: 1, lo2.pk: 1})
+        self.assertEqual(po_counts, {"PO1": 1})
+
     def setUp(self):
         self.client.force_login(self.head)
 
     def test_renders_scores_and_class_average(self):
+        final = Assessment.objects.create(offering=self.offering, name="Final", max_score=D(100))
+        AssessmentLOWeight.objects.create(
+            assessment=final, learning_outcome=self.lo1, weight=D(1)
+        )
+        Grade.objects.create(
+            enrollment=self.graded_enrollment, assessment=final, score=D(80)
+        )
+
         response = self.client.get(reverse("course_report", args=[self.offering.pk]))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Elif Demir")
-        self.assertContains(response, "LO1")
-        self.assertContains(response, "PO1")
-        self.assertContains(response, "90.0")
+        self.assertContains(
+            response,
+            """
+            <tr>
+                <th scope="row">Elif Demir</th>
+                <td>85.0</td>
+                <td class="po">85.0</td>
+            </tr>
+            """,
+            html=True,
+        )
+        self.assertEqual(response.context["lo_class_avg"], [D("85.0")])
+        self.assertEqual(response.context["po_class_avg"], [D("85.0")])
 
-    def test_ungraded_student_shows_not_enough_evidence(self):
+    def test_report_distinguishes_low_evidence_from_no_evidence(self):
         response = self.client.get(reverse("course_report", args=[self.offering.pk]))
 
-        self.assertContains(response, "can")
-        self.assertContains(response, "Not enough evidence")
+        self.assertContains(
+            response,
+            """
+            <tr>
+                <th scope="row">Elif Demir</th>
+                <td><span class="thin" title="Only 1 graded assessment so far">1 grade</span></td>
+                <td class="po"><span class="thin" title="Only 1 graded assessment so far">1 grade</span></td>
+            </tr>
+            """,
+            html=True,
+        )
+        self.assertContains(
+            response,
+            """
+            <tr>
+                <th scope="row">can</th>
+                <td><span class="missing" title="No graded evidence"><span class="sr-only">no evidence</span></span></td>
+                <td class="po"><span class="missing" title="No graded evidence"><span class="sr-only">no evidence</span></span></td>
+            </tr>
+            """,
+            html=True,
+        )
+
+    def test_class_average_leaves_out_thin_evidence(self):
+        final = Assessment.objects.create(offering=self.offering, name="Final", max_score=D(100))
+        AssessmentLOWeight.objects.create(assessment=final, learning_outcome=self.lo1, weight=D(1))
+        Grade.objects.create(enrollment=self.graded_enrollment, assessment=final, score=D(80))
+        # Can has one grade only: shown as "1 grade" and left out of the average.
+        can_enrollment = Enrollment.objects.get(offering=self.offering, student=self.ungraded)
+        Grade.objects.create(enrollment=can_enrollment, assessment=self.midterm, score=D(10))
+
+        response = self.client.get(reverse("course_report", args=[self.offering.pk]))
+
+        self.assertEqual(response.context["lo_class_avg"], [D("85.0")])
+        self.assertEqual(response.context["po_class_avg"], [D("85.0")])
 
     def test_unknown_offering_is_404(self):
         response = self.client.get(reverse("course_report", args=[self.offering.pk + 999]))
