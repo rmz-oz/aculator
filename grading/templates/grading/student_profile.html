@@ -3,16 +3,16 @@
 {% block content %}
 <p class="eyebrow">{% if own_profile %}Your program outcomes{% else %}Program outcomes{% endif %}</p>
 <h1>{{ student.get_full_name|default:student.username }}</h1>
-<p class="lede">Each score is weighted across every course {% if own_profile %}you have{% else %}the student has{% endif %} taken,
-  by ECTS. The department figure is the mean of all students, no one else's score is shown.</p>
+<p class="lede">Each score is weighted by ECTS across {% if own_profile %}every course you have taken{% elif all_courses %}every course the student has taken{% else %}the courses you teach this student; their other courses are not included{% endif %}.
+  The department figure is the mean of all students, shown once at least {{ min_students }} have a score, so no one else's score can be worked out.</p>
 
 {% if rows %}
 <div class="outcomes">
   {% for row in rows %}
   <section class="outcome" aria-label="{{ row.code }}">
     <p class="code">{{ row.code }}</p>
-    <p class="score{% if row.below_average %} below{% endif %}">{% if row.own is not None %}{{ row.own }}{% else %}<span class="missing" title="Not enough evidence"></span>{% endif %}</p>
-    <p class="versus">{% if row.department is not None %}department {{ row.department }}{% else %}no department figure yet{% endif %}{% if row.own is None %}<br>not enough graded evidence{% endif %}</p>
+    <p class="score{% if row.below_average %} below{% endif %}">{% if row.own is not None %}{{ row.own }}{% else %}<span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span>{% endif %}</p>
+    <p class="versus">{% if row.department is not None %}department {{ row.department }}{% else %}no department figure, too few students{% endif %}{% if row.own is None %}<br>not enough graded evidence{% endif %}</p>
   </section>
   {% endfor %}
 </div>
@@ -32,8 +32,8 @@
   {% for row in rows %}
     <tr>
       <th scope="row">{{ row.code }}</th>
-      <td class="{% if row.below_average %}below{% else %}po{% endif %}">{% if row.own is not None %}{{ row.own }}{% else %}<span class="missing" title="Not enough evidence"></span>{% endif %}</td>
-      <td>{% if row.department is not None %}{{ row.department }}{% else %}<span class="missing" title="Not enough evidence"></span>{% endif %}</td>
+      <td class="{% if row.below_average %}below{% else %}po{% endif %}">{% if row.own is not None %}{{ row.own }}{% else %}<span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
+      <td>{% if row.department is not None %}{{ row.department }}{% else %}<span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>

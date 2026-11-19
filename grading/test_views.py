@@ -144,7 +144,15 @@ class HomeViewTests(TestCase):
         response = self.get_home(self.other_teacher)
 
         self.assertNotContains(response, "CSE311")
-        self.assertContains(response, "You are not teaching any course")
+        self.assertContains(response, "You are not listed as an instructor of any course")
+
+    def test_head_with_no_offerings_is_not_told_they_teach_nothing(self):
+        CourseOffering.objects.all().delete()
+
+        response = self.get_home(self.head)
+
+        self.assertContains(response, "No course offerings yet")
+        self.assertNotContains(response, "instructor of any course")
 
     def test_student_goes_to_their_profile(self):
         response = self.get_home(self.graded)
@@ -194,6 +202,29 @@ class LoginViewTests(TestCase):
 
         self.assertRedirects(response, report_url, fetch_redirect_response=False)
 
+    def test_next_to_another_site_is_ignored(self):
+        response = self.client.post(
+            reverse("login"),
+            {"username": "elif", "password": "s3cret-pw", "next": "https://evil.example/"},
+        )
+
+        self.assertRedirects(response, reverse("home"), fetch_redirect_response=False)
+
+    def test_logout_needs_a_post(self):
+        self.client.force_login(self.user)
+
+        self.assertEqual(self.client.get(reverse("logout")).status_code, 405)
+        self.assertIn("_auth_user_id", self.client.session)
+
+    def test_404_uses_the_page_frame(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("course_report", args=[999]))
+
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, "aculator.css", status_code=404)
+        self.assertContains(response, "Page not found", status_code=404)
+
     def test_logout_sends_back_to_login(self):
         self.client.force_login(self.user)
 
@@ -228,6 +259,14 @@ class StudentProfileViewTests(TestCase):
         can_enrollment = Enrollment.objects.create(offering=cls.offering, student=cls.can)
         Grade.objects.create(enrollment=can_enrollment, assessment=cls.assessment, score=D("50"))
 
+        # Three more classmates at 70, so five students have a PO1 score and
+        # the department mean (90 + 50 + 3 * 70) / 5 = 70 may be shown.
+        for i in range(3):
+            classmate = get_user_model().objects.create_user(username=f"classmate{i}")
+            classmate.groups.add(Group.objects.get(name=STUDENT))
+            enrollment = Enrollment.objects.create(offering=cls.offering, student=classmate)
+            Grade.objects.create(enrollment=enrollment, assessment=cls.assessment, score=D("70"))
+
         cls.teacher = get_user_model().objects.create_user(username="teacher")
         cls.teacher.groups.add(Group.objects.get(name=INSTRUCTOR))
         cls.offering.instructors.add(cls.teacher)
@@ -259,8 +298,8 @@ class StudentProfileViewTests(TestCase):
         self.assertContains(response, "score below")
 
     def test_equal_to_the_average_is_not_flagged(self):
-        # Only Elif has a score: her PO1 is the department average.
-        Grade.objects.filter(enrollment__student=self.can).delete()
+        # Everyone scored 90, so Elif's PO1 is the department average.
+        Grade.objects.update(score=D("90"))
         refresh_materialized_views()
         self.client.force_login(self.elif_)
 
@@ -268,6 +307,54 @@ class StudentProfileViewTests(TestCase):
 
         self.assertContains(response, "department 90.0")
         self.assertNotContains(response, "score below")
+
+    def test_too_few_students_give_no_department_figure(self):
+        # With two students a mean gives the other one's score away; four is still too few.
+        Grade.objects.filter(enrollment__student=self.can).delete()
+        refresh_materialized_views()
+        self.client.force_login(self.elif_)
+
+        response = self.client.get(reverse("student_profile", args=[self.elif_.pk]))
+
+        self.assertContains(response, "90.0")
+        self.assertNotContains(response, "department 75.0")
+        self.assertContains(response, "too few students")
+        self.assertNotContains(response, "score below")
+
+    def test_missing_scores_are_named_for_screen_readers(self):
+        Grade.objects.filter(enrollment__student=self.elif_).delete()
+        self.client.force_login(self.elif_)
+
+        response = self.client.get(reverse("student_profile", args=[self.elif_.pk]))
+
+        self.assertContains(response, '<span class="sr-only">no evidence</span>')
+
+    def test_instructor_sees_only_the_courses_they_teach(self):
+        # Elif also takes CSE312 (4 ECTS) with another instructor and scored 10 there.
+        other = CourseOffering.objects.create(
+            course=Course.objects.create(code="CSE312", name="Databases", ects=4), term=self.term,
+        )
+        other.instructors.add(self.other_teacher)
+        lo = LearningOutcome.objects.create(offering=other, code="LO1")
+        final = Assessment.objects.create(offering=other, name="Final", max_score=D("100"))
+        AssessmentLOWeight.objects.create(assessment=final, learning_outcome=lo, weight=D("1"))
+        LOPOWeight.objects.create(learning_outcome=lo, component=self.component, weight=1)
+        enrollment = Enrollment.objects.create(offering=other, student=self.elif_)
+        Grade.objects.create(enrollment=enrollment, assessment=final, score=D("10"))
+        url = reverse("student_profile", args=[self.elif_.pk])
+
+        # Both courses: (90 * 6 + 10 * 4) / 10 = 58
+        self.client.force_login(self.elif_)
+        self.assertContains(self.client.get(url), "58.0")
+        self.client.force_login(self.head)
+        self.assertContains(self.client.get(url), "58.0")
+
+        # CSE311's instructor sees CSE311 only, and nothing from CSE312.
+        self.client.force_login(self.teacher)
+        response = self.client.get(url)
+        self.assertContains(response, "90.0")
+        self.assertNotContains(response, "58.0")
+        self.assertContains(response, "the courses you teach")
 
     def test_instructor_of_a_shared_course_can_view_the_profile(self):
         self.client.force_login(self.teacher)

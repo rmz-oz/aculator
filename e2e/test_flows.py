@@ -176,5 +176,7 @@ class BrowserFlowTests(StaticLiveServerTestCase):
 
         response = self.page.goto(self.report_url())
         self.assertEqual(response.status, 404)
-        expect(self.page.get_by_text("Demir")).to_have_count(0)
+        # Her own name is in the masthead; nothing from the report is on the page.
+        expect(self.page.get_by_role("heading", level=1)).to_have_text("Page not found")
+        expect(self.page.locator("main").get_by_text("Demir")).to_have_count(0)
         self.shot("4-student-gets-404")

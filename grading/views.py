@@ -8,10 +8,25 @@ from django.db.models import Case, Count, IntegerField, Prefetch, Value, When
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .access import STUDENT, can_view_student, grade_entry_offerings, report_offerings, role_of
+from .access import (
+    HEAD,
+    STUDENT,
+    can_view_student,
+    grade_entry_offerings,
+    report_offerings,
+    role_of,
+    visible_enrollments,
+)
 from .grade_import import grades_fingerprint, is_serialization_failure, parse_grade_files, serializable_transaction
 from .models import Assessment, Grade, Term
-from .services import department_po_scores, display, scores_by_enrollment, student_po_scores, weighted_mean
+from .services import (
+    DEPARTMENT_MIN_STUDENTS,
+    department_po_scores,
+    display,
+    scores_by_enrollment,
+    student_po_scores,
+    weighted_mean,
+)
 
 ONE = Decimal(1)
 
@@ -120,13 +135,18 @@ def student_profile(request, student_id):
     """A student's cross-course PO scores next to the anonymous department average (#14).
 
     Open to the student themselves, their instructors and the head
-    (grading.access.can_view_student); everyone else gets 404.
+    (grading.access.can_view_student); everyone else gets 404. An instructor
+    sees the scores from the courses they teach only, not the student's other
+    courses (grading.access.visible_enrollments).
     """
     student = get_object_or_404(get_user_model(), pk=student_id)
     if not can_view_student(request.user, student):
         raise Http404
 
-    own = student_po_scores(student)
+    own_profile = student.pk == request.user.pk
+    # The student reads all their own courses, even if they also teach one.
+    enrollments = None if own_profile else visible_enrollments(request.user)
+    own = student_po_scores(student, enrollments)
     department = department_po_scores()
     po_codes = sorted(set(own) | set(department), key=_po_sort_key)
 
@@ -147,8 +167,10 @@ def student_profile(request, student_id):
     return render(request, "grading/student_profile.html", {
         "student": student,
         "rows": rows,
-        "own_profile": student.pk == request.user.pk,
-        "nav": "home" if student.pk == request.user.pk else None,
+        "own_profile": own_profile,
+        "all_courses": own_profile or role_of(request.user) == HEAD,
+        "min_students": DEPARTMENT_MIN_STUDENTS,
+        "nav": "home" if own_profile else None,
     })
 
 
@@ -195,7 +217,9 @@ def _gradable_assessment(request, assessment_id):
 
 
 def _import_page(request, assessment, status=200, **context):
-    return render(request, "grading/grade_import.html", {"assessment": assessment, **context}, status=status)
+    return render(
+        request, "grading/grade_import.html", {"assessment": assessment, "nav": "home", **context}, status=status,
+    )
 
 
 def _upload(request, assessment):
