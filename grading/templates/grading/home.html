@@ -38,6 +38,6 @@
   {% endwith %}{% endfor %}
 </div>
 {% else %}
-<p class="empty">{% if role %}You are not teaching any course this term.{% else %}Your account has no role yet. Ask the department to add you as an instructor or student.{% endif %}</p>
+<p class="empty">{% if role == "Head of department" %}No course offerings yet. Add them in the admin.{% elif role %}You are not listed as an instructor of any course yet.{% else %}Your account has no role yet. Ask the department to add you as an instructor or student.{% endif %}</p>
 {% endif %}
 {% endblock %}

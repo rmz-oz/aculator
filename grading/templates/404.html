@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Not found, aculator{% endblock %}
+{% block content %}
+<h1>Page not found</h1>
+<p class="lede">This page does not exist, or your account cannot open it.</p>
+{% if user.is_authenticated %}<div class="actions"><a class="action large" href="{% url 'home' %}">Back to your start page</a></div>{% endif %}
+{% endblock %}

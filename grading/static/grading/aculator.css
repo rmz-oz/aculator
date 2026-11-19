@@ -347,6 +347,8 @@ input[type="password"]:focus { outline: 2px solid var(--blue); outline-offset: 0
   max-width: 760px;
 }
 .drop.over { background: #E9EEFB; }
+/* The file input is invisible, so the drop area shows its keyboard focus. */
+.drop:focus-within { outline: 2px solid var(--blue); outline-offset: 0; }
 .drop input[type="file"] {
   position: absolute;
   inset: 0;
