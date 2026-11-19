@@ -48,17 +48,6 @@ POComponent: {
   }
 }
 
-StudentPOScore: {
-  shape: class
-  "score": "Decimal(12,6)"
-  style: {
-    fill: "#0D1117"
-    stroke: "#FFFFFF"
-    font-color: "#FFFFFF"
-    font-size: 16
-  }
-}
-
 Course: {
   shape: class
   "code": "str(20) unique"
@@ -97,7 +86,7 @@ LearningOutcome: {
 Assessment: {
   shape: class
   "name": "str(100)"
-  "max_score": "Decimal(6,2) >= 0"
+  "max_score": "Decimal(6,2) >= 0.01"
   style: {
     fill: "#0D1117"
     stroke: "#FFFFFF"
@@ -118,6 +107,7 @@ Enrollment: {
 
 Grade: {
   shape: class
+  "status": "choice(graded, absent)"
   "score": "Decimal(6,2) >= 0"
   "clean()": ""
   style: {
@@ -163,16 +153,6 @@ User: {
 }
 
 POComponent -> ProgramOutcome: "program_outcome" {
-  source-arrowhead.label: "*"
-  target-arrowhead.label: "1"
-  style: {stroke: "#41464E"; stroke-width: 2; font-color: "#41464E"}
-}
-StudentPOScore -> User: "student" {
-  source-arrowhead.label: "*"
-  target-arrowhead.label: "1"
-  style: {stroke: "#41464E"; stroke-width: 2; font-color: "#41464E"}
-}
-StudentPOScore -> ProgramOutcome: "program_outcome" {
   source-arrowhead.label: "*"
   target-arrowhead.label: "1"
   style: {stroke: "#41464E"; stroke-width: 2; font-color: "#41464E"}

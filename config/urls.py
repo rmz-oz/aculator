@@ -36,10 +36,23 @@ def healthz(request):
 
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('healthz/', healthz),
-    path('accounts/login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
-    path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
-    path('offerings/<int:offering_id>/report/', grading_views.course_report, name='course_report'),
-    path('students/<int:student_id>/profile/', grading_views.student_profile, name='student_profile'),
+    path("admin/", admin.site.urls),
+    path("healthz/", healthz),
+    path("accounts/login/", auth_views.LoginView.as_view(), name="login"),
+    path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path(
+        "offerings/<int:offering_id>/report/",
+        grading_views.course_report,
+        name="course_report",
+    ),
+    path(
+        "assessments/<int:assessment_id>/import/",
+        grading_views.grade_import,
+        name="grade_import",
+    ),
+    path(
+        "students/<int:student_id>/profile/",
+        grading_views.student_profile,
+        name="student_profile",
+    ),
 ]

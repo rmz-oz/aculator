@@ -146,7 +146,3 @@ STORAGES = {
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# cross_course_po_scores (grading.StudentPOScore, #9/#14) has no single-column key;
-# marking one FK as the Django pk is the standard way to map such a view.
-SILENCED_SYSTEM_CHECKS = ['fields.W342']

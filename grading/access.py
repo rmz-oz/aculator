@@ -61,6 +61,18 @@ def report_offerings(user):
     return CourseOffering.objects.none()
 
 
+def grade_entry_offerings(user):
+    """Offerings whose grades the user may write, e.g. by CSV import.
+
+    Only the people who teach the offering (CourseOffering.instructors). The
+    head reads every report but enters no grades, and neither does a superuser
+    unless they are listed as an instructor of that offering.
+    """
+    if role_of(user) not in (INSTRUCTOR, HEAD):
+        return CourseOffering.objects.none()
+    return CourseOffering.objects.filter(instructors=user)
+
+
 def visible_enrollments(user):
     role = role_of(user)
     qs = Enrollment.objects.all()

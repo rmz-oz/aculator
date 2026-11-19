@@ -1,7 +1,8 @@
 from collections import defaultdict
 from decimal import ROUND_HALF_UP, Decimal
 
-from django.db.models import Avg, F
+from django.db import connection
+from django.db.models import F
 
 from .models import (
     AssessmentLOWeight,
@@ -9,7 +10,6 @@ from .models import (
     Grade,
     LOPOWeight,
     ProgramOutcome,
-    StudentPOScore,
 )
 
 ZERO = Decimal(0)
@@ -64,12 +64,12 @@ def _component_results(enrollments):
         assessment__offering_id=F("enrollment__offering_id"),
     ).select_related("assessment")
 
+    # Absent grades are stored as 0 and count. max_score > 0 is a database
+    # constraint, so the division is safe.
     for grade in grades:
-        maximum = grade.assessment.max_score
-        if maximum > ZERO:
-            percentages[grade.enrollment_id][grade.assessment_id] = (
-                grade.score / maximum * HUNDRED
-            )
+        percentages[grade.enrollment_id][grade.assessment_id] = (
+            grade.score / grade.assessment.max_score * HUNDRED
+        )
 
     lo_weights = defaultdict(list)
     rows = AssessmentLOWeight.objects.filter(
@@ -253,11 +253,19 @@ def student_po_report(student, threshold):
 
 
 def department_po_scores():
-    """Equal-weight mean, across every student, of each student's cross-course PO score.
+    """Mean of every student's cross-course score per PO, keyed by PO code.
 
     Reads the cross_course_po_scores materialized view (#9) instead of
-    recomputing every grade in the department on every profile page view.
-    The comparison is anonymous: only the per-PO average is returned (#14).
+    recomputing every grade in the department on each profile view. Only the
+    per-PO mean leaves this function, so the comparison stays anonymous (#14).
     """
-    rows = StudentPOScore.objects.values("program_outcome__code").annotate(score=Avg("score"))
-    return {row["program_outcome__code"]: row["score"] for row in rows}
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT po.code, AVG(s.score)
+            FROM cross_course_po_scores s
+            JOIN grading_programoutcome po ON po.id = s.program_outcome_id
+            GROUP BY po.code
+            """
+        )
+        return {code: score for code, score in cursor.fetchall()}
