@@ -35,7 +35,16 @@ def healthz(request):
 
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('healthz/', healthz),
-    path('offerings/<int:offering_id>/report/', grading_views.course_report, name='course_report'),
+    path("admin/", admin.site.urls),
+    path("healthz/", healthz),
+    path(
+        "offerings/<int:offering_id>/report/",
+        grading_views.course_report,
+        name="course_report",
+    ),
+    path(
+        "assessments/<int:assessment_id>/import/",
+        grading_views.grade_import,
+        name="grade_import",
+    ),
 ]

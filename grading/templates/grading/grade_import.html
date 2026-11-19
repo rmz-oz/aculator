@@ -1,0 +1,49 @@
+<h1>CSV ile not yükle</h1>
+<p>{{ assessment }}</p>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <label for="csv_file">CSV dosyaları</label>
+    <input id="csv_file" name="csv_file" type="file" accept=".csv" multiple required>
+    <button type="submit" name="action" value="preview">Önizle</button>
+    <button type="submit">Yükle</button>
+</form>
+
+{% if errors %}
+    <h2>Dosyadaki hatalar</h2>
+    <ul>
+        {% for error in errors %}
+            <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+{% if preview_token %}
+    <h2>Devamsızlık önerileri</h2>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="confirm">
+        <input type="hidden" name="preview_token" value="{{ preview_token }}">
+        <ul>
+            {% for number in missing_students %}
+                <li>
+                    <label>
+                        <input type="checkbox" name="absent_students" value="{{ number }}">
+                        {{ number }} hiçbir listede yok. Devamsız olarak işaretle.
+                    </label>
+                </li>
+            {% empty %}
+                <li>Derse kayıtlı herkes en az bir listede var.</li>
+            {% endfor %}
+        </ul>
+        <button type="submit">Onayla ve kaydet</button>
+    </form>
+{% endif %}
+
+{% if saved_count %}
+    <p>{{ saved_count }} not kaydedildi.</p>
+{% endif %}
+
+{% if absent_count %}
+    <p>{{ absent_count }} öğrenci devamsız olarak kaydedildi.</p>
+{% endif %}
