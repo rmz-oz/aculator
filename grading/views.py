@@ -4,12 +4,13 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core import signing
 from django.db import OperationalError
+from django.db.models import Case, Count, IntegerField, Prefetch, Value, When
 from django.http import Http404
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 
-from .access import can_view_student, grade_entry_offerings, report_offerings
+from .access import STUDENT, can_view_student, grade_entry_offerings, report_offerings, role_of
 from .grade_import import grades_fingerprint, is_serialization_failure, parse_grade_files, serializable_transaction
-from .models import Assessment, Grade
+from .models import Assessment, Grade, Term
 from .services import department_po_scores, display, scores_by_enrollment, student_po_scores, weighted_mean
 
 ONE = Decimal(1)
@@ -18,6 +19,34 @@ ONE = Decimal(1)
 def _po_sort_key(code):
     digits = "".join(ch for ch in code if ch.isdigit())
     return int(digits) if digits else 0
+
+
+@login_required
+def home(request):
+    """Start page. Students go to their own profile; instructors and the head
+    get the offerings they may open, newest term first, with the assessments
+    an instructor can import grades for."""
+    role = role_of(request.user)
+    if role == STUDENT:
+        return redirect("student_profile", student_id=request.user.pk)
+
+    writable = set(grade_entry_offerings(request.user).values_list("pk", flat=True))
+    assessments = Assessment.objects.annotate(graded=Count("grades")).order_by("name")
+    offerings = (
+        report_offerings(request.user)
+        .select_related("course", "term")
+        .annotate(students=Count("enrollments", distinct=True))
+        .prefetch_related(Prefetch("assessments", queryset=assessments))
+        .annotate(season_order=Case(
+            When(term__season=Term.Season.FALL, then=Value(3)),
+            When(term__season=Term.Season.SUMMER, then=Value(2)),
+            default=Value(1),
+            output_field=IntegerField(),
+        ))
+        .order_by("-term__year", "-season_order", "course__code")
+    )
+    courses = [{"offering": o, "can_import": o.pk in writable} for o in offerings]
+    return render(request, "grading/home.html", {"nav": "home", "courses": courses})
 
 
 @login_required
@@ -80,6 +109,9 @@ def course_report(request, offering_id):
         "rows": rows,
         "lo_class_avg": lo_class_avg,
         "po_class_avg": po_class_avg,
+        "can_import": grade_entry_offerings(request.user).filter(pk=offering.pk).exists(),
+        "assessments": offering.assessments.order_by("name"),
+        "nav": "home",
     })
 
 
@@ -103,8 +135,10 @@ def student_profile(request, student_id):
             "code": code,
             "own": display(own.get(code)),
             "department": display(department.get(code)),
+            # Compare what is shown: the view and the service round differently
+            # in the last digits, and 85.0 must not read as below 85.0.
             "below_average": (
-                code in own and code in department and own[code] < department[code]
+                code in own and code in department and display(own[code]) < display(department[code])
             ),
         }
         for code in po_codes
@@ -113,6 +147,8 @@ def student_profile(request, student_id):
     return render(request, "grading/student_profile.html", {
         "student": student,
         "rows": rows,
+        "own_profile": student.pk == request.user.pk,
+        "nav": "home" if student.pk == request.user.pk else None,
     })
 
 

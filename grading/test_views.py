@@ -96,8 +96,9 @@ class CourseReportViewTests(TestCase):
             student = get_user_model().objects.create_user(username=f"extra{i}")
             Enrollment.objects.create(offering=self.offering, student=student)
 
-        # session, user, role, then offering, LOs, enrollments, grades, LO weights, PO weights
-        with self.assertNumQueries(9):
+        # session, user, role, then offering, LOs, enrollments, grades, LO weights, PO weights,
+        # and whether the viewer may import grades here
+        with self.assertNumQueries(10):
             self.client.get(reverse("course_report", args=[self.offering.pk]))
 
     def test_only_head_and_own_instructor_can_open_the_report(self):
@@ -115,6 +116,55 @@ class CourseReportViewTests(TestCase):
                 if user:
                     self.client.force_login(user)
                 self.assertEqual(self.client.get(url).status_code, status)
+
+
+class HomeViewTests(TestCase):
+    """The start page, with the course report fixtures: one offering, a teacher, the head."""
+
+    setUpTestData = classmethod(CourseReportViewTests.setUpTestData.__func__)
+
+    def get_home(self, user):
+        self.client.force_login(user)
+        return self.client.get(reverse("home"))
+
+    def test_instructor_sees_their_course_with_import_links(self):
+        response = self.get_home(self.teacher)
+
+        self.assertContains(response, "CSE311")
+        self.assertContains(response, reverse("grade_import", args=[self.midterm.pk]))
+        self.assertContains(response, "1 of 2 graded")
+
+    def test_head_sees_the_report_but_no_import_link(self):
+        response = self.get_home(self.head)
+
+        self.assertContains(response, reverse("course_report", args=[self.offering.pk]))
+        self.assertNotContains(response, reverse("grade_import", args=[self.midterm.pk]))
+
+    def test_other_instructor_sees_no_course(self):
+        response = self.get_home(self.other_teacher)
+
+        self.assertNotContains(response, "CSE311")
+        self.assertContains(response, "You are not teaching any course")
+
+    def test_student_goes_to_their_profile(self):
+        response = self.get_home(self.graded)
+
+        self.assertRedirects(
+            response, reverse("student_profile", args=[self.graded.pk]), fetch_redirect_response=False,
+        )
+
+    def test_report_shows_import_links_only_to_the_instructor(self):
+        url = reverse("course_report", args=[self.offering.pk])
+        import_url = reverse("grade_import", args=[self.midterm.pk])
+        self.client.force_login(self.teacher)
+        self.assertContains(self.client.get(url), import_url)
+        self.client.force_login(self.head)
+        self.assertNotContains(self.client.get(url), import_url)
+
+    def test_logged_out_is_sent_to_login(self):
+        response = self.client.get(reverse("home"))
+
+        self.assertRedirects(response, f"{reverse('login')}?next=/", fetch_redirect_response=False)
 
 
 class LoginViewTests(TestCase):
@@ -206,7 +256,18 @@ class StudentProfileViewTests(TestCase):
 
         response = self.client.get(reverse("student_profile", args=[self.can.pk]))
 
-        self.assertContains(response, "own below")
+        self.assertContains(response, "score below")
+
+    def test_equal_to_the_average_is_not_flagged(self):
+        # Only Elif has a score: her PO1 is the department average.
+        Grade.objects.filter(enrollment__student=self.can).delete()
+        refresh_materialized_views()
+        self.client.force_login(self.elif_)
+
+        response = self.client.get(reverse("student_profile", args=[self.elif_.pk]))
+
+        self.assertContains(response, "department 90.0")
+        self.assertNotContains(response, "score below")
 
     def test_instructor_of_a_shared_course_can_view_the_profile(self):
         self.client.force_login(self.teacher)
