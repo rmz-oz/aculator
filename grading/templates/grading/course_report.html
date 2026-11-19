@@ -49,7 +49,7 @@
     tbody tr:nth-child(odd) { background: #F4F5F7; }
     tfoot td { font-weight: 700; padding-top: 14px; }
     .po-col { color: var(--blue); }
-    /* Missing evidence is its own state, hatched, never a number (decision 0006). */
+    /* Missing evidence is its own state (decision 0006). */
     .missing {
       display: inline-block;
       min-width: 2.6em;
@@ -57,6 +57,14 @@
       background: repeating-linear-gradient(135deg, #C9CCD1 0 2px, transparent 2px 6px);
     }
     .empty { color: var(--muted); font-style: italic; }
+    .low-evidence {
+      display: inline-block;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 2px 6px;
+      color: var(--muted);
+      font-size: 0.85em;
+    }
   </style>
 </head>
 <body>
@@ -68,7 +76,7 @@
   <table>
     <caption>
       Learning outcome and program outcome scores for every student enrolled in {{ offering.course.code }},
-      {{ offering.term }}. Missing scores mean not enough graded evidence yet.
+      {{ offering.term }}. Missing scores mean there is no graded evidence yet.
     </caption>
     <thead>
       <tr>
@@ -82,10 +90,26 @@
       <tr>
         <th scope="row">{{ row.student.get_full_name|default:row.student.username }}</th>
         {% for cell in row.lo_cells %}
-          <td>{% if cell is not None %}{{ cell }}{% else %}<span class="missing" title="Not enough evidence">&nbsp;</span>{% endif %}</td>
+          <td>
+            {% if cell.state == "score" %}
+              {{ cell.value }}
+            {% elif cell.state == "low_evidence" %}
+              <span class="low-evidence">Not enough evidence</span>
+            {% else %}
+              <span title="No evidence">—</span>
+            {% endif %}
+          </td>
         {% endfor %}
         {% for cell in row.po_cells %}
-          <td class="po-col">{% if cell is not None %}{{ cell }}{% else %}<span class="missing" title="Not enough evidence">&nbsp;</span>{% endif %}</td>
+          <td class="po-col">
+            {% if cell.state == "score" %}
+              {{ cell.value }}
+            {% elif cell.state == "low_evidence" %}
+              <span class="low-evidence">Not enough evidence</span>
+            {% else %}
+              <span title="No evidence">—</span>
+            {% endif %}
+          </td>
         {% endfor %}
       </tr>
       {% endfor %}

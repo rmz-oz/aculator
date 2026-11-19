@@ -3,9 +3,17 @@ from decimal import Decimal
 from django.shortcuts import get_object_or_404, render
 
 from .access import report_offerings
-from .services import display, scores_by_enrollment, weighted_mean
+from .services import display, scores_with_evidence_by_enrollment, weighted_mean
 
 ONE = Decimal(1)
+MIN_ASSESSMENTS_FOR_SCORE = 2
+
+def _score_cell(score, evidence_count):
+    if evidence_count == 0:
+        return {"state": "empty"}
+    if evidence_count < MIN_ASSESSMENTS_FOR_SCORE:
+        return {"state": "low_evidence"}
+    return {"state": "score", "value": display(score)}
 
 
 def _po_sort_key(code):
@@ -32,13 +40,15 @@ def course_report(request, offering_id):
     )
 
     # One batched call for the whole class, not one query per student.
-    scores = scores_by_enrollment(enrollments)
+
+
+    scores = scores_with_evidence_by_enrollment(enrollments)
 
     lo_values = {lo.pk: [] for lo in los}
     po_values = {}
     rows = []
     for enrollment in enrollments:
-        lo_scores, po_scores = scores[enrollment.pk]
+        lo_scores, po_scores, lo_counts, po_counts = scores[enrollment.pk]
         for lo in los:
             score = lo_scores.get(lo.pk)
             if score is not None:
@@ -47,13 +57,20 @@ def course_report(request, offering_id):
             po_values.setdefault(code, []).append(score)
         rows.append({
             "student": enrollment.student,
-            "lo_cells": [display(lo_scores.get(lo.pk)) for lo in los],
+            "lo_cells": [
+                _score_cell(lo_scores.get(lo.pk), lo_counts.get(lo.pk, 0))
+                for lo in los
+            ],
             "po_scores": po_scores,
+            "po_counts": po_counts,
         })
 
     po_codes = sorted(po_values, key=_po_sort_key)
     for row in rows:
-        row["po_cells"] = [display(row["po_scores"].get(code)) for code in po_codes]
+        row["po_cells"] = [
+            _score_cell(row["po_scores"].get(code), row["po_counts"].get(code, 0))
+            for code in po_codes
+        ]
 
     lo_class_avg = [
         display(weighted_mean([(v, ONE) for v in lo_values[lo.pk]]))
