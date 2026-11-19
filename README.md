@@ -34,6 +34,16 @@ python manage.py runserver
 
 Settings come from environment variables, see `.env.example`. The defaults match the compose database.
 
+## Tests
+
+```
+python manage.py test        # browser tests are skipped without Playwright
+pip install -r requirements-e2e.txt && playwright install chromium
+python manage.py test e2e    # browser tests, screenshots in e2e-screenshots/
+```
+
+CI runs both. The screenshots of every run are attached to it as the `screenshots` artifact.
+
 ## Deploy
 
 Every green `main` is built into `ghcr.io/rmz-oz/aculator` and deployed to Render, see
