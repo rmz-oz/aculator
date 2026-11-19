@@ -1,93 +1,80 @@
-# Database Index and Table Size Measurements
+# Table sizes and index measurements
 
-## 1. Objective
+Measured 2026-11-19 on PostgreSQL 15.17, local machine, data from `python manage.py fake_data`. Rerun with `python manage.py measure_db --output docs/measurements.md`; absolute times depend on the machine, the ratios are what to compare.
 
-The objective of this task is to measure database table sizes, row counts, column counts, index storage usage, and query execution performance in the Aculator project.
+## Tables and materialized views
 
-The measurements were performed using PostgreSQL 16 and a local database populated with synthetic test data.
+Exact row counts (`count(*)`). Sizes from `pg_table_size`, `pg_indexes_size` and `pg_total_relation_size`; table size includes TOAST and the free space map.
 
-## 2. Table Size Measurements
+| Name | Kind | Rows | Columns | Table | Indexes | Total |
+|---|---|---:|---:|---:|---:|---:|
+| `course_po_scores` | materialized view | 12,143 | 4 | 864.0 kB | 640.0 kB | 1.5 MB |
+| `grading_grade` | table | 9,600 | 5 | 672.0 kB | 776.0 kB | 1.4 MB |
+| `student_lo_scores` | materialized view | 7,200 | 4 | 520.0 kB | 312.0 kB | 832.0 kB |
+| `cross_course_po_scores` | materialized view | 4,305 | 3 | 328.0 kB | 152.0 kB | 480.0 kB |
+| `grading_enrollment` | table | 2,400 | 3 | 160.0 kB | 296.0 kB | 456.0 kB |
+| `auth_user` | table | 400 | 11 | 144.0 kB | 96.0 kB | 240.0 kB |
+| `grading_assessmentloweight` | table | 384 | 4 | 48.0 kB | 80.0 kB | 128.0 kB |
+| `grading_lopoweight` | table | 392 | 4 | 48.0 kB | 80.0 kB | 128.0 kB |
+| `grading_learningoutcome` | table | 192 | 4 | 48.0 kB | 48.0 kB | 96.0 kB |
+| `grading_assessment` | table | 256 | 4 | 40.0 kB | 48.0 kB | 88.0 kB |
+| `grading_courseoffering` | table | 64 | 3 | 8.0 kB | 64.0 kB | 72.0 kB |
+| `grading_pocomponent` | table | 11 | 4 | 16.0 kB | 48.0 kB | 64.0 kB |
+| `grading_programoutcome` | table | 11 | 3 | 16.0 kB | 48.0 kB | 64.0 kB |
+| `auth_group` | table | 3 | 2 | 8.0 kB | 48.0 kB | 56.0 kB |
+| `auth_permission` | table | 68 | 4 | 8.0 kB | 48.0 kB | 56.0 kB |
+| `grading_course` | table | 8 | 4 | 8.0 kB | 48.0 kB | 56.0 kB |
+| `django_content_type` | table | 17 | 3 | 8.0 kB | 32.0 kB | 40.0 kB |
+| `grading_term` | table | 8 | 3 | 8.0 kB | 32.0 kB | 40.0 kB |
+| `auth_group_permissions` | table | 0 | 3 | 0 bytes | 32.0 kB | 32.0 kB |
+| `auth_user_groups` | table | 0 | 3 | 0 bytes | 32.0 kB | 32.0 kB |
+| `auth_user_user_permissions` | table | 0 | 3 | 0 bytes | 32.0 kB | 32.0 kB |
+| `django_admin_log` | table | 0 | 8 | 8.0 kB | 24.0 kB | 32.0 kB |
+| `django_migrations` | table | 23 | 4 | 16.0 kB | 16.0 kB | 32.0 kB |
+| `django_session` | table | 0 | 3 | 8.0 kB | 24.0 kB | 32.0 kB |
+| `grading_courseoffering_instructors` | table | 0 | 3 | 0 bytes | 32.0 kB | 32.0 kB |
 
-The following measurements were collected on November 19, 2026.
+## Indexes on the tables the queries read
 
-| Table | Rows | Columns | Table Size | Index Size | Total Size |
-|---|---:|---:|---:|---:|---:|
-| grading_grade | 12800 | 5 | 824 kB | 1080 kB | 1904 kB |
-| grading_enrollment | 3200 | 3 | 200 kB | 376 kB | 576 kB |
-| grading_lopoweight | 942 | 4 | 152 kB | 208 kB | 360 kB |
-| grading_assessmentloweight | 768 | 4 | 72 kB | 136 kB | 208 kB |
-| grading_learningoutcome | 192 | 4 | 48 kB | 48 kB | 96 kB |
-| grading_assessment | 256 | 4 | 40 kB | 48 kB | 88 kB |
-| grading_courseoffering | 64 | 3 | 8192 bytes | 64 kB | 72 kB |
-| grading_pocomponent | 5 | 4 | 16 kB | 48 kB | 64 kB |
-| grading_programoutcome | 5 | 3 | 16 kB | 48 kB | 64 kB |
-| grading_course | 8 | 4 | 8192 bytes | 48 kB | 56 kB |
-| grading_term | 8 | 3 | 8192 bytes | 32 kB | 40 kB |
-| grading_courseoffering_instructors | 0 | 3 | 0 bytes | 32 kB | 32 kB |
+| Table | Index | Size | Definition |
+|---|---|---:|---|
+| `cross_course_po_scores` | `cross_course_po_scores_unique` | 152.0 kB | `USING btree (student_id, program_outcome_id)` |
+| `grading_enrollment` | `grading_enrollment_offering_id_18fd2ea9` | 40.0 kB | `USING btree (offering_id)` |
+| `grading_enrollment` | `grading_enrollment_pkey` | 72.0 kB | `USING btree (id)` |
+| `grading_enrollment` | `grading_enrollment_student_id_8213fb46` | 48.0 kB | `USING btree (student_id)` |
+| `grading_enrollment` | `uniq_enrollment` | 136.0 kB | `USING btree (offering_id, student_id)` |
+| `grading_grade` | `grading_grade_assessment_id_dbc8c459` | 96.0 kB | `USING btree (assessment_id)` |
+| `grading_grade` | `grading_grade_enrollment_id_8fc240c9` | 136.0 kB | `USING btree (enrollment_id)` |
+| `grading_grade` | `grading_grade_pkey` | 232.0 kB | `USING btree (id)` |
+| `grading_grade` | `uniq_grade` | 312.0 kB | `USING btree (enrollment_id, assessment_id)` |
 
-Row counts were obtained using `COUNT(*)`. Column counts were obtained from `information_schema.columns`. Storage sizes were obtained using PostgreSQL's `pg_table_size`, `pg_indexes_size`, and `pg_total_relation_size` functions.
+## Query times
 
-## 3. Index Performance Measurements
+Each query ran 3 times to warm the cache, then 30 times with indexes allowed and 30 times with `enable_indexscan`, `enable_indexonlyscan` and `enable_bitmapscan` off for that transaction only. Times are the median of `Execution Time` from `EXPLAIN (ANALYZE, FORMAT JSON)`, planning not included.
 
-### Test Query
+| Query | Used by | With indexes (ms) | Plan | Without (ms) | Plan | Ratio |
+|---|---|---:|---|---:|---|---:|
+| Grades of one enrollment | scoring service, one student in one course | 0.004 | Index Scan | 0.594 | Seq Scan | 148.5x |
+| Grades of one class | class report, every grade in one offering | 0.075 | Bitmap Heap Scan, Bitmap Index Scan, Index Scan | 1.459 | Seq Scan | 19.5x |
+| PO scores of one student | student profile, from cross_course_po_scores | 0.004 | Index Scan | 0.202 | Seq Scan | 50.5x |
+| Department mean per PO | student profile, reads every row of the view | 0.928 | Seq Scan | 0.918 | Seq Scan | 1.0x |
 
-```sql
-SELECT *
-FROM grading_grade
-WHERE enrollment_id = 161;
-```
+The SQL, with the parameter the run used:
 
-The `grading_grade` table contained 12,800 rows. The query returned four matching rows.
+- Grades of one enrollment: `SELECT * FROM grading_grade WHERE enrollment_id = 1201`
+- Grades of one class: `SELECT g.* FROM grading_grade g JOIN grading_enrollment e ON e.id = g.enrollment_id WHERE e.offering_id = 33`
+- PO scores of one student: `SELECT * FROM cross_course_po_scores WHERE student_id = 201`
+- Department mean per PO: `SELECT program_outcome_id, avg(score) FROM cross_course_po_scores GROUP BY program_outcome_id`
 
-### Methodology
+## Refreshing the materialized views
 
-Query execution plans and execution times were collected using `EXPLAIN (ANALYZE, BUFFERS)`.
+`refresh_materialized_views()` refreshes all three views concurrently after every committed change to a score input. Median of 10 runs: **238 ms** (min 236, max 242).
 
-The default PostgreSQL query plan used the B-tree index `grading_grade_enrollment_id_8fc240c9`.
+## Reading the numbers
 
-For the sequential scan comparison, index scan, index-only scan, and bitmap scan methods were disabled temporarily using transaction-local PostgreSQL settings. The settings were reverted using `ROLLBACK`.
-
-Three additional execution measurements were collected for each scan method.
-
-### Results
-
-| Run | Index Scan (ms) | Sequential Scan (ms) |
-|---|---:|---:|
-| 1 | 0.126 | 1.539 |
-| 2 | 0.049 | 1.120 |
-| 3 | 0.026 | 1.061 |
-| Average | 0.067 | 1.240 |
-
-The indexed query was approximately **18.5 times faster** based on the arithmetic mean of these three execution measurements.
-
-### Buffer Usage
-
-The repeated indexed queries reported three shared buffer hits per execution.
-
-The sequential scan queries reported 99 shared buffer hits per execution and filtered out 12,796 nonmatching rows.
-
-## 4. Observations
-
-- `grading_grade` was the largest grading table, containing 12,800 records.
-- The indexes on `grading_grade` occupied more disk space than the table data itself.
-- The indexed lookup was faster than the sequential scan in the measured runs.
-- Indexes introduce additional storage overhead but can improve selective lookup performance.
-- The `grading_courseoffering_instructors` table contained no records at measurement time.
-
-## 5. Limitations
-
-These measurements were performed on a local PostgreSQL instance using synthetic data.
-
-The performance comparison covered one equality-filter query on `grading_grade.enrollment_id`.
-
-The three measurements per scan method were performed sequentially rather than in randomized order. Caching, background system activity, and execution-plan differences may affect timings.
-
-The reported speedup is specific to this dataset, query, and measurement environment. It should not be generalized to all database operations.
-
-## 6. Conclusion
-
-The measurements demonstrate the storage overhead associated with database indexes and their potential performance benefits for selective queries.
-
-For the tested `enrollment_id` lookup, PostgreSQL's index scan performed substantially faster than the sequential scan.
-
-Further benchmarks involving joins, larger datasets, and different query selectivities would provide a more comprehensive evaluation of database performance.
+- A selective lookup (one enrollment, one class, one student) is where the B-tree indexes pay off: without them PostgreSQL reads the whole table and filters.
+- The department mean reads every row of the view either way, so the index cannot help and the two times match. It is the control row.
+- Indexes cost space: on `grading_grade` they are about as large as the table itself, and every grade insert updates them too.
+- Planner statistics matter as much as the index. Measured right after `fake_data`, before `ANALYZE`, the class query read all of `grading_grade` with a sequential scan and the index gave 1.1x; with fresh statistics it uses the `enrollment_id` index and gives the ratio above. The command runs `ANALYZE` first.
+- Every committed change to a score input pays for the refresh above, inside the request. A CSV import pays it once for the whole file, saving grades one by one in the admin pays it per grade.
+- Times are medians on one machine with warm cache. They are not a benchmark of the server.
