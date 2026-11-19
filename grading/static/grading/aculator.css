@@ -302,6 +302,7 @@ thead .po { color: var(--blue); font-weight: 700; }
 a.score:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
 .outcome .score.below-mean { color: var(--ink); }
 .outcome .score.below-target { color: var(--red); }
+.outcome .score.thin { font-size: 28px; font-weight: 500; letter-spacing: -0.01em; color: var(--muted); font-style: italic; }
 .outcome .score .missing { width: 1.6em; height: 0.7em; }
 
 .ring { width: 64px; height: 64px; flex: none; }

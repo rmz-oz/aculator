@@ -178,6 +178,8 @@ def student_profile(request, student_id):
         below = sorted(f"{code}.{c}" for c, item in parts.items() if item["status"] == "not met")
         missing = sorted(f"{code}.{c}" for c, item in parts.items() if item["status"] == "no evidence")
         explanation = explanations.get(code)
+        evidence = len(explanation.grades) if explanation else 0
+        thin = shown is not None and evidence < MIN_ASSESSMENTS_FOR_SCORE
         rows.append({
             "code": code,
             "own": shown,
@@ -185,11 +187,14 @@ def student_profile(request, student_id):
             # Red means below the PO target: a component under it. Below the
             # department mean is only a comparison and stays black. Compare
             # what is shown: 85.0 must not read as below 85.0.
-            "below_target": bool(below),
-            "below_average": shown is not None and mean is not None and shown < mean,
+            # One assessment is too thin to judge against the target or the mean (#42).
+            "thin": thin,
+            "evidence": evidence,
+            "below_target": bool(below) and not thin,
+            "below_average": not thin and shown is not None and mean is not None and shown < mean,
             "components_below": below,
             "components_missing": missing if shown is not None else [],
-            "ring": _ring(explanation) if explanation else None,
+            "ring": _ring(explanation) if explanation and not thin else None,
         })
 
     return render(request, "grading/student_profile.html", {
@@ -265,6 +270,7 @@ def po_detail(request, student_id, po_code):
         "own_profile": own_profile,
         "po_code": po_code,
         "score": display(explanation.score),
+        "thin": len(grades) < MIN_ASSESSMENTS_FOR_SCORE,
         "grades": [
             {"part": p, "name": _grade_name(p.key, grades, multi_course), "percent": display(p.score),
              "weight": display(p.share * 100), "contribution": display(p.contribution)}

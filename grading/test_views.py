@@ -310,6 +310,10 @@ class StudentProfileViewTests(TestCase):
         cls.lo1 = LearningOutcome.objects.create(offering=cls.offering, code="LO1")
         cls.assessment = Assessment.objects.create(offering=cls.offering, name="Midterm", max_score=D("100"))
         AssessmentLOWeight.objects.create(assessment=cls.assessment, learning_outcome=cls.lo1, weight=D("1"))
+        # A second assessment with the same score for everyone, so every PO1
+        # rests on two assessments and is shown as a number, not as thin evidence (#42).
+        cls.final = Assessment.objects.create(offering=cls.offering, name="Final", max_score=D("100"))
+        AssessmentLOWeight.objects.create(assessment=cls.final, learning_outcome=cls.lo1, weight=D("1"))
         LOPOWeight.objects.create(learning_outcome=cls.lo1, component=cls.component, weight=1)
 
         cls.elif_ = get_user_model().objects.create_user(
@@ -318,11 +322,13 @@ class StudentProfileViewTests(TestCase):
         cls.elif_.groups.add(Group.objects.get(name=STUDENT))
         enrollment = Enrollment.objects.create(offering=cls.offering, student=cls.elif_)
         Grade.objects.create(enrollment=enrollment, assessment=cls.assessment, score=D("90"))
+        Grade.objects.create(enrollment=enrollment, assessment=cls.final, score=D("90"))
 
         cls.can = get_user_model().objects.create_user(username="can")
         cls.can.groups.add(Group.objects.get(name=STUDENT))
         can_enrollment = Enrollment.objects.create(offering=cls.offering, student=cls.can)
         Grade.objects.create(enrollment=can_enrollment, assessment=cls.assessment, score=D("50"))
+        Grade.objects.create(enrollment=can_enrollment, assessment=cls.final, score=D("50"))
 
         # Three more classmates at 70, so five students have a PO1 score and
         # the department mean (90 + 50 + 3 * 70) / 5 = 70 may be shown.
@@ -331,6 +337,7 @@ class StudentProfileViewTests(TestCase):
             classmate.groups.add(Group.objects.get(name=STUDENT))
             enrollment = Enrollment.objects.create(offering=cls.offering, student=classmate)
             Grade.objects.create(enrollment=enrollment, assessment=cls.assessment, score=D("70"))
+            Grade.objects.create(enrollment=enrollment, assessment=cls.final, score=D("70"))
 
         cls.teacher = get_user_model().objects.create_user(username="teacher")
         cls.teacher.groups.add(Group.objects.get(name=INSTRUCTOR))
@@ -455,6 +462,16 @@ class StudentProfileViewTests(TestCase):
         self.assertContains(response, "90.0")
         self.assertNotContains(response, "58.0")
         self.assertContains(response, "the courses you teach")
+
+    def test_one_assessment_shows_as_thin_evidence(self):
+        Grade.objects.filter(enrollment__student=self.can, assessment=self.final).delete()
+        self.client.force_login(self.can)
+
+        response = self.client.get(reverse("student_profile", args=[self.can.pk]))
+
+        self.assertContains(response, 'class="score thin"')
+        self.assertNotContains(response, "below-target")
+        self.assertNotContains(response, 'id="ring-PO1"')
 
     def test_instructor_of_a_shared_course_can_view_the_profile(self):
         self.client.force_login(self.teacher)

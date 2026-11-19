@@ -5,6 +5,7 @@
 <p class="eyebrow"><a href="{% url 'student_profile' student.pk %}">{{ student.get_full_name|default:student.username }}</a>, how the score was computed</p>
 <h1>{{ po_code }} <span class="po">{{ score }}</span></h1>
 <p class="lede sum">{{ score }} = {% for g in grades %}{{ g.name }} <strong class="po">{{ g.contribution }}</strong>{% if not forloop.last %} + {% endif %}{% endfor %}</p>
+{% if thin %}<p class="notice">Only one assessment so far. The profile shows this as thin evidence, not as a score, until a second one is graded.</p>{% endif %}
 <p class="muted">Each grade, as a percentage of its maximum, counts with the weight it reaches the PO with: through the learning outcomes it feeds, the PO components, and the ECTS of its course. Rounded here for reading; the sum is exact before rounding.</p>
 
 <h2>From grades to {{ po_code }}</h2>

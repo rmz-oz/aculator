@@ -84,6 +84,7 @@ Extra work, no points: decision notes on outcome weights ([#62](https://github.c
 | | points |
 |---|---|
 | Planned | 29 |
+| Done | 29 |
 
 | # | Issue | Assignee | Points |
 |---|---|---|---|
@@ -103,3 +104,36 @@ Extra work, no points: decision notes on outcome weights ([#62](https://github.c
 - 29 points, close to the average of 27.
 - #16 (CSE 311 presentation) left the sprint: no presentation on Nov 17, it comes back when there is a new date.
 - #17 and #18 were 8 points each and are split into sub-issues (#83, #84 and #85 to #87).
+
+### Review (2026-11-19)
+
+- 29 of 29 points done. Velocity so far: 20, 34, 29. Average 28.
+- An instructor signs in, sees the courses they teach and imports an assessment's grades from CSV (#92): one SERIALIZABLE transaction, preview first, students in no file can be marked absent. Only the offering's own instructors may enter grades; the head reads every report but enters none (decision 0007).
+- A student signs in to their PO profile (#93): one number per PO, the department mean once at least 5 students have a score, and for each PO the grades it came from (#41, a ring on the profile and a slopegraph on the detail page). The contributions add up to the score exactly and are tested against the calculation for every fake student.
+- A PO target of 70 colours the profile: red below target, black below the department mean, blue otherwise (decision 0006). A score that rests on one assessment shows as "1 grade" and stays out of class averages (#42, #95).
+- Absent and not entered grades are told apart (#89). Hypothesis tests cover the calculation (#91). Playwright runs the main flows in CI with screenshots (#90). `measure_db` reproduces the table sizes and index timings for the CSE 321 report (#94).
+- Found during review and fixed before merging: a PR that put back an old `models.py` and dropped the absent grade rules; instructors could see a student's other courses on the profile; the department mean gave away a classmate's score with two students; the score views did not refresh after weight or ECTS changes; the class query skipped its index until `ANALYZE`; CI failed when the Ubuntu mirror timed out.
+- The optical reader layout from #13 needs a real export; it is #96 in Sprint 4.
+
+`main` tagged `sprint-3` when this lands.
+
+## Sprint 4 (2026-11-19 to 2026-11-26): Reliability and data
+
+| # | Issue | Assignee | Points |
+|---|---|---|---|
+| [#32](https://github.com/rmz-oz/aculator/issues/32) | Backups and failure plan | rmz-oz | 3 |
+| [#33](https://github.com/rmz-oz/aculator/issues/33) | Partition grades by term | sarginyaren | 5 |
+| [#35](https://github.com/rmz-oz/aculator/issues/35) | Grade change history | esinsarialtin | 3 |
+| [#45](https://github.com/rmz-oz/aculator/issues/45) | Accessibility checks | ranayilmazz | 3 |
+| [#46](https://github.com/rmz-oz/aculator/issues/46) | Demo role switcher | rmz-oz | 1 |
+| [#47](https://github.com/rmz-oz/aculator/issues/47) | Paste grades from Excel | esinsarialtin | 3 |
+| [#79](https://github.com/rmz-oz/aculator/issues/79) | Course report reads the materialized views | | 3 |
+| [#80](https://github.com/rmz-oz/aculator/issues/80) | Keep the ECTS of a course with its offering | | 2 |
+| [#81](https://github.com/rmz-oz/aculator/issues/81) | docker compose runs the whole app | | 1 |
+| [#82](https://github.com/rmz-oz/aculator/issues/82) | Render database is deleted on Dec 3 | rmz-oz | 2 |
+| [#96](https://github.com/rmz-oz/aculator/issues/96) | Optical reader export through the CSV import | esinsarialtin | 2 |
+
+### Planning (2026-11-19)
+
+- Goal: nothing is lost when the free database expires on Dec 3, grades keep a history, and the report reads the precomputed views.
+- 28 points, at the average of 28. #79, #80 and #81 still need an owner.

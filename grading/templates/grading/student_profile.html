@@ -13,7 +13,9 @@
   <section class="outcome" aria-label="{{ row.code }}">
     <p class="code">{{ row.code }}</p>
     <div class="outcome-main">
-      {% if row.own is not None %}
+      {% if row.thin %}
+        <a class="score thin" href="{% url 'po_detail' student.pk row.code %}" aria-label="{{ row.code }}, one graded assessment so far, see it">1 grade</a>
+      {% elif row.own is not None %}
         <a class="score {% if row.below_target %}below-target{% elif row.below_average %}below-mean{% endif %}" href="{% url 'po_detail' student.pk row.code %}" aria-label="{{ row.code }} {{ row.own }}, how it was computed">{{ row.own }}</a>
         {% if row.ring %}{% with "ring-"|add:row.code as ring_id %}<div class="ring" data-ring="{{ ring_id }}" aria-hidden="true"></div>{{ row.ring|json_script:ring_id }}{% endwith %}{% endif %}
       {% else %}
@@ -21,6 +23,7 @@
       {% endif %}
     </div>
     <p class="versus">
+      {% if row.thin %}one assessment so far, too thin for a score<br>{% endif %}
       {% if row.components_below %}<span class="red">{{ row.components_below|join:", " }} below {{ target }}</span><br>{% endif %}
       {% if row.components_missing %}{{ row.components_missing|join:", " }} no evidence yet<br>{% endif %}
       {% if row.department is not None %}department {{ row.department }}{% else %}no department figure, too few students{% endif %}
@@ -34,7 +37,8 @@
   <span><span class="blue">Blue</span> target met, at or above the department mean</span>
   <span><span class="ink">Black</span> target met, below the department mean</span>
   <span><span class="red">Red</span> a component below {{ target }}</span>
-  <span><span class="missing" aria-hidden="true"></span> not enough evidence yet</span>
+  <span><span class="thin">1 grade</span> a single assessment so far</span>
+  <span><span class="missing" aria-hidden="true"></span> no graded evidence yet</span>
 </div>
 <p class="muted">Select a score to see what each grade contributed.</p>
 
@@ -47,9 +51,9 @@
   {% for row in rows %}
     <tr>
       <th scope="row">{% if row.own is not None %}<a href="{% url 'po_detail' student.pk row.code %}">{{ row.code }}</a>{% else %}{{ row.code }}{% endif %}</th>
-      <td class="{% if row.below_target %}below{% elif row.below_average %}{% else %}po{% endif %}">{% if row.own is not None %}{{ row.own }}{% else %}<span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
+      <td class="{% if row.below_target %}below{% elif row.below_average or row.thin %}{% else %}po{% endif %}">{% if row.thin %}<span class="thin">1 grade</span>{% elif row.own is not None %}{{ row.own }}{% else %}<span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
       <td>{% if row.department is not None %}{{ row.department }}{% else %}<span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
-      <td>{% if row.own is None %}<span class="missing"><span class="sr-only">no evidence</span></span>{% elif row.below_target %}<span class="below">not met</span>{% elif row.components_missing %}not yet{% else %}met{% endif %}</td>
+      <td>{% if row.own is None %}<span class="missing"><span class="sr-only">no evidence</span></span>{% elif row.thin %}not yet{% elif row.below_target %}<span class="below">not met</span>{% elif row.components_missing %}not yet{% else %}met{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
