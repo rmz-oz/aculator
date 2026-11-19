@@ -118,7 +118,7 @@ outside: "Outside services" {
   }
 }
 
-browser <-> render.app: "HTTPS, HTML + HTMX" {class: flow}
+browser <-> render.app: "HTTPS, HTML" {class: flow}
 delivery.ghcr -> render.app: "deploy hook" {class: flow}
 render.worker -> outside.alms: "grades" {class: flow}
 render.worker -> outside.smtp: "mail" {class: flow}
