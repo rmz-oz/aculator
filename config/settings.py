@@ -38,6 +38,10 @@ if os.environ.get('RENDER_EXTERNAL_HOSTNAME'):
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # A logged out user hitting a @login_required page lands here instead of a 404 (#77).
+# A PO is met when every one of its components reaches this score (MÜDEK 3.3,
+# docs/decisions/0006). Red on the profile means below it.
+PO_TARGET = os.environ.get('PO_TARGET', '70')
+
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'login'

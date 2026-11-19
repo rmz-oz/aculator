@@ -56,4 +56,9 @@ urlpatterns = [
         grading_views.student_profile,
         name="student_profile",
     ),
+    path(
+        "students/<int:student_id>/outcomes/<str:po_code>/",
+        grading_views.po_detail,
+        name="po_detail",
+    ),
 ]

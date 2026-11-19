@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ po_code }}, {{ student.get_full_name|default:student.username }}{% endblock %}
+{% block content %}
+<p class="eyebrow"><a href="{% url 'student_profile' student.pk %}">{{ student.get_full_name|default:student.username }}</a>, how the score was computed</p>
+<h1>{{ po_code }} <span class="po">{{ score }}</span></h1>
+<p class="lede sum">{{ score }} = {% for g in grades %}{{ g.name }} <strong class="po">{{ g.contribution }}</strong>{% if not forloop.last %} + {% endif %}{% endfor %}</p>
+<p class="muted">Each grade, as a percentage of its maximum, counts with the weight it reaches the PO with: through the learning outcomes it feeds, the PO components, and the ECTS of its course. Rounded here for reading; the sum is exact before rounding.</p>
+
+<h2>From grades to {{ po_code }}</h2>
+<figure class="slope">
+  <div id="slope" aria-hidden="true"></div>
+  <figcaption class="muted">Left, every grade that counts; middle, the learning outcomes; right, {{ po_code }}. Height is the score, line width the weight that flows along it.</figcaption>
+</figure>
+
+<h2>What each grade contributed</h2>
+<div class="table-wrap">
+<table>
+  <caption class="sr-only">Grades that feed {{ po_code }}, with their weight in the PO and their contribution.</caption>
+  <thead><tr><th scope="col">Grade</th><th scope="col">Score, %</th><th scope="col">Weight in {{ po_code }}, %</th><th scope="col">Contribution</th></tr></thead>
+  <tbody>
+    {% for g in grades %}
+    <tr><th scope="row">{{ g.name }}</th><td>{{ g.percent }}</td><td>{{ g.weight }}</td><td class="po">{{ g.contribution }}</td></tr>
+    {% endfor %}
+  </tbody>
+  <tfoot><tr><td>{{ po_code }}</td><td></td><td>100.0</td><td class="po">{{ score }}</td></tr></tfoot>
+</table>
+</div>
+
+<h2>Learning outcomes</h2>
+<div class="table-wrap">
+<table>
+  <caption class="sr-only">Learning outcomes that feed {{ po_code }}.</caption>
+  <thead><tr><th scope="col">Learning outcome</th><th scope="col">Score</th><th scope="col">Weight in {{ po_code }}, %</th></tr></thead>
+  <tbody>
+    {% for lo in los %}
+    <tr><th scope="row">{{ lo.name }}</th><td>{{ lo.score }}</td><td>{{ lo.weight }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ chart|json_script:"slope-data" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'vendor/d3-7.9.2.min.js' %}"></script>
+<script src="{% static 'vendor/plot-0.6.19.umd.min.js' %}"></script>
+<script src="{% static 'grading/slope.js' %}"></script>
+{% endblock %}

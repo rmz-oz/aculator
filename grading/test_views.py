@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .access import HEAD, INSTRUCTOR, STUDENT
@@ -290,12 +290,47 @@ class StudentProfileViewTests(TestCase):
         self.assertContains(response, "90.0")
         self.assertContains(response, "70.0")  # average of 90 (Elif) and 50 (Can)
 
-    def test_below_average_score_is_flagged(self):
+    def test_below_target_is_red(self):
         self.client.force_login(self.can)
 
         response = self.client.get(reverse("student_profile", args=[self.can.pk]))
 
-        self.assertContains(response, "score below")
+        self.assertContains(response, "score below-target")
+        self.assertContains(response, "PO1.a below 70")
+
+    @override_settings(PO_TARGET="40")
+    def test_below_the_mean_but_on_target_is_black_not_red(self):
+        self.client.force_login(self.can)
+
+        response = self.client.get(reverse("student_profile", args=[self.can.pk]))
+
+        self.assertContains(response, "score below-mean")
+        self.assertNotContains(response, "below-target")
+
+    def test_profile_links_each_score_to_its_explanation(self):
+        self.client.force_login(self.elif_)
+
+        response = self.client.get(reverse("student_profile", args=[self.elif_.pk]))
+
+        self.assertContains(response, reverse("po_detail", args=[self.elif_.pk, "PO1"]))
+        self.assertContains(response, 'id="ring-PO1"')
+
+    def test_detail_splits_the_score_into_grades(self):
+        self.client.force_login(self.elif_)
+
+        response = self.client.get(reverse("po_detail", args=[self.elif_.pk, "PO1"]))
+
+        self.assertContains(response, "90.0 = Midterm")
+        self.assertContains(response, 'id="slope-data"')
+
+    def test_detail_follows_the_profile_rules(self):
+        url = reverse("po_detail", args=[self.elif_.pk, "PO1"])
+        for user, status in ((self.can, 404), (self.other_teacher, 404), (self.teacher, 200), (self.head, 200)):
+            self.client.force_login(user)
+            with self.subTest(user=user.username):
+                self.assertEqual(self.client.get(url).status_code, status)
+        self.client.force_login(self.elif_)
+        self.assertEqual(self.client.get(reverse("po_detail", args=[self.elif_.pk, "PO9"])).status_code, 404)
 
     def test_equal_to_the_average_is_not_flagged(self):
         # Everyone scored 90, so Elif's PO1 is the department average.
@@ -306,7 +341,7 @@ class StudentProfileViewTests(TestCase):
         response = self.client.get(reverse("student_profile", args=[self.elif_.pk]))
 
         self.assertContains(response, "department 90.0")
-        self.assertNotContains(response, "score below")
+        self.assertNotContains(response, "score below-")
 
     def test_too_few_students_give_no_department_figure(self):
         # With two students a mean gives the other one's score away; four is still too few.
@@ -319,7 +354,7 @@ class StudentProfileViewTests(TestCase):
         self.assertContains(response, "90.0")
         self.assertNotContains(response, "department 75.0")
         self.assertContains(response, "too few students")
-        self.assertNotContains(response, "score below")
+        self.assertNotContains(response, "score below-")
 
     def test_missing_scores_are_named_for_screen_readers(self):
         Grade.objects.filter(enrollment__student=self.elif_).delete()

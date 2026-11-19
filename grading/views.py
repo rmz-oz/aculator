@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core import signing
@@ -17,13 +18,16 @@ from .access import (
     role_of,
     visible_enrollments,
 )
+from .explain import explain_all, explain_po
 from .grade_import import grades_fingerprint, is_serialization_failure, parse_grade_files, serializable_transaction
 from .models import Assessment, Grade, Term
 from .services import (
     DEPARTMENT_MIN_STUDENTS,
     department_po_scores,
     display,
+    po_report,
     scores_by_enrollment,
+    student_component_scores,
     student_po_scores,
     weighted_mean,
 )
@@ -139,39 +143,132 @@ def student_profile(request, student_id):
     sees the scores from the courses they teach only, not the student's other
     courses (grading.access.visible_enrollments).
     """
-    student = get_object_or_404(get_user_model(), pk=student_id)
-    if not can_view_student(request.user, student):
-        raise Http404
-
-    own_profile = student.pk == request.user.pk
-    # The student reads all their own courses, even if they also teach one.
-    enrollments = None if own_profile else visible_enrollments(request.user)
+    student, own_profile, enrollments = _profile_scope(request, student_id)
+    components = student_component_scores(student, enrollments)
     own = student_po_scores(student, enrollments)
+    report = po_report(components, settings.PO_TARGET)
+    target = Decimal(settings.PO_TARGET)
     department = department_po_scores()
     po_codes = sorted(set(own) | set(department), key=_po_sort_key)
 
-    rows = [
-        {
+    explanations = explain_all(student, enrollments)
+    rows = []
+    for code in po_codes:
+        shown = display(own.get(code))
+        mean = display(department.get(code))
+        parts = report.get(code, {}).get("components", {})
+        below = sorted(f"{code}.{c}" for c, item in parts.items() if item["status"] == "not met")
+        missing = sorted(f"{code}.{c}" for c, item in parts.items() if item["status"] == "no evidence")
+        explanation = explanations.get(code)
+        rows.append({
             "code": code,
-            "own": display(own.get(code)),
-            "department": display(department.get(code)),
-            # Compare what is shown: the view and the service round differently
-            # in the last digits, and 85.0 must not read as below 85.0.
-            "below_average": (
-                code in own and code in department and display(own[code]) < display(department[code])
-            ),
-        }
-        for code in po_codes
-    ]
+            "own": shown,
+            "department": mean,
+            # Red means below the PO target: a component under it. Below the
+            # department mean is only a comparison and stays black. Compare
+            # what is shown: 85.0 must not read as below 85.0.
+            "below_target": bool(below),
+            "below_average": shown is not None and mean is not None and shown < mean,
+            "components_below": below,
+            "components_missing": missing if shown is not None else [],
+            "ring": _ring(explanation) if explanation else None,
+        })
 
     return render(request, "grading/student_profile.html", {
         "student": student,
         "rows": rows,
+        "target": display(target, "1"),
         "own_profile": own_profile,
         "all_courses": own_profile or role_of(request.user) == HEAD,
         "min_students": DEPARTMENT_MIN_STUDENTS,
         "nav": "home" if own_profile else None,
     })
+
+
+def _profile_scope(request, student_id):
+    """The student, whether it is the viewer's own profile, and the enrollments to count.
+
+    The student reads all their own courses, even if they also teach one; an
+    instructor only the courses they teach (grading.access.visible_enrollments).
+    """
+    student = get_object_or_404(get_user_model(), pk=student_id)
+    if not can_view_student(request.user, student):
+        raise Http404
+    own_profile = student.pk == request.user.pk
+    return student, own_profile, None if own_profile else visible_enrollments(request.user)
+
+
+def _ring(explanation):
+    """Sunburst data for the ring next to a PO: courses inside, assessments outside, the rest to 100 empty."""
+    courses = {}
+    for part in explanation.by_assessment():
+        courses.setdefault(part.course, []).append({
+            "name": part.label,
+            "value": float(part.contribution),
+            "label": f"{part.course} {part.label}: {display(part.contribution)}",
+        })
+    data = [
+        {"name": course, "children": children, "value": sum(c["value"] for c in children)}
+        for course, children in courses.items()
+    ]
+    rest = 100 - float(explanation.score)
+    if rest > 0:
+        data.append({"name": "", "value": rest, "empty": True})
+    return data
+
+
+@login_required
+def po_detail(request, student_id, po_code):
+    """How one PO score was computed: what each grade contributed (#41)."""
+    student, own_profile, enrollments = _profile_scope(request, student_id)
+    explanation = explain_po(student, po_code, enrollments)
+    if explanation is None:
+        raise Http404
+
+    grades = explanation.by_assessment()
+    multi_course = len({p.course for p in grades}) > 1
+    lo_by_key = {lo.key: lo for lo in explanation.los}
+    links = []
+    for lo in explanation.los:
+        for leaf, weight in lo.inputs:
+            links.append({"from": _grade_name(leaf, grades, multi_course), "to": _lo_name(lo, multi_course),
+                          "weight": float(lo.share * weight)})
+        links.append({"from": _lo_name(lo, multi_course), "to": po_code, "weight": float(lo.share)})
+    points = (
+        [{"column": "Grades", "name": _grade_name(p.key, grades, multi_course), "score": float(p.score)}
+         for p in grades]
+        + [{"column": "Learning outcomes", "name": _lo_name(lo, multi_course), "score": float(lo.score)}
+           for lo in lo_by_key.values()]
+        + [{"column": po_code, "name": po_code, "score": float(explanation.score)}]
+    )
+
+    return render(request, "grading/po_detail.html", {
+        "student": student,
+        "own_profile": own_profile,
+        "po_code": po_code,
+        "score": display(explanation.score),
+        "grades": [
+            {"part": p, "name": _grade_name(p.key, grades, multi_course), "percent": display(p.score),
+             "weight": display(p.share * 100), "contribution": display(p.contribution)}
+            for p in grades
+        ],
+        "los": [
+            {"part": lo, "name": _lo_name(lo, multi_course), "score": display(lo.score),
+             "weight": display(lo.share * 100)}
+            for lo in explanation.los
+        ],
+        "chart": {"points": points, "links": links, "po": po_code},
+        "nav": "home" if own_profile else None,
+    })
+
+
+def _grade_name(leaf, grades, multi_course):
+    part = next(p for p in grades if p.key == leaf)
+    return f"{part.course} {part.label}" if multi_course else part.label
+
+
+def _lo_name(lo, multi_course):
+    return f"{lo.course} {lo.label}" if multi_course else lo.label
 
 
 PREVIEW_SALT = "grade-import-preview"

@@ -10,9 +10,9 @@ class Term(models.Model):
     """An academic term, e.g. 2026 Fall."""
 
     class Season(models.TextChoices):
-        FALL = "fall", "Güz"
-        SPRING = "spring", "Bahar"
-        SUMMER = "summer", "Yaz"
+        FALL = "fall", "Fall"
+        SPRING = "spring", "Spring"
+        SUMMER = "summer", "Summer"
 
     year = models.PositiveSmallIntegerField()
     season = models.CharField(max_length=10, choices=Season.choices)
