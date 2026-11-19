@@ -27,7 +27,7 @@ Acıbadem University, Fall 2026.
 ```
 docker compose up -d
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 python manage.py migrate
 python manage.py runserver
 ```
