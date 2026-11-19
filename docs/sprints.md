@@ -127,13 +127,13 @@ Extra work, no points: decision notes on outcome weights ([#62](https://github.c
 | [#45](https://github.com/rmz-oz/aculator/issues/45) | Accessibility checks | ranayilmazz | 3 |
 | [#46](https://github.com/rmz-oz/aculator/issues/46) | Demo role switcher | rmz-oz | 1 |
 | [#47](https://github.com/rmz-oz/aculator/issues/47) | Paste grades from Excel | esinsarialtin | 3 |
-| [#79](https://github.com/rmz-oz/aculator/issues/79) | Course report reads the materialized views | | 3 |
-| [#80](https://github.com/rmz-oz/aculator/issues/80) | Keep the ECTS of a course with its offering | | 2 |
-| [#81](https://github.com/rmz-oz/aculator/issues/81) | docker compose runs the whole app | | 1 |
+| [#79](https://github.com/rmz-oz/aculator/issues/79) | Course report reads the materialized views | sarginyaren | 3 |
+| [#80](https://github.com/rmz-oz/aculator/issues/80) | Keep the ECTS of a course with its offering | esinsarialtin | 2 |
+| [#81](https://github.com/rmz-oz/aculator/issues/81) | docker compose runs the whole app | rmz-oz | 1 |
 | [#82](https://github.com/rmz-oz/aculator/issues/82) | Render database is deleted on Dec 3 | rmz-oz | 2 |
 | [#96](https://github.com/rmz-oz/aculator/issues/96) | Optical reader export through the CSV import | esinsarialtin | 2 |
 
 ### Planning (2026-11-19)
 
 - Goal: nothing is lost when the free database expires on Dec 3, grades keep a history, and the report reads the precomputed views.
-- 28 points, at the average of 28. #79, #80 and #81 still need an owner.
+- 28 points, at the average of 28. #79 goes to Yaren, who built the materialized views; #80 to Esin with the calculation; #81 to Ramiz with deploy.
