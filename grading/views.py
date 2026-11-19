@@ -26,13 +26,24 @@ from .services import (
     department_po_scores,
     display,
     po_report,
-    scores_by_enrollment,
+    scores_with_evidence_by_enrollment,
     student_component_scores,
     student_po_scores,
     weighted_mean,
 )
 
 ONE = Decimal(1)
+# A score backed by a single assessment is shown as thin evidence, not as a
+# number (#42, decision 0006): one exam should not look as solid as five.
+MIN_ASSESSMENTS_FOR_SCORE = 2
+
+
+def _score_cell(score, evidence_count):
+    if score is None or evidence_count == 0:
+        return {"state": "empty"}
+    if evidence_count < MIN_ASSESSMENTS_FOR_SCORE:
+        return {"state": "low_evidence", "count": evidence_count}
+    return {"state": "score", "value": display(score)}
 
 
 def _po_sort_key(code):
@@ -89,28 +100,35 @@ def course_report(request, offering_id):
     )
 
     # One batched call for the whole class, not one query per student.
-    scores = scores_by_enrollment(enrollments)
+    scores = scores_with_evidence_by_enrollment(enrollments)
 
     lo_values = {lo.pk: [] for lo in los}
     po_values = {}
     rows = []
     for enrollment in enrollments:
-        lo_scores, po_scores = scores[enrollment.pk]
+        lo_scores, po_scores, lo_counts, po_counts = scores[enrollment.pk]
+        # The class average uses only the scores the table shows as numbers;
+        # a single assessment is too thin to pull the average around.
         for lo in los:
             score = lo_scores.get(lo.pk)
-            if score is not None:
+            if score is not None and lo_counts.get(lo.pk, 0) >= MIN_ASSESSMENTS_FOR_SCORE:
                 lo_values[lo.pk].append(score)
         for code, score in po_scores.items():
-            po_values.setdefault(code, []).append(score)
+            values = po_values.setdefault(code, [])
+            if po_counts.get(code, 0) >= MIN_ASSESSMENTS_FOR_SCORE:
+                values.append(score)
         rows.append({
             "student": enrollment.student,
-            "lo_cells": [display(lo_scores.get(lo.pk)) for lo in los],
+            "lo_cells": [_score_cell(lo_scores.get(lo.pk), lo_counts.get(lo.pk, 0)) for lo in los],
             "po_scores": po_scores,
+            "po_counts": po_counts,
         })
 
     po_codes = sorted(po_values, key=_po_sort_key)
     for row in rows:
-        row["po_cells"] = [display(row["po_scores"].get(code)) for code in po_codes]
+        row["po_cells"] = [
+            _score_cell(row["po_scores"].get(code), row["po_counts"].get(code, 0)) for code in po_codes
+        ]
 
     lo_class_avg = [
         display(weighted_mean([(v, ONE) for v in lo_values[lo.pk]]))
