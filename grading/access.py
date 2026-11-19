@@ -61,6 +61,16 @@ def report_offerings(user):
     return CourseOffering.objects.none()
 
 
+def grade_entry_offerings(user):
+    """Offerings whose grades the user may write, e.g. by CSV import.
+
+    The same people as report_offerings() for now: the offering's instructors
+    and the head. Kept apart so entering grades can be narrowed without
+    touching who may read the report.
+    """
+    return report_offerings(user)
+
+
 def visible_enrollments(user):
     role = role_of(user)
     qs = Enrollment.objects.all()

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Import grades{% if assessment %}, {{ assessment.name }}{% endif %}</title>
+  <style>
+    :root { --ink: #0D1117; --muted: #5F646C; --red: #C21F32; }
+    body {
+      background: #FFFFFF;
+      color: var(--ink);
+      font-family: "Schibsted Grotesk", system-ui, sans-serif;
+      margin: 0;
+      padding: 24px 16px 48px;
+    }
+    main { max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 1.4rem; margin: 0 0 2px; }
+    h2 { font-size: 1.05rem; margin: 28px 0 8px; }
+    .subtitle, .hint { color: var(--muted); font-size: 0.95rem; }
+    .errors { color: var(--red); }
+    ul { padding-left: 20px; }
+    li { margin: 4px 0; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Import grades</h1>
+  {% if assessment %}<p class="subtitle">{{ assessment }}, out of {{ assessment.max_score }}</p>{% endif %}
+
+  {% if errors %}
+    <h2 class="errors">Nothing was saved</h2>
+    <ul class="errors">
+      {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+
+  {% if saved_count or absent_count %}
+    <p>{{ saved_count }} grade{{ saved_count|pluralize }} saved{% if absent_count %}, {{ absent_count }} student{{ absent_count|pluralize }} marked absent{% endif %}.</p>
+  {% endif %}
+
+  {% if preview_token %}
+    <h2>Preview</h2>
+    <p>{{ preview_count }} grade{{ preview_count|pluralize }} will be saved.</p>
+    {% if changes %}
+      <p>These replace an existing grade:</p>
+      <ul>{% for change in changes %}<li>{{ change }}</li>{% endfor %}</ul>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="confirm">
+      <input type="hidden" name="preview_token" value="{{ preview_token }}">
+      {% if absent_candidates %}
+        <p>Not in any file. Tick the students who missed the assessment:</p>
+        <ul>
+          {% for number in absent_candidates %}
+            <li><label><input type="checkbox" name="absent_students" value="{{ number }}"> {{ number }} was absent</label></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if kept %}
+        <p class="hint">Not in any file, existing grade kept: {{ kept|join:", " }}</p>
+      {% endif %}
+      <button type="submit">Confirm and save</button>
+    </form>
+  {% endif %}
+
+  <h2>Files</h2>
+  <p class="hint">
+    CSV with a header row <code>student_number,score</code>. Semicolons and a decimal comma also work.
+    Every student may appear in only one row across all files.
+  </p>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input id="csv_file" name="csv_file" type="file" accept=".csv,text/csv" multiple required aria-label="CSV files">
+    <button type="submit" name="action" value="preview">Preview</button>
+    <button type="submit" name="action" value="import">Import</button>
+  </form>
+</main>
+</body>
+</html>
