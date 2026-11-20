@@ -5,12 +5,16 @@
 <h1>{{ offering.course.code }} {{ offering.course.name }}</h1>
 <p class="lede">{{ rows|length }} student{{ rows|length|pluralize }}.
   Learning outcomes come from the weighted assessments, program outcomes (blue) from the learning outcomes.
-  Hatched cells have no graded evidence yet.</p>
+  Hatched cells have no graded evidence yet; "1 grade" means a single assessment so far, too thin to show as a score or to count in the class average.</p>
 
 {% if can_import and assessments %}
 <div class="actions">
   {% for a in assessments %}<a class="action" href="{% url 'grade_import' a.pk %}">Import {{ a.name }} grades</a>{% endfor %}
 </div>
+{% endif %}
+
+{% if rows and not los %}
+<p class="notice">No learning outcomes are defined for this course in {{ offering.term }} yet, so its grades give no LO or PO score. They can be added in the admin.</p>
 {% endif %}
 
 {% if rows %}
@@ -30,10 +34,10 @@
     <tr>
       <th scope="row">{{ row.student.get_full_name|default:row.student.username }}</th>
       {% for cell in row.lo_cells %}
-        <td>{% if cell is not None %}{{ cell }}{% else %}<span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
+        <td>{% if cell.state == "score" %}{{ cell.value }}{% elif cell.state == "low_evidence" %}<span class="thin" title="Only {{ cell.count }} graded assessment so far">1 grade</span>{% else %}<span class="missing" title="No graded evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
       {% endfor %}
       {% for cell in row.po_cells %}
-        <td class="po">{% if cell is not None %}{{ cell }}{% else %}<span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
+        <td class="po">{% if cell.state == "score" %}{{ cell.value }}{% elif cell.state == "low_evidence" %}<span class="thin" title="Only {{ cell.count }} graded assessment so far">1 grade</span>{% else %}<span class="missing" title="No graded evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
       {% endfor %}
     </tr>
     {% endfor %}

@@ -41,6 +41,7 @@ urlpatterns = [
     path("", grading_views.home, name="home"),
     path("accounts/login/", auth_views.LoginView.as_view(), name="login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path("demo/<slug:role>/", grading_views.demo_switch, name="demo_switch"),
     path(
         "offerings/<int:offering_id>/report/",
         grading_views.course_report,
@@ -55,5 +56,10 @@ urlpatterns = [
         "students/<int:student_id>/profile/",
         grading_views.student_profile,
         name="student_profile",
+    ),
+    path(
+        "students/<int:student_id>/outcomes/<str:po_code>/",
+        grading_views.po_detail,
+        name="po_detail",
     ),
 ]

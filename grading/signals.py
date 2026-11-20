@@ -1,5 +1,3 @@
-from functools import partial
-
 from django.db import connections, transaction
 from django.db.models.signals import post_delete, post_save
 
@@ -38,9 +36,19 @@ def schedule_refresh(using):
     A rolled back transaction drops its callbacks, so nothing is left behind.
     """
     pending = connections[using].run_on_commit
-    if any(getattr(func, "func", None) is refresh_materialized_views for _, func, _ in pending):
+    if any(getattr(func, "refreshes_views", False) for _, func, _ in pending):
         return
-    transaction.on_commit(partial(refresh_materialized_views, using=using), using=using)
+
+    # A named function, not functools.partial: robust=True logs a failure by
+    # the callback's __qualname__, which a partial does not have.
+    def refresh_score_views():
+        refresh_materialized_views(using=using)
+
+    refresh_score_views.refreshes_views = True
+    # robust: the data is already committed when this runs. A failed refresh
+    # is logged and the views catch up on the next change or with
+    # `manage.py refresh_materialized_views`; the user still gets their page (#102).
+    transaction.on_commit(refresh_score_views, using=using, robust=True)
 
 
 def score_input_changed(sender, instance, using, **kwargs):

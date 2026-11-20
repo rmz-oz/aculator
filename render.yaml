@@ -17,9 +17,16 @@ services:
         generateValue: true
       - key: DEBUG
         value: "0"
+      # Demo deployment: role switcher and fake data on an empty database (#46).
+      - key: DEMO
+        value: "1"
 
 databases:
   - name: aculator-db
     plan: free
     region: frankfurt
     postgresMajorVersion: "16"
+    # Reachable from GitHub Actions for the nightly backup (#32), password and TLS.
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: everywhere, password and TLS

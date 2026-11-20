@@ -5,14 +5,15 @@ from unittest.mock import patch
 import psycopg
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db import connection
+from django.db import OperationalError, connection
 from django.test import TransactionTestCase
 from django.urls import reverse
 
 from . import views
 from .access import HEAD, INSTRUCTOR, STUDENT
-from .models import Assessment, Course, CourseOffering, Enrollment, Grade, Term
+from .models import Assessment, Course, CourseOffering, Enrollment, Grade, GradeChange, Term
 
 D = Decimal
 HEADER = b"student_number,score\n"
@@ -40,6 +41,43 @@ class GradeImportTests(TransactionTestCase):
             for i in range(1, 4)
         ]
         self.client.force_login(self.instructor)
+
+    def test_paste_grid_shows_current_grade_for_each_student(self):
+        Grade.objects.create(assessment=self.assessment, enrollment=self.enrollments[0], score=D("12.5"))
+        students = self.client.get(self.url).context["paste_students"]
+        self.assertEqual(students["20230001"]["current"], "12.5")
+        self.assertEqual(students["20230002"]["current"], "")
+
+    def test_pasted_grades_report_cell_errors_and_save_only_when_valid(self):
+        rows = [
+            {"student_number": "20230001", "score": "12,5"},
+            {"student_number": "20230002", "score": "abc"},
+        ]
+
+        response = self.client.post(
+            self.url, {"rows": rows}, content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["errors"], [{
+            "row": 1,
+            "field": "score",
+            "message": "Score must be a number.",
+        }])
+        self.assertIsNone(self.grade(0))
+        self.assertIsNone(self.grade(1))
+
+        rows[1]["score"] = "0"
+        response = self.client.post(
+            self.url, {"rows": rows}, content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"saved_count": 2})
+        pasted = GradeChange.objects.filter(grade_id=self.grade(0).pk).get()
+        self.assertEqual(pasted.changed_by, self.instructor.username)
+        self.assertEqual(self.grade(0).score, D("12.50"))
+        self.assertEqual(self.grade(1).score, D("0.00"))
 
     def make_user(self, username, role):
         user = self.users.create_user(username=username)
@@ -256,3 +294,84 @@ class GradeImportTests(TransactionTestCase):
 
         self.assertContains(response, "Choose the files again.", status_code=409)
         self.assertFalse(Grade.objects.exists())
+
+    def test_double_click_that_already_saved_says_so(self):
+        # The first click saved these grades; the second fails to serialize (#103).
+        Grade.objects.create(assessment=self.assessment, enrollment=self.enrollments[0], score=D(40))
+        failure = OperationalError("could not serialize access")
+        with patch("grading.views._save_scores", side_effect=failure), \
+                patch("grading.views.is_serialization_failure", return_value=True):
+            same = self.upload(csv_file(HEADER + b"20230001,40\n"))
+            other = self.upload(csv_file(HEADER + b"20230001,41\n"))
+
+        self.assertContains(same, "These grades were already saved")
+        self.assertNotContains(same, "Nothing was saved")
+        self.assertContains(other, "Choose the files again.", status_code=409)
+
+    def test_failed_view_refresh_after_commit_still_reports_the_save(self):
+        # The grades are committed before the refresh runs; a refresh error must
+        # not turn that into a server error (#102).
+        with patch("grading.signals.refresh_materialized_views", side_effect=OperationalError("timeout")), \
+                self.assertLogs("django.db.backends.base", level="ERROR"):
+            response = self.upload(csv_file(HEADER + b"20230001,40\n"))
+
+        self.assertContains(response, "1 grade saved")
+        self.assertEqual(self.grade(0).score, D(40))
+
+    def test_max_score_cannot_go_below_a_given_score(self):
+        Grade.objects.create(assessment=self.assessment, enrollment=self.enrollments[0], score=D(45))
+        self.assessment.max_score = D(40)
+        with self.assertRaisesMessage(ValidationError, "A student already has 45"):
+            self.assessment.full_clean()
+        self.assessment.max_score = D(45)
+        self.assessment.full_clean()
+
+    def test_import_records_grade_change_history(self):
+        self.assertContains(
+            self.upload(csv_file(HEADER + b"20230001,10\n")),
+            "1 grade saved",
+        )
+        grade = self.grade(0)
+
+        self.assertContains(
+            self.upload(csv_file(HEADER + b"20230001,15.50\n")),
+            "1 grade saved",
+        )
+
+        history = GradeChange.objects.filter(grade_id=grade.pk)
+        change = history.get(action=GradeChange.Action.UPDATED)
+        self.assertEqual(change.changed_by, self.instructor.username)
+        self.assertEqual(D(str(change.before["score"])), D("10.00"))
+        self.assertEqual(D(str(change.after["score"])), D("15.50"))
+        self.assertIsNotNone(change.changed_at)
+
+        self.upload(csv_file(HEADER + b"20230001,15.50\n"))
+        self.assertEqual(history.count(), 2)
+
+    def test_admin_assessment_deletion_records_grade_history(self):
+        grade = Grade.objects.create(
+            assessment=self.assessment,
+            enrollment=self.enrollments[0],
+            score=D("10.00"),
+        )
+        admin_user = self.users.create_superuser(
+            username="history-admin",
+            password=None,
+        )
+        self.client.force_login(admin_user)
+
+        response = self.client.post(
+            reverse("admin:grading_assessment_delete", args=[self.assessment.pk]),
+            {"post": "yes"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Grade.objects.filter(pk=grade.pk).exists())
+
+        change = GradeChange.objects.get(
+            grade_id=grade.pk,
+            action=GradeChange.Action.DELETED,
+        )
+        self.assertEqual(change.changed_by, admin_user.username)
+        self.assertEqual(D(str(change.before["score"])), D("10.00"))
+        self.assertIsNone(change.after)

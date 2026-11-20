@@ -25,5 +25,6 @@
     <input type="hidden" name="next" value="{{ next }}">
     <div class="actions"><button class="action large" type="submit">Sign in</button></div>
   </form>
+  {% if demo_roles %}{% include "grading/demo_switch.html" with label="Demo, sign in as" %}{% endif %}
 </div>
 {% endblock %}

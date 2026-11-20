@@ -157,6 +157,48 @@ class BrowserFlowTests(StaticLiveServerTestCase):
         self.assertEqual(Grade.objects.get(enrollment__student=self.can, assessment=self.midterm).status, "absent")
         self.shot("9-report-after-import")
 
+    def test_instructor_pastes_grades_and_fixes_cell_error(self):
+        self.log_in("ayse", reverse("grade_import", args=[self.midterm.pk]))
+
+        score_cells = self.page.locator('#grade-grid .tabulator-cell[tabulator-field="score"]')
+        expect(score_cells).to_have_count(2)
+        score_cells.nth(0).click()
+
+        self.page.locator("#grade-grid").evaluate(
+            """grid => {
+                const clipboardData = new DataTransfer();
+                clipboardData.setData("text/plain", "12,5\\nabc");
+                grid.dispatchEvent(new ClipboardEvent("paste", {
+                    clipboardData,
+                    bubbles: true,
+                    cancelable: true,
+                }));
+            }"""
+        )
+
+        expect(score_cells.nth(0)).to_have_text("12,5")
+        expect(score_cells.nth(1)).to_have_text("abc")
+
+        save_button = self.page.get_by_role("button", name="Save pasted grades")
+        status = self.page.locator("#paste-grades-status")
+        save_button.click()
+
+        expect(score_cells.nth(1)).to_contain_text("Score must be a number.")
+        expect(status).to_contain_text("Nothing was saved.")
+        grades = Grade.objects.filter(assessment=self.midterm)
+        self.assertFalse(grades.filter(enrollment__student=self.can).exists())
+        self.assertEqual(grades.get(enrollment=self.enrollment).score, Decimal(90))
+
+        score_cells.nth(1).dblclick()
+        editor = score_cells.nth(1).locator("input")
+        editor.fill("0")
+        editor.press("Enter")
+        save_button.click()
+
+        expect(status).to_have_text("2 grades saved.")
+        self.assertEqual(grades.get(enrollment__student=self.can).score, Decimal("12.50"))
+        self.assertEqual(grades.get(enrollment=self.enrollment).score, Decimal(0))
+
     def test_head_sees_the_report_but_cannot_import(self):
         self.log_in("head")
 
@@ -170,9 +212,17 @@ class BrowserFlowTests(StaticLiveServerTestCase):
 
         expect(self.page.get_by_role("heading", level=1)).to_have_text("Elif Demir")
         expect(self.page.locator(".outcome").first).to_contain_text("PO1")
+        expect(self.page.locator("[data-ring='ring-PO1'] svg")).to_be_visible()
         self.shot("10-student-profile")
         self.page.set_viewport_size({"width": 390, "height": 844})
         self.shot("11-student-profile-phone")
+
+        self.page.set_viewport_size({"width": 1280, "height": 800})
+        self.page.get_by_role("link", name="PO1 85.0, how it was computed").click()
+        expect(self.page.get_by_role("heading", level=1)).to_contain_text("PO1")
+        expect(self.page.locator(".sum")).to_contain_text("85.0 = Midterm 44.6 + Project 40.4")
+        expect(self.page.locator("#slope svg")).to_be_visible()
+        self.shot("12-po-detail")
 
         response = self.page.goto(self.report_url())
         self.assertEqual(response.status, 404)

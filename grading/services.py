@@ -54,7 +54,7 @@ def _means(groups):
 
 
 def _component_results(enrollments):
-    """Return {enrollment_id: (LO scores, component scores)}."""
+    """Return LO scores, component scores, and LO and PO evidence counts by enrollment."""
     offering_of = {e.pk: e.offering_id for e in enrollments}
     offerings = set(offering_of.values())
 
@@ -105,17 +105,30 @@ def _component_results(enrollments):
         own = percentages.get(enrollment_id, {})
 
         per_lo = defaultdict(list)
+        lo_assessment_ids = defaultdict(set)
+
         for assessment_id, lo_id, weight in lo_weights[offering_id]:
-            if assessment_id in own:
+            if assessment_id in own and weight > ZERO:
                 per_lo[lo_id].append((own[assessment_id], weight))
+                lo_assessment_ids[lo_id].add(assessment_id)
+
         los = _means(per_lo)
 
         per_component = defaultdict(list)
+        po_assessment_ids = defaultdict(set)
+
         for lo_id, key, level in component_weights[offering_id]:
             if lo_id in los:
                 per_component[key].append((los[lo_id], level))
+                po_code, _ = key
+                po_assessment_ids[po_code].update(lo_assessment_ids[lo_id])
 
-        results[enrollment_id] = (los, _means(per_component))
+        results[enrollment_id] = (
+            los,
+            _means(per_component),
+            {lo_id: len(ids) for lo_id, ids in lo_assessment_ids.items()},
+            {po_code: len(ids) for po_code, ids in po_assessment_ids.items()},
+        )
 
     return results
 
@@ -128,14 +141,22 @@ def _po_display_scores(components):
     return _means(groups)
 
 
+def scores_with_evidence_by_enrollment(enrollments):
+    """Return LO and PO scores and their evidence counts by enrollment."""
+    return {
+        enrollment_id: (los, _po_display_scores(components), lo_counts, po_counts)
+        for enrollment_id, (los, components, lo_counts, po_counts)
+        in _component_results(enrollments).items()
+    }
+
+
 def scores_by_enrollment(enrollments):
-    """Return {enrollment_id: (lo_scores, po_scores)}; the course report page reads this."""
-    results = {}
-    for enrollment_id, (los, components) in _component_results(
-        enrollments,
-    ).items():
-        results[enrollment_id] = (los, _po_display_scores(components))
-    return results
+    """Return LO and PO scores by enrollment."""
+    return {
+        enrollment_id: (los, pos)
+        for enrollment_id, (los, pos, _, _)
+        in scores_with_evidence_by_enrollment(enrollments).items()
+    }
 
 
 def lo_scores(enrollment):
@@ -170,7 +191,7 @@ def student_component_scores(student, enrollments=None):
 
     groups = defaultdict(list)
     for enrollment in enrollments:
-        ects = Decimal(enrollment.offering.course.ects)
+        ects = Decimal(enrollment.offering.ects)
         for key, score in results[enrollment.pk][1].items():
             groups[key].append((score, ects))
 
@@ -187,7 +208,7 @@ def offering_component_scores(offering):
     results = _component_results(list(offering.enrollments.all()))
 
     groups = defaultdict(list)
-    for _, components in results.values():
+    for _, components, _, _ in results.values():
         for key, score in components.items():
             groups[key].append((score, ONE))
 
