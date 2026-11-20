@@ -9,6 +9,9 @@ add merges.
 container starts. Every deployed version can be traced to one commit, and rolling back means redeploying an older
 image tag.
 
+The database, its backups and what happens when something fails are in [decision 9](0009-demo-database.md) and
+[failures.md](../failures.md).
+
 At the end of each sprint we tag `main` as `sprint-N`, so the report can point at what each sprint delivered.
 
 Status: proposed, team to confirm. Issue #29.
