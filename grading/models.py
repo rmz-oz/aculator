@@ -334,3 +334,18 @@ class LOPOWeight(models.Model):
             f"{self.learning_outcome.code} -> "
             f"{self.component}: {self.weight}"
         )
+class GradeChange(models.Model):
+    class Action(models.TextChoices):
+        CREATED = "created", "Created"
+        UPDATED = "updated", "Updated"
+        DELETED = "deleted", "Deleted"
+
+    grade_id = models.PositiveBigIntegerField(db_index=True)
+    action = models.CharField(max_length=10, choices=Action.choices)
+    changed_at = models.DateTimeField(db_index=True)
+    changed_by = models.CharField(max_length=150, blank=True)
+    before = models.JSONField(null=True, blank=True)
+    after = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-changed_at", "-pk")

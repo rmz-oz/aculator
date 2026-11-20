@@ -121,6 +121,36 @@ class GradeAdmin(admin.ModelAdmin):
     autocomplete_fields = ("enrollment", "assessment")
 
 
+@admin.register(m.GradeChange)
+class GradeChangeAdmin(admin.ModelAdmin):
+    list_display = ("changed_at", "grade_id", "action", "score_change", "changed_by")
+    list_filter = ("action", "changed_at")
+    search_fields = ("grade_id__exact", "changed_by")
+    readonly_fields = ("changed_at", "grade_id", "action", "changed_by", "before", "after")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description="Score")
+    def score_change(self, obj):
+        def score(row):
+            if not row:
+                return "none"
+            return "absent" if row.get("status") == "absent" else row.get("score")
+
+        if obj.action == m.GradeChange.Action.CREATED:
+            return score(obj.after)
+        if obj.action == m.GradeChange.Action.DELETED:
+            return score(obj.before)
+        return f"{score(obj.before)} → {score(obj.after)}"
+
+
 @admin.register(m.AssessmentLOWeight)
 class AssessmentLOWeightAdmin(admin.ModelAdmin):
     list_display = ("assessment", "learning_outcome", "weight")
