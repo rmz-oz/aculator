@@ -77,6 +77,15 @@
 
   table.on("tableBuilt", () => {
     button.disabled = roster.length === 0;
+    // Tabulator's scroll wrapper sits between the grid and its rowgroup with
+    // no role of its own, which role=grid does not allow (#45). A role of
+    // presentation would normally take it out of the a11y tree, but ARIA
+    // ignores that on a focusable element, so its tabindex has to go too;
+    // every cell already has its own tabindex, so the grid stays keyboard
+    // reachable without it.
+    const holder = grid.querySelector(".tabulator-tableholder");
+    holder?.setAttribute("role", "presentation");
+    holder?.removeAttribute("tabindex");
   });
 
   const redrawRows = () => table.getRows().forEach((row) => row.reformat());
