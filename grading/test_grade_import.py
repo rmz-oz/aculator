@@ -41,6 +41,43 @@ class GradeImportTests(TransactionTestCase):
         ]
         self.client.force_login(self.instructor)
 
+    def test_paste_grid_shows_current_grade_for_each_student(self):
+        Grade.objects.create(assessment=self.assessment, enrollment=self.enrollments[0], score=D("12.5"))
+        students = self.client.get(self.url).context["paste_students"]
+        self.assertEqual(students["20230001"]["current"], "12.5")
+        self.assertEqual(students["20230002"]["current"], "")
+
+    def test_pasted_grades_report_cell_errors_and_save_only_when_valid(self):
+        rows = [
+            {"student_number": "20230001", "score": "12,5"},
+            {"student_number": "20230002", "score": "abc"},
+        ]
+
+        response = self.client.post(
+            self.url, {"rows": rows}, content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["errors"], [{
+            "row": 1,
+            "field": "score",
+            "message": "Score must be a number.",
+        }])
+        self.assertIsNone(self.grade(0))
+        self.assertIsNone(self.grade(1))
+
+        rows[1]["score"] = "0"
+        response = self.client.post(
+            self.url, {"rows": rows}, content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"saved_count": 2})
+        pasted = GradeChange.objects.filter(grade_id=self.grade(0).pk).get()
+        self.assertEqual(pasted.changed_by, self.instructor.username)
+        self.assertEqual(self.grade(0).score, D("12.50"))
+        self.assertEqual(self.grade(1).score, D("0.00"))
+
     def make_user(self, username, role):
         user = self.users.create_user(username=username)
         user.groups.add(Group.objects.get_or_create(name=role)[0])
