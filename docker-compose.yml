@@ -1,3 +1,6 @@
+# `docker compose up` runs the whole app on http://localhost:8000 with fake
+# data and the demo role switcher (#81). The database is also on port 5432
+# for running the app or the tests outside Docker; DB_PORT=5433 if 5432 is taken.
 services:
   db:
     image: postgres:16
@@ -5,9 +8,33 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: aculator
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "aculator"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  web:
+    build: .
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/aculator
+      SECRET_KEY: compose-only-not-secret
+      DEBUG: "0"
+      DEMO: "1"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz/')"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
 
 volumes:
   pgdata:

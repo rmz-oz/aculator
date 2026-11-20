@@ -410,12 +410,28 @@ input[type="password"]:focus { outline: 2px solid var(--blue); outline-offset: 0
 .signin form { padding-top: 6px; }
 .signin .actions { margin-top: 32px; }
 
+/* Demo role switcher (#46): type only, the current role in blue. */
+
+.demo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 16px;
+  color: var(--muted);
+  font-size: 15px;
+}
+.demo form { margin: 0; }
+.demo .action.quiet { color: var(--ink); }
+.demo .action.quiet:hover { color: var(--blue); }
+.signin .demo { grid-column: 2; margin-top: 8px; }
+
 @media (max-width: 760px) {
   .masthead { padding: 20px 20px 0; gap: 20px; flex-wrap: wrap; }
   .who { margin-left: 0; width: 100%; }
   main { padding: 48px 20px 80px; }
   h2 { margin-top: 64px; }
   .course, .signin, .split { grid-template-columns: 1fr; gap: 24px; }
+  .signin .demo { grid-column: auto; }
   .outcome .score { font-size: 44px; }
   .drop { padding: 32px 24px; }
 }
