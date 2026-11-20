@@ -1,10 +1,28 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Import grades{% if assessment %}, {{ assessment.offering.course.code }} {{ assessment.name }}{% endif %}{% endblock %}
 {% block content %}
 {% if assessment %}<p class="eyebrow"><a href="{% url 'course_report' assessment.offering.pk %}">{{ assessment.offering.course.code }} {{ assessment.offering.course.name }}</a>, {{ assessment.offering.term }}</p>{% endif %}
 <h1>Import {% if assessment %}{{ assessment.name }} {% endif %}grades</h1>
 {% if assessment %}<p class="lede">Scores out of {{ assessment.max_score|floatformat:"-2" }}. Preview first to see what changes and to mark students who missed the assessment; nothing is saved until you confirm.</p>{% endif %}
+<section aria-labelledby="paste-grades-title">
+  <h2 id="paste-grades-title">Paste grades from Excel</h2>
+  <p id="paste-grades-help">
+    For one column, check that Excel follows the student order shown here.
+    Click the first score cell and paste. For two columns, paste student
+    numbers and scores into the first student number cell. Leave a score
+    blank to keep that student's grade unchanged.
+  </p>
 
+  <form id="paste-grades" method="post">
+    {% csrf_token %}
+    <div id="grade-grid" tabindex="0" aria-describedby="paste-grades-help"></div>
+    <p id="paste-grades-status" aria-live="polite"></p>
+    <button class="action" type="submit" disabled>Save pasted grades</button>
+  </form>
+
+  {{ paste_rows|json_script:"grade-grid-data" }}
+</section>
 {% if errors %}
 <section class="problems" role="alert" aria-labelledby="problems-title">
   <h2 id="problems-title">Nothing was saved</h2>
@@ -71,6 +89,12 @@
 {% endblock %}
 
 {% block scripts %}
+{% if assessment %}
+<link rel="stylesheet" href="{% static 'vendor/tabulator-6.6.1.min.css' %}">
+<script src="{% static 'vendor/tabulator-6.6.1.min.js' %}" defer></script>
+<script src="{% static 'grading/grade_paste.js' %}" defer></script>
+{% endif %}
+
 <script>
 (() => {
   const drop = document.getElementById("drop");
