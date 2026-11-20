@@ -17,7 +17,7 @@ def quiet(*args, **kwargs):
 class DemoAccountsTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        quiet("demo_data", students=5)
+        quiet("demo_data", "--clean", students=5)
 
     def test_one_account_per_role(self):
         User = get_user_model()
@@ -52,7 +52,7 @@ class DemoAccountsTests(TestCase):
 class DemoSwitchTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        quiet("demo_data", students=5)
+        quiet("demo_data", "--clean", students=5)
 
     def switch(self, role):
         return self.client.post(reverse("demo_switch", args=[role]))
@@ -100,3 +100,49 @@ class DemoSwitchTests(TestCase):
     def test_needs_csrf(self):
         client = self.client_class(enforce_csrf_checks=True)
         self.assertEqual(client.post(reverse("demo_switch", args=["head"])).status_code, 403)
+
+
+class DemoScenarioTests(TestCase):
+    """The realistic mistakes (#100) on a small department; positions come from the seed."""
+
+    @classmethod
+    def setUpTestData(cls):
+        quiet("demo_data", students=60)
+
+    def test_scenarios_are_in(self):
+        from .demo_scenarios import UNMEASURED_PO
+        from .models import LearningOutcome, LOPOWeight, Term
+
+        self.assertFalse(LOPOWeight.objects.filter(component__program_outcome__code=UNMEASURED_PO).exists())
+        current = CourseOffering.objects.filter(term__year=2026, term__season="fall")
+        self.assertFalse(Grade.objects.filter(assessment__offering__in=current).exclude(assessment__name="Midterm").exists())
+        self.assertTrue(Grade.objects.filter(status=Grade.Status.ABSENT).exists())
+        self.assertTrue(Term.objects.filter(season="summer").exists())
+        self.assertEqual(CourseOffering.objects.get(course__code="CSE491").enrollments.count(), 3)
+        self.assertEqual(CourseOffering.objects.get(course__code="CSE101", term__year=2025, term__season="fall")
+                         .enrollments.count(), 200)
+        self.assertFalse(LearningOutcome.objects.filter(
+            offering__course__code="CSE303", offering__term__year=2026, offering__term__season="spring").exists())
+
+    def test_no_grade_above_its_maximum(self):
+        from django.db.models import F
+
+        self.assertFalse(Grade.objects.filter(score__gt=F("assessment__max_score")).exists())
+
+    def test_running_again_changes_nothing(self):
+        grades = sorted(Grade.objects.values_list("pk", "score", "status"))
+        quiet("demo_data")
+        self.assertEqual(sorted(Grade.objects.values_list("pk", "score", "status")), grades)
+
+    def test_every_page_opens_for_the_head(self):
+        self.client.force_login(get_user_model().objects.get(username=DEMO_HEAD))
+        for offering in CourseOffering.objects.all():
+            self.assertEqual(self.client.get(reverse("course_report", args=[offering.pk])).status_code, 200, offering)
+        for student in get_user_model().objects.filter(username__startswith="fake_student_")[::7]:
+            self.assertEqual(self.client.get(reverse("student_profile", args=[student.pk])).status_code, 200, student)
+
+    def test_offering_without_learning_outcomes_says_why(self):
+        self.client.force_login(get_user_model().objects.get(username=DEMO_HEAD))
+        offering = CourseOffering.objects.get(course__code="CSE303", term__year=2026, term__season="spring")
+        self.assertContains(self.client.get(reverse("course_report", args=[offering.pk])),
+                            "No learning outcomes are defined")

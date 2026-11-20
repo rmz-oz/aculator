@@ -34,7 +34,7 @@ class DemoSwitcherFlowTests(StaticLiveServerTestCase):
         super().tearDownClass()
 
     def setUp(self):
-        call_command("demo_data", students=5, stdout=StringIO())
+        call_command("demo_data", "--clean", students=5, stdout=StringIO())
         self.context = self.browser.new_context(viewport={"width": 1280, "height": 800})
         self.page = self.context.new_page()
 

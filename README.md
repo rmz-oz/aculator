@@ -28,7 +28,8 @@ Acıbadem University, Fall 2026.
 docker compose up
 ```
 
-Open http://localhost:8000. The first start loads fake data (400 students, 8 courses over 8 terms) and three demo
+Open http://localhost:8000. The first start loads fake data (400 students, 8 courses over 8 terms) with the mistakes a real department has
+([demo scenarios](docs/demo_scenarios.md)) and three demo
 accounts; on the sign in page, "Demo, sign in as" switches between a student, an instructor and the head of department.
 Later starts keep the data. `docker compose down -v` deletes it. If port 5432 is taken, `DB_PORT=5433 docker compose up`.
 
