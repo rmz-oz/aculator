@@ -12,7 +12,7 @@ from django.urls import reverse
 
 from . import views
 from .access import HEAD, INSTRUCTOR, STUDENT
-from .models import Assessment, Course, CourseOffering, Enrollment, Grade, Term
+from .models import Assessment, Course, CourseOffering, Enrollment, Grade, GradeChange, Term
 
 D = Decimal
 HEADER = b"student_number,score\n"
@@ -73,6 +73,8 @@ class GradeImportTests(TransactionTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"saved_count": 2})
+        pasted = GradeChange.objects.filter(grade_id=self.grade(0).pk).get()
+        self.assertEqual(pasted.changed_by, self.instructor.username)
         self.assertEqual(self.grade(0).score, D("12.50"))
         self.assertEqual(self.grade(1).score, D("0.00"))
 
@@ -291,3 +293,52 @@ class GradeImportTests(TransactionTestCase):
 
         self.assertContains(response, "Choose the files again.", status_code=409)
         self.assertFalse(Grade.objects.exists())
+    def test_import_records_grade_change_history(self):
+        self.assertContains(
+            self.upload(csv_file(HEADER + b"20230001,10\n")),
+            "1 grade saved",
+        )
+        grade = self.grade(0)
+
+        self.assertContains(
+            self.upload(csv_file(HEADER + b"20230001,15.50\n")),
+            "1 grade saved",
+        )
+
+        history = GradeChange.objects.filter(grade_id=grade.pk)
+        change = history.get(action=GradeChange.Action.UPDATED)
+        self.assertEqual(change.changed_by, self.instructor.username)
+        self.assertEqual(D(str(change.before["score"])), D("10.00"))
+        self.assertEqual(D(str(change.after["score"])), D("15.50"))
+        self.assertIsNotNone(change.changed_at)
+
+        self.upload(csv_file(HEADER + b"20230001,15.50\n"))
+        self.assertEqual(history.count(), 2)
+
+    def test_admin_assessment_deletion_records_grade_history(self):
+        grade = Grade.objects.create(
+            assessment=self.assessment,
+            enrollment=self.enrollments[0],
+            score=D("10.00"),
+        )
+        admin_user = self.users.create_superuser(
+            username="history-admin",
+            password=None,
+        )
+        self.client.force_login(admin_user)
+
+        response = self.client.post(
+            reverse("admin:grading_assessment_delete", args=[self.assessment.pk]),
+            {"post": "yes"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Grade.objects.filter(pk=grade.pk).exists())
+
+        change = GradeChange.objects.get(
+            grade_id=grade.pk,
+            action=GradeChange.Action.DELETED,
+        )
+        self.assertEqual(change.changed_by, admin_user.username)
+        self.assertEqual(D(str(change.before["score"])), D("10.00"))
+        self.assertIsNone(change.after)

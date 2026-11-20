@@ -20,6 +20,7 @@ from .access import (
     visible_enrollments,
 )
 from .explain import explain_all, explain_po
+from .grade_history import grade_change_actor
 from .grade_import import (
     grades_fingerprint,
     is_serialization_failure,
@@ -324,11 +325,12 @@ def grade_import(request, assessment_id):
     try:
         with serializable_transaction():
             assessment = _gradable_assessment(request, assessment_id)
-            if is_grid_request:
-                return _save_pasted_grades(request, assessment)
-            if request.POST.get("action") == "confirm":
-                return _confirm_preview(request, assessment)
-            return _upload(request, assessment)
+            with grade_change_actor(request.user, using=assessment._state.db):
+                if is_grid_request:
+                    return _save_pasted_grades(request, assessment)
+                if request.POST.get("action") == "confirm":
+                    return _confirm_preview(request, assessment)
+                return _upload(request, assessment)
     except OperationalError as error:
         if not is_serialization_failure(error):
             raise
