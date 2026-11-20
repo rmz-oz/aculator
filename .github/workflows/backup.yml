@@ -1,0 +1,80 @@
+name: Backup
+
+# Every night: dump the Render database, keep it 30 days as an encrypted
+# artifact, and restore it into an empty PostgreSQL to prove the copy works (#32).
+# Restoring by hand: docs/failures.md.
+on:
+  schedule:
+    - cron: "0 0 * * *" # 03:00 Istanbul
+  workflow_dispatch:
+
+concurrency: backup
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    outputs:
+      name: ${{ steps.dump.outputs.name }}
+    env:
+      DATABASE_URL: ${{ secrets.RENDER_DATABASE_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dump
+        id: dump
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::RENDER_DATABASE_URL and BACKUP_PASSPHRASE secrets are needed"; exit 1
+          fi
+          sh scripts/backup.sh "$DATABASE_URL" backup
+          echo "name=backup-$(date -u +%Y%m%d)-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.dump.outputs.name }}
+          path: backup/
+          retention-days: 30
+          if-no-files-found: error
+
+  restore-test:
+    needs: backup
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aculator
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/aculator
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.backup.outputs.name }}
+          path: backup/
+      - name: Restore into an empty database, compare with the fingerprint
+        run: sh scripts/restore.sh backup/*.dump.gpg "$DATABASE_URL"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: The app works on the restored copy
+        run: |
+          python manage.py migrate --check
+          python manage.py refresh_materialized_views
+          python manage.py shell -v 0 -c "
+          from django.contrib.auth import get_user_model
+          from django.test import Client
+          from grading.models import CourseOffering, Enrollment
+          checker = get_user_model().objects.create_superuser('restore_check')
+          client = Client(); client.force_login(checker)
+          for offering in CourseOffering.objects.filter(enrollments__isnull=False).distinct()[:5]:
+              assert client.get(f'/offerings/{offering.pk}/report/', HTTP_HOST='localhost').status_code == 200
+          for enrollment in Enrollment.objects.all()[:5]:
+              assert client.get(f'/students/{enrollment.student_id}/profile/', HTTP_HOST='localhost').status_code == 200
+          print('reports and profiles open')
+          "

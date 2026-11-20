@@ -53,6 +53,12 @@ Every green `main` is built into `ghcr.io/rmz-oz/aculator` and deployed to Rende
 docker build -t aculator . && docker run --rm -p 8000:8000 -e DATABASE_URL=postgres://postgres:postgres@host.docker.internal:5432/aculator aculator
 ```
 
+## Backups
+
+Every night the Render database is dumped, encrypted, kept 30 days and restored once to check it, see
+[failures.md](docs/failures.md). `scripts/render_db.sh status` shows when the free database expires,
+`scripts/render_db.sh recreate` replaces it ([decision 9](docs/decisions/0009-demo-database.md)).
+
 ## Diagrams
 
 [Architecture](docs/architecture.png) and [classes](docs/classes.png). The class diagram is generated from the models;

@@ -222,3 +222,4 @@ staticfiles/
 
 # Playwright screenshots
 e2e-screenshots/
+backups/
