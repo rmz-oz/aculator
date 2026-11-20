@@ -1,12 +1,15 @@
-
 from contextlib import contextmanager
 
 from django.db import DEFAULT_DB_ALIAS, connections, transaction
 from django.urls import Resolver404, resolve
 
+# The grade trigger (migration 0008) writes this setting into changed_by.
+# set_config(..., true) keeps it inside the current transaction only.
+
 
 @contextmanager
 def grade_change_actor(user, using=DEFAULT_DB_ALIAS):
+    """Name the user in every grade change made inside this block."""
     with transaction.atomic(using=using):
         with connections[using].cursor() as cursor:
             cursor.execute("SELECT current_setting('aculator.grade_changed_by', true)")
@@ -24,7 +27,10 @@ def grade_change_actor(user, using=DEFAULT_DB_ALIAS):
                 [previous_actor or ""],
             )
 
+
 class AdminGradeHistoryMiddleware:
+    """Admin edits and deletes, including grades deleted with their assessment."""
+
     def __init__(self, get_response):
         self.get_response = get_response
 
