@@ -59,7 +59,7 @@ DROP FUNCTION grading_record_grade_change();
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("grading", "0007_grade_change"),
+        ("grading", "0009_grade_change"),
     ]
     operations = [
         migrations.RunSQL(CREATE_TRIGGER, reverse_sql=DROP_TRIGGER),

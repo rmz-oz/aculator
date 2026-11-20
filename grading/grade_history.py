@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from django.db import DEFAULT_DB_ALIAS, connections, transaction
 from django.urls import Resolver404, resolve
 
-# The grade trigger (migration 0008) writes this setting into changed_by.
+# The grade trigger (migration 0010) writes this setting into changed_by.
 # set_config(..., true) keeps it inside the current transaction only.
 
 

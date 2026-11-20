@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("grading", "0006_term_season_english"),
+        ("grading", "0008_use_offering_ects_in_po_view"),
     ]
 
     operations = [
