@@ -355,13 +355,21 @@ def _gradable_assessment(request, assessment_id):
 
 
 def _import_page(request, assessment, status=200, **context):
-    student_numbers = assessment.offering.enrollments.order_by(
-        "student__username"
-    ).values_list("student__username", flat=True)
+    enrollments = assessment.offering.enrollments.select_related("student").order_by("student__username")
+    current = {
+        grade.enrollment_id: "absent" if grade.status == Grade.Status.ABSENT else f"{grade.score.normalize():f}"
+        for grade in assessment.grades.all()
+    }
     paste_rows = [
-        {"id": index, "student_number": number, "score": ""}
-        for index, number in enumerate(student_numbers)
+        {"id": index, "student_number": e.student.username, "score": ""}
+        for index, e in enumerate(enrollments)
     ]
+    # Name and current grade follow the student number, so after a
+    # two column paste the instructor still sees whose row it is.
+    paste_students = {
+        e.student.username: {"name": e.student.get_full_name(), "current": current.get(e.pk, "")}
+        for e in enrollments
+    }
 
     return render(
         request,
@@ -370,6 +378,7 @@ def _import_page(request, assessment, status=200, **context):
             "assessment": assessment,
             "nav": "home",
             "paste_rows": paste_rows,
+            "paste_students": paste_students,
             **context,
         },
         status=status,

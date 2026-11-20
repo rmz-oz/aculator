@@ -1,4 +1,3 @@
-
 (() => {
   const form = document.getElementById("paste-grades");
   if (!form) return;
@@ -8,6 +7,7 @@
   const button = form.querySelector('button[type="submit"]');
   const csrfToken = form.querySelector('[name="csrfmiddlewaretoken"]').value;
   const roster = JSON.parse(document.getElementById("grade-grid-data").textContent);
+  const students = JSON.parse(document.getElementById("grade-grid-students").textContent);
 
   if (!window.Tabulator) {
     status.textContent = "The grade grid could not load.";
@@ -54,6 +54,14 @@
     },
   });
 
+  // Read only, looked up from the student number in the same row.
+  const lookup = (key) => ({
+    title: key === "name" ? "Name" : "Current",
+    field: `_${key}`,
+    headerSort: false,
+    formatter: (cell) => students[cell.getRow().getData().student_number?.trim()]?.[key] ?? "",
+  });
+
   const table = new Tabulator(grid, {
     data: roster,
     index: "id",
@@ -61,6 +69,8 @@
     editTriggerEvent: "dblclick",
     columns: [
       column("Student number", "student_number"),
+      lookup("name"),
+      lookup("current"),
       column("Score", "score"),
     ],
   });
@@ -141,7 +151,12 @@
       const result = await response.json();
 
       if (response.ok) {
-        status.textContent = `${result.saved_count} grades saved.`;
+        for (const {student_number, score} of data) {
+          const student = students[student_number.trim()];
+          if (student && score.trim()) student.current = score.trim().replace(",", ".");
+        }
+        redrawRows();
+        status.textContent = `${result.saved_count} grade${result.saved_count === 1 ? "" : "s"} saved.`;
         return;
       }
 

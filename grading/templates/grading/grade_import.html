@@ -8,7 +8,7 @@
 <section aria-labelledby="paste-grades-title">
   <h2 id="paste-grades-title">Paste grades from Excel</h2>
   <p id="paste-grades-help">
-    For one column, check that Excel follows the student order shown here.
+    For one column, check that Excel follows the student order shown here; the name and current grade help you check.
     Click the first score cell and paste. For two columns, paste student
     numbers and scores into the first student number cell. Leave a score
     blank to keep that student's grade unchanged.
@@ -22,6 +22,7 @@
   </form>
 
   {{ paste_rows|json_script:"grade-grid-data" }}
+  {{ paste_students|json_script:"grade-grid-students" }}
 </section>
 {% if errors %}
 <section class="problems" role="alert" aria-labelledby="problems-title">

@@ -41,6 +41,11 @@ class GradeImportTests(TransactionTestCase):
         ]
         self.client.force_login(self.instructor)
 
+    def test_paste_grid_shows_current_grade_for_each_student(self):
+        Grade.objects.create(assessment=self.assessment, enrollment=self.enrollments[0], score=D("12.5"))
+        students = self.client.get(self.url).context["paste_students"]
+        self.assertEqual(students["20230001"]["current"], "12.5")
+        self.assertEqual(students["20230002"]["current"], "")
 
     def test_pasted_grades_report_cell_errors_and_save_only_when_valid(self):
         rows = [
