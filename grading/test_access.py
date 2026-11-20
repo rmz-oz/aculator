@@ -8,7 +8,7 @@ from .models import Assessment, Course, CourseOffering, Enrollment, Grade, Term
 
 
 class AccessTests(TestCase):
-    """Two offerings, one instructor each, two students inAccessTests different courses."""
+    """Two offerings, one instructor each, two students in different courses."""
 
     @classmethod
     def setUpTestData(cls):

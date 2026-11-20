@@ -120,6 +120,10 @@ class MaterializedViewTests(TestCase):
         )
         self.assertEqual(new_offering.ects, 12)
 
+        later_term = Term.objects.create(year=self.term.year + 2, season=self.term.season)
+        set_by_head = CourseOffering.objects.create(course=self.course, term=later_term, ects=8)
+        self.assertEqual(set_by_head.ects, 8)
+
     def test_absent_grade_matches_the_service(self):
         Grade.objects.filter(enrollment=self.enrollment, assessment=self.project).update(
             status=Grade.Status.ABSENT, score=Decimal(0),

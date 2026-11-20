@@ -98,8 +98,11 @@ class CourseOffering(models.Model):
         constraints = (
             models.UniqueConstraint(fields=["course", "term"], name="uniq_offering_course_term"),
         )
+
     def save(self, *args, **kwargs):
-        if self._state.adding:
+        # A new offering takes the catalog ECTS unless one is given. Later
+        # catalog edits leave it alone, so past PO scores do not move (#80).
+        if self._state.adding and self.ects is None:
             self.ects = self.course.ects
         super().save(*args, **kwargs)
 
