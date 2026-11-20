@@ -1,4 +1,6 @@
 VIEW_SQL = ('\n                CREATE MATERIALIZED VIEW student_lo_scores AS\n                SELECT\n                    e.student_id,\n                    e.offering_id,\n                    lo.id AS learning_outcome_id,\n\n                    SUM(g.score / a.max_score * 100 * alw.weight)\n                    / SUM(alw.weight) AS score\n\n                FROM grading_enrollment e\n\n                JOIN grading_grade g\n                    ON g.enrollment_id = e.id\n\n                JOIN grading_assessment a\n                    ON a.id = g.assessment_id\n                    AND a.offering_id = e.offering_id\n                    AND a.max_score > 0\n\n                JOIN grading_assessmentloweight alw\n                    ON alw.assessment_id = a.id\n\n                JOIN grading_learningoutcome lo\n                    ON lo.id = alw.learning_outcome_id\n                    AND lo.offering_id = e.offering_id\n\n                GROUP BY\n                    e.student_id,\n                    e.offering_id,\n                    lo.id\n                HAVING SUM(alw.weight) > 0;\n            ', '\n                CREATE UNIQUE INDEX student_lo_scores_unique\n                ON student_lo_scores (\n                    student_id,\n                    offering_id,\n                    learning_outcome_id\n                );\n            ', '\n                CREATE MATERIALIZED VIEW course_po_scores AS\n                SELECT\n                    slo.student_id,\n                    slo.offering_id,\n                    pc.program_outcome_id,\n                    SUM(slo.score * lpw.weight)\n                    / NULLIF(SUM(lpw.weight),0) AS score\n                FROM student_lo_scores slo\n                JOIN grading_lopoweight lpw\n                    ON lpw.learning_outcome_id = slo.learning_outcome_id\n                JOIN grading_pocomponent pc\n                    ON pc.id = lpw.component_id\n                GROUP BY\n                    slo.student_id,\n                    slo.offering_id,\n                    pc.program_outcome_id\n                HAVING SUM(lpw.weight) > 0;\n            ', '\n                CREATE UNIQUE INDEX course_po_scores_unique\n                ON course_po_scores (\n                    student_id,\n                    offering_id,\n                    program_outcome_id\n                );\n            ', '\n                CREATE MATERIALIZED VIEW cross_course_po_scores AS\n                -- Courses weighted by ECTS, decision 0004.\n                SELECT\n                    cpo.student_id,\n                    cpo.program_outcome_id,\n                    SUM(cpo.score * c.ects) / SUM(c.ects) AS score\n                FROM course_po_scores cpo\n                JOIN grading_courseoffering o ON o.id = cpo.offering_id\n                JOIN grading_course c ON c.id = o.course_id\n                GROUP BY\n                    cpo.student_id,\n                    cpo.program_outcome_id\n                HAVING SUM(c.ects) > 0;\n            ', '\n                CREATE UNIQUE INDEX cross_course_po_scores_unique\n                ON cross_course_po_scores (\n                    student_id,\n                    program_outcome_id\n                );\n            ')
+import importlib
+
 from django.db import migrations, models
 
 TEST_DATABASE = 'aculator_sprint4_test'
@@ -114,11 +116,36 @@ def forwards(apps, schema_editor):
         c.execute('ALTER TABLE grading_grade RENAME TO grading_grade_before_partition')
         c.execute('DROP TABLE grading_grade_before_partition')
         c.execute('ALTER TABLE grading_grade_partitioned RENAME TO grading_grade')
-        for sql in VIEW_SQL:
-            c.execute(sql)
-        for view in ('student_lo_scores','course_po_scores','cross_course_po_scores'):
-            c.execute(f'REFRESH MATERIALIZED VIEW {view}')
-                # Prevent upstream changes that would invalidate the partition key.
+        original = importlib.import_module("grading.migrations.0002_materialized_views")
+
+        # Recreate student_lo_scores and its unique index.
+        for operation in original.Migration.operations[:2]:
+             c.execute(operation.sql)
+
+        # Recreate course_po_scores using the POComponent schema.
+        components = importlib.import_module("grading.migrations.0004_po_components")
+        course_po_sql = components.CREATE_VIEWS.split(
+             "CREATE MATERIALIZED VIEW cross_course_po_scores AS"
+        )[0]
+        c.execute(course_po_sql)
+
+        # Recreate cross_course_po_scores using the updated offering ECTS logic.
+        updated = importlib.import_module("grading.migrations.0008_use_offering_ects_in_po_view")
+        c.execute(updated.CREATE_VIEW)
+        for view in (
+            "student_lo_scores",
+            "course_po_scores",
+            "cross_course_po_scores",
+        ):
+            c.execute(f"REFRESH MATERIALIZED VIEW {view}")
+        # The trigger function already exists from migration 0010.
+        # Attach the history trigger to the new partitioned Grade table.
+        c.execute("""
+        CREATE TRIGGER grading_grade_change_history
+        AFTER INSERT OR UPDATE OR DELETE ON grading_grade
+        FOR EACH ROW
+        EXECUTE FUNCTION grading_record_grade_change();
+        """)
         c.execute('''
             CREATE FUNCTION grade_guard_upstream() RETURNS trigger LANGUAGE plpgsql AS $$
             BEGIN
@@ -170,7 +197,7 @@ def forwards(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [('grading', '0006_partition_grades_by_term')]
+    dependencies = [('grading', '0011_partition_grades_by_term')]
     atomic = True
     operations = [
         migrations.RunPython(forwards),

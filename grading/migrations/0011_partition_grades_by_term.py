@@ -59,7 +59,7 @@ def recreate_materialized_views(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("grading", "0005_grade_status"),
+        ("grading", "0010_record_grade_changes"),
     ]
 
     operations = [
