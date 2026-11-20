@@ -48,7 +48,10 @@ class AccessibilityTests(StaticLiveServerTestCase):
         super().tearDownClass()
 
     def setUp(self):
-        call_command("demo_data", students=5, stdout=StringIO())
+        # --clean: the realistic scenarios (#100) assume fake_data's default
+        # 400 students; at 5 they can find too few candidates for a scenario
+        # and crash (same as test_demo.py).
+        call_command("demo_data", "--clean", students=5, stdout=StringIO())
         self.context = self.browser.new_context(viewport={"width": 1280, "height": 800})
         self.page = self.context.new_page()
 
