@@ -90,7 +90,7 @@ def _parse_file(name, text, assessment, enrollments, parsed):
         raw_score = values[score_at].strip()
         if delimiter == ";":
             raw_score = raw_score.replace(",", ".")
-        score, error = _check_score(raw_score, assessment.max_score)
+        score, error = validate_score(raw_score, assessment.max_score)
         if error:
             parsed.errors.append(f"{location}: {error}")
         elif enrollment is not None:
@@ -100,7 +100,7 @@ def _parse_file(name, text, assessment, enrollments, parsed):
         parsed.errors.append(f"{name}: File has no grade rows.")
 
 
-def _check_score(raw, max_score):
+def validate_score(raw, max_score):
     try:
         score = Decimal(raw)
     except InvalidOperation:
@@ -110,6 +110,55 @@ def _check_score(raw, max_score):
     if score != score.quantize(CENT):
         return None, "Score can have at most two decimal places."
     return score.quantize(CENT), None
+
+def validate_pasted_grades(rows, assessment, enrollments):
+    """Return validated scores and errors addressed by grid row and field."""
+    scores = []
+    errors = []
+    seen = set()
+
+    for index, row in enumerate(rows):
+        number = row["student_number"].strip()
+        raw_score = row["score"].strip()
+
+        if not raw_score:
+            continue
+
+        enrollment = enrollments.get(number)
+        number_error = None
+
+        if not number:
+            number_error = "Student number is empty."
+        elif enrollment is None:
+            number_error = "Student is not enrolled in this course."
+        elif number in seen:
+            number_error = "Student appears more than once."
+
+        if number:
+            seen.add(number)
+
+        if number_error:
+            errors.append({
+                "row": index,
+                "field": "student_number",
+                "message": number_error,
+            })
+
+        score, score_error = validate_score(
+            raw_score.replace(",", "."),
+            assessment.max_score,
+        )
+        if score_error:
+            errors.append({
+                "row": index,
+                "field": "score",
+                "message": score_error,
+            })
+
+        if not number_error and not score_error:
+            scores.append((enrollment.pk, score))
+
+    return scores, errors
 
 
 def grades_fingerprint(assessment):

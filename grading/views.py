@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 
 from django.conf import settings
@@ -6,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.core import signing
 from django.db import OperationalError
 from django.db.models import Case, Count, IntegerField, Prefetch, Value, When
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .access import (
@@ -19,7 +20,14 @@ from .access import (
     visible_enrollments,
 )
 from .explain import explain_all, explain_po
-from .grade_import import grades_fingerprint, is_serialization_failure, parse_grade_files, serializable_transaction
+from .grade_history import grade_change_actor
+from .grade_import import (
+    grades_fingerprint,
+    is_serialization_failure,
+    parse_grade_files,
+    serializable_transaction,
+    validate_pasted_grades,
+)
 from .models import Assessment, Grade, Term
 from .services import (
     DEPARTMENT_MIN_STUDENTS,
@@ -312,15 +320,26 @@ def grade_import(request, assessment_id):
     if request.method != "POST":
         return _import_page(request, _gradable_assessment(request, assessment_id))
 
+    is_grid_request = request.content_type == "application/json"
+
     try:
         with serializable_transaction():
             assessment = _gradable_assessment(request, assessment_id)
-            if request.POST.get("action") == "confirm":
-                return _confirm_preview(request, assessment)
-            return _upload(request, assessment)
+            with grade_change_actor(request.user, using=assessment._state.db):
+                if is_grid_request:
+                    return _save_pasted_grades(request, assessment)
+                if request.POST.get("action") == "confirm":
+                    return _confirm_preview(request, assessment)
+                return _upload(request, assessment)
     except OperationalError as error:
         if not is_serialization_failure(error):
             raise
+
+    if is_grid_request:
+        return JsonResponse(
+            {"message": "Grades changed while you were saving. Reload the page and try again."},
+            status=409,
+        )
     return _import_page(
         request,
         _gradable_assessment(request, assessment_id),
@@ -338,10 +357,34 @@ def _gradable_assessment(request, assessment_id):
 
 
 def _import_page(request, assessment, status=200, **context):
-    return render(
-        request, "grading/grade_import.html", {"assessment": assessment, "nav": "home", **context}, status=status,
-    )
+    enrollments = assessment.offering.enrollments.select_related("student").order_by("student__username")
+    current = {
+        grade.enrollment_id: "absent" if grade.status == Grade.Status.ABSENT else f"{grade.score.normalize():f}"
+        for grade in assessment.grades.all()
+    }
+    paste_rows = [
+        {"id": index, "student_number": e.student.username, "score": ""}
+        for index, e in enumerate(enrollments)
+    ]
+    # Name and current grade follow the student number, so after a
+    # two column paste the instructor still sees whose row it is.
+    paste_students = {
+        e.student.username: {"name": e.student.get_full_name(), "current": current.get(e.pk, "")}
+        for e in enrollments
+    }
 
+    return render(
+        request,
+        "grading/grade_import.html",
+        {
+            "assessment": assessment,
+            "nav": "home",
+            "paste_rows": paste_rows,
+            "paste_students": paste_students,
+            **context,
+        },
+        status=status,
+    )
 
 def _upload(request, assessment):
     files = request.FILES.getlist("csv_file")
@@ -359,6 +402,34 @@ def _upload(request, assessment):
     _save_scores(assessment, [(e.pk, score) for e, score in parsed.rows])
     return _import_page(request, assessment, saved_count=len(parsed.rows))
 
+def _save_pasted_grades(request, assessment):
+    try:
+        payload = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"message": "Invalid grade grid data."}, status=400)
+
+    rows = payload.get("rows") if isinstance(payload, dict) else None
+    if not isinstance(rows, list) or any(
+        not isinstance(row, dict)
+        or not isinstance(row.get("student_number"), str)
+        or not isinstance(row.get("score"), str)
+        for row in rows
+    ):
+        return JsonResponse({"message": "Invalid grade grid data."}, status=400)
+
+    enrollments = {
+        enrollment.student.username: enrollment
+        for enrollment in assessment.offering.enrollments.select_related("student")
+    }
+    scores, errors = validate_pasted_grades(rows, assessment, enrollments)
+
+    if errors:
+        return JsonResponse({"errors": errors}, status=400)
+    if not scores:
+        return JsonResponse({"message": "Enter at least one score."}, status=400)
+
+    _save_scores(assessment, scores)
+    return JsonResponse({"saved_count": len(scores)})
 
 def _preview(request, assessment, enrollments, parsed):
     existing = {g.enrollment_id: g for g in assessment.grades.all()}

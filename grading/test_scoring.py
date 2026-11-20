@@ -411,8 +411,8 @@ class ElifExampleTests(TestCase):
         )
 
     def test_zero_ects_produce_no_student_scores(self):
-        self.course.ects = 0
-        self.course.save(update_fields=["ects"])
+        self.offering.ects = 0
+        self.offering.save(update_fields=["ects"])
 
         self.assertEqual(student_po_scores(self.elif_), {})
 

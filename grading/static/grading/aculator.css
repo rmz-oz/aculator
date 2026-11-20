@@ -425,3 +425,9 @@ input[type="password"]:focus { outline: 2px solid var(--blue); outline-offset: 0
   main { padding: 0; }
   tbody tr:nth-child(odd) { background: #F3F3F3; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+.grade-paste-cell-error {
+    display: block;
+    color: #a51d2d;
+    white-space: normal;
+    font-weight: 600;
+}
