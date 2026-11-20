@@ -154,6 +154,18 @@ class Assessment(models.Model):
     def __str__(self):
         return f"{self.offering} / {self.name}"
 
+    def clean(self):
+        # Lowering the maximum under a score already given would put that
+        # student above 100% in every LO and PO it feeds (#101).
+        if self.pk is None or self.max_score is None:
+            return
+        highest = self.grades.aggregate(models.Max("score"))["score__max"]
+        if highest is not None and self.max_score < highest:
+            raise ValidationError({
+                "max_score": f"A student already has {highest:g}. Correct that grade first, "
+                f"or keep the maximum at {highest:g} or more."
+            })
+
 
 class Enrollment(models.Model):
     """A student enrolled in an offering.

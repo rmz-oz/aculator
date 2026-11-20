@@ -5,8 +5,9 @@ from unittest.mock import patch
 import psycopg
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db import connection
+from django.db import OperationalError, connection
 from django.test import TransactionTestCase
 from django.urls import reverse
 
@@ -256,3 +257,34 @@ class GradeImportTests(TransactionTestCase):
 
         self.assertContains(response, "Choose the files again.", status_code=409)
         self.assertFalse(Grade.objects.exists())
+
+    def test_double_click_that_already_saved_says_so(self):
+        # The first click saved these grades; the second fails to serialize (#103).
+        Grade.objects.create(assessment=self.assessment, enrollment=self.enrollments[0], score=D(40))
+        failure = OperationalError("could not serialize access")
+        with patch("grading.views._save_scores", side_effect=failure), \
+                patch("grading.views.is_serialization_failure", return_value=True):
+            same = self.upload(csv_file(HEADER + b"20230001,40\n"))
+            other = self.upload(csv_file(HEADER + b"20230001,41\n"))
+
+        self.assertContains(same, "These grades were already saved")
+        self.assertNotContains(same, "Nothing was saved")
+        self.assertContains(other, "Choose the files again.", status_code=409)
+
+    def test_failed_view_refresh_after_commit_still_reports_the_save(self):
+        # The grades are committed before the refresh runs; a refresh error must
+        # not turn that into a server error (#102).
+        with patch("grading.signals.refresh_materialized_views", side_effect=OperationalError("timeout")), \
+                self.assertLogs("django.db.backends.base", level="ERROR"):
+            response = self.upload(csv_file(HEADER + b"20230001,40\n"))
+
+        self.assertContains(response, "1 grade saved")
+        self.assertEqual(self.grade(0).score, D(40))
+
+    def test_max_score_cannot_go_below_a_given_score(self):
+        Grade.objects.create(assessment=self.assessment, enrollment=self.enrollments[0], score=D(45))
+        self.assessment.max_score = D(40)
+        with self.assertRaisesMessage(ValidationError, "A student already has 45"):
+            self.assessment.full_clean()
+        self.assessment.max_score = D(45)
+        self.assessment.full_clean()
