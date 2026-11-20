@@ -13,6 +13,10 @@
 </div>
 {% endif %}
 
+{% if rows and not los %}
+<p class="notice">No learning outcomes are defined for this course in {{ offering.term }} yet, so its grades give no LO or PO score. They can be added in the admin.</p>
+{% endif %}
+
 {% if rows %}
 <h2>Students</h2>
 <div class="table-wrap">

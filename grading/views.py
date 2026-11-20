@@ -2,13 +2,14 @@ import json
 from decimal import Decimal
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.core import signing
 from django.db import OperationalError
 from django.db.models import Case, Count, IntegerField, Prefetch, Value, When
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from .access import (
     HEAD,
@@ -19,6 +20,7 @@ from .access import (
     role_of,
     visible_enrollments,
 )
+from .demo import demo_user
 from .explain import explain_all, explain_po
 from .grade_history import grade_change_actor
 from .grade_import import (
@@ -340,12 +342,29 @@ def grade_import(request, assessment_id):
             {"message": "Grades changed while you were saving. Reload the page and try again."},
             status=409,
         )
+    assessment = _gradable_assessment(request, assessment_id)
+    if request.POST.get("action") == "import" and _already_saved(request, assessment):
+        # Usually a double click: the first request saved this very file (#103).
+        return _import_page(request, assessment, already_saved=True)
     return _import_page(
         request,
-        _gradable_assessment(request, assessment_id),
+        assessment,
         errors=["Someone changed these grades at the same time, so nothing was saved. Choose the files again."],
         status=409,
     )
+
+
+def _already_saved(request, assessment):
+    """Do the stored grades already hold exactly what the uploaded files say?"""
+    files = request.FILES.getlist("csv_file")
+    for uploaded in files:
+        uploaded.seek(0)
+    enrollments = {e.student.username: e for e in assessment.offering.enrollments.select_related("student")}
+    parsed = parse_grade_files(files, assessment, enrollments)
+    if parsed.errors or not parsed.rows:
+        return False
+    stored = {g.enrollment_id: (g.status, g.score) for g in assessment.grades.all()}
+    return all(stored.get(e.pk) == (Grade.Status.GRADED, score) for e, score in parsed.rows)
 
 
 def _gradable_assessment(request, assessment_id):
@@ -507,3 +526,19 @@ def _save_scores(assessment, scores):
             enrollment_id=enrollment_id,
             defaults={"score": score, "status": Grade.Status.GRADED},
         )
+
+
+@require_POST
+def demo_switch(request, role):
+    """Sign in as the demo student, instructor or head (#46).
+
+    Only with DEMO=1; otherwise the URL does not exist. POST with CSRF, so a
+    link on another site cannot switch someone's session.
+    """
+    if not settings.DEMO:
+        raise Http404
+    user = demo_user(role)
+    if user is None:
+        raise Http404
+    login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+    return redirect("home")

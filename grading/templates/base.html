@@ -18,6 +18,7 @@
     <a href="{% url 'home' %}"{% if nav == 'home' %} aria-current="page"{% endif %}>{% if role == 'Student' %}My outcomes{% else %}Courses{% endif %}</a>
   </nav>
   <div class="who">
+    {% if demo_roles %}{% include "grading/demo_switch.html" with label="View as" %}{% endif %}
     <span>{{ user.get_full_name|default:user.username }}{% if role %}, {{ role|lower }}{% endif %}</span>
     <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="action quiet" type="submit">Sign out</button></form>
   </div>

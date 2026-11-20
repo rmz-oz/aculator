@@ -36,6 +36,11 @@
   {% if assessment %}<a href="{% url 'course_report' assessment.offering.pk %}">Open the class report</a>.{% endif %}</p>
 {% endif %}
 
+{% if already_saved %}
+<p class="notice done" role="status">These grades were already saved, most likely by a first click. Nothing changed.
+  <a href="{% url 'course_report' assessment.offering.pk %}">Open the class report</a>.</p>
+{% endif %}
+
 {% if preview_token %}
 <h2>Preview</h2>
 <p class="notice">{{ preview_count }} grade{{ preview_count|pluralize }} will be saved{% if changes %}, {{ changes|length }} of them replacing an existing grade{% endif %}.</p>
@@ -97,6 +102,14 @@
 {% endif %}
 
 <script>
+// Send each form once: a second click would race the first (#103).
+document.querySelectorAll("form[method=post]").forEach((form) => {
+  form.addEventListener("submit", (event) => {
+    if (form.dataset.sent) { event.preventDefault(); return; }
+    form.dataset.sent = "1";
+    form.setAttribute("aria-busy", "true");
+  });
+});
 (() => {
   const drop = document.getElementById("drop");
   if (!drop) return;
