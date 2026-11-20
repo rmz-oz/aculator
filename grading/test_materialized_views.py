@@ -14,6 +14,7 @@ from .models import (
     Grade,
     LearningOutcome,
     LOPOWeight,
+    Term,
 )
 from .services import course_po_scores, lo_scores, student_po_scores
 from .test_scoring import ElifExampleTests
@@ -88,6 +89,36 @@ class MaterializedViewTests(TestCase):
             self.assertClose(got[key], expected[key])
         # 6 ECTS at 84.952 and 3 ECTS at 70 give 79.968, a plain average would give 77.476.
         self.assertEqual(got["PO1"].quantize(Decimal("0.1")), Decimal("80.0"))
+
+    def test_catalog_ects_change_keeps_existing_po_scores(self):
+        sql = (
+            "SELECT score FROM cross_course_po_scores "
+            f"WHERE student_id = {self.elif_.pk} "
+            f"AND program_outcome_id = {self.po1.pk}"
+        )
+        refresh_materialized_views()
+        score_before = student_po_scores(self.elif_)["PO1"]
+        view_before = rows(sql)
+        self.assertEqual(len(view_before), 1)
+
+        self.course.ects = 12
+        self.course.save(update_fields=["ects"])
+        refresh_materialized_views()
+
+        self.offering.refresh_from_db()
+        self.assertEqual(self.offering.ects, 6)
+        self.assertEqual(student_po_scores(self.elif_)["PO1"], score_before)
+        self.assertEqual(rows(sql), view_before)
+
+        next_term = Term.objects.create(
+            year=self.term.year + 1,
+            season=self.term.season,
+        )
+        new_offering = CourseOffering.objects.create(
+            course=self.course,
+            term=next_term,
+        )
+        self.assertEqual(new_offering.ects, 12)
 
     def test_absent_grade_matches_the_service(self):
         Grade.objects.filter(enrollment=self.enrollment, assessment=self.project).update(
