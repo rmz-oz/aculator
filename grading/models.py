@@ -86,6 +86,8 @@ class CourseOffering(models.Model):
 
     course = models.ForeignKey(Course, on_delete=models.PROTECT, related_name="offerings")
     term = models.ForeignKey(Term, on_delete=models.PROTECT, related_name="offerings")
+    ects = models.PositiveSmallIntegerField()
+
     # Who teaches this offering. Instructors see only the offerings listed here.
     instructors = models.ManyToManyField(
         settings.AUTH_USER_MODEL, blank=True, related_name="teaching"
@@ -96,6 +98,13 @@ class CourseOffering(models.Model):
         constraints = (
             models.UniqueConstraint(fields=["course", "term"], name="uniq_offering_course_term"),
         )
+
+    def save(self, *args, **kwargs):
+        # A new offering takes the catalog ECTS unless one is given. Later
+        # catalog edits leave it alone, so past PO scores do not move (#80).
+        if self._state.adding and self.ects is None:
+            self.ects = self.course.ects
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.course.code} ({self.term})"
@@ -337,3 +346,18 @@ class LOPOWeight(models.Model):
             f"{self.learning_outcome.code} -> "
             f"{self.component}: {self.weight}"
         )
+class GradeChange(models.Model):
+    class Action(models.TextChoices):
+        CREATED = "created", "Created"
+        UPDATED = "updated", "Updated"
+        DELETED = "deleted", "Deleted"
+
+    grade_id = models.PositiveBigIntegerField(db_index=True)
+    action = models.CharField(max_length=10, choices=Action.choices)
+    changed_at = models.DateTimeField(db_index=True)
+    changed_by = models.CharField(max_length=150, blank=True)
+    before = models.JSONField(null=True, blank=True)
+    after = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-changed_at", "-pk")

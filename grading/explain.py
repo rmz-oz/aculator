@@ -152,7 +152,7 @@ def _explain(po_code, component_inputs, lo_forms, percent, grade_label, course_o
         for enrollment, parts in per_course.items():
             form = _mix(parts)
             if form is not None:
-                across.append((form, Decimal(enrollment.offering.course.ects)))
+                across.append((form, Decimal(enrollment.offering.ects)))
         form = _mix(across)
         if form is not None:
             component_forms[component_code] = form
@@ -207,12 +207,12 @@ def _lo_shares(component_forms, component_inputs, component_count):
         for enrollment, lo_key, level in rows:
             per_course[enrollment].append((lo_key, level))
         per_course = {e: parts for e, parts in per_course.items() if sum((lv for _, lv in parts), ZERO) > ZERO}
-        ects_total = sum((Decimal(e.offering.course.ects) for e in per_course), ZERO)
+        ects_total = sum((Decimal(e.offering.ects) for e in per_course), ZERO)
         if ects_total == ZERO:
             continue
         for enrollment, parts in per_course.items():
             level_total = sum((level for _, level in parts), ZERO)
-            course_weight = Decimal(enrollment.offering.course.ects) / ects_total
+            course_weight = Decimal(enrollment.offering.ects) / ects_total
             for lo_key, level in parts:
                 shares[lo_key] += level / level_total * course_weight / component_count
     return dict(shares)

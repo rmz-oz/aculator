@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 
 from grading import demo_scenarios
 from grading.demo import ensure_demo_accounts
-from grading.models import Grade
+from grading.models import Grade, GradeChange
 
 
 class Command(BaseCommand):
@@ -29,9 +29,13 @@ class Command(BaseCommand):
             # fake_data again would put back the grades the scenarios removed.
             self.stdout.write("Demo scenarios already in, fake data not loaded again.")
         else:
+            last = GradeChange.objects.order_by("-pk").values_list("pk", flat=True).first() or 0
             call_command("fake_data", students=options["students"], seed=options["seed"], stdout=self.stdout)
             if not options["clean"]:
                 for scenario, where in demo_scenarios.apply(seed=options["seed"]):
                     self.stdout.write(f"{scenario}: {where}")
+            # Loading is not a grade change. Without this the history would show
+            # every scenario mistake as an edit away from the right score (#35).
+            GradeChange.objects.filter(pk__gt=last).delete()
         ready = ensure_demo_accounts()
         self.stdout.write(self.style.SUCCESS(f"Demo accounts: {', '.join(ready)}."))

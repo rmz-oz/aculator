@@ -129,6 +129,12 @@ class DemoScenarioTests(TestCase):
 
         self.assertFalse(Grade.objects.filter(score__gt=F("assessment__max_score")).exists())
 
+    def test_loading_leaves_no_grade_history(self):
+        # Otherwise the history shows each scenario mistake as an edit away from the right score.
+        from .models import GradeChange
+
+        self.assertFalse(GradeChange.objects.exists())
+
     def test_running_again_changes_nothing(self):
         grades = sorted(Grade.objects.values_list("pk", "score", "status"))
         quiet("demo_data")

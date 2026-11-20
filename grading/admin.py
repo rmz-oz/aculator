@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from . import models as m
+from .access import HEAD, role_of
 
 
 class LearningOutcomeInline(admin.TabularInline):
@@ -62,16 +63,21 @@ class CourseAdmin(admin.ModelAdmin):
     list_display = ("code", "name", "ects")
     search_fields = ("code", "name")
 
-
 @admin.register(m.CourseOffering)
 class CourseOfferingAdmin(admin.ModelAdmin):
-    list_display = ("course", "term")
+    list_display = ("course", "term", "ects")
     list_filter = ("term",)
     list_select_related = ("course", "term")
     search_fields = ("course__code", "course__name")
     autocomplete_fields = ("course",)
     filter_horizontal = ("instructors",)
     inlines = (LearningOutcomeInline, AssessmentInline, EnrollmentInline)
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = super().get_readonly_fields(request, obj)
+        if obj is None or role_of(request.user) != HEAD:
+            return (*readonly_fields, "ects")
+        return readonly_fields
 
 
 @admin.register(m.LearningOutcome)
@@ -113,6 +119,36 @@ class GradeAdmin(admin.ModelAdmin):
         "assessment__offering__course",
     )
     autocomplete_fields = ("enrollment", "assessment")
+
+
+@admin.register(m.GradeChange)
+class GradeChangeAdmin(admin.ModelAdmin):
+    list_display = ("changed_at", "grade_id", "action", "score_change", "changed_by")
+    list_filter = ("action", "changed_at")
+    search_fields = ("grade_id__exact", "changed_by")
+    readonly_fields = ("changed_at", "grade_id", "action", "changed_by", "before", "after")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description="Score")
+    def score_change(self, obj):
+        def score(row):
+            if not row:
+                return "none"
+            return "absent" if row.get("status") == "absent" else row.get("score")
+
+        if obj.action == m.GradeChange.Action.CREATED:
+            return score(obj.after)
+        if obj.action == m.GradeChange.Action.DELETED:
+            return score(obj.before)
+        return f"{score(obj.before)} → {score(obj.after)}"
 
 
 @admin.register(m.AssessmentLOWeight)

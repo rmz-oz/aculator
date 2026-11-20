@@ -63,6 +63,8 @@ Course: {
 
 CourseOffering: {
   shape: class
+  "ects": "int"
+  "save()": ""
   style: {
     fill: "#0D1117"
     stroke: "#FFFFFF"
@@ -134,6 +136,22 @@ AssessmentLOWeight: {
 LOPOWeight: {
   shape: class
   "weight": "int 1..5"
+  style: {
+    fill: "#0D1117"
+    stroke: "#FFFFFF"
+    font-color: "#FFFFFF"
+    font-size: 16
+  }
+}
+
+GradeChange: {
+  shape: class
+  "grade_id": "int"
+  "action": "choice(created, updated, deleted)"
+  "changed_at": "DateTimeField"
+  "changed_by": "str(150)"
+  "before": "JSONField"
+  "after": "JSONField"
   style: {
     fill: "#0D1117"
     stroke: "#FFFFFF"
