@@ -17,5 +17,4 @@ RUN useradd --create-home app
 USER app
 
 EXPOSE 8000
-# Free Render plans have no pre-deploy step, so migrations run on start.
-CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn config.wsgi --bind 0.0.0.0:${PORT:-8000} --workers 2"]
+CMD ["./start.sh"]

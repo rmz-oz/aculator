@@ -25,14 +25,26 @@ Acıbadem University, Fall 2026.
 ## Run locally
 
 ```
-docker compose up -d
+docker compose up
+```
+
+Open http://localhost:8000. The first start loads fake data (400 students, 8 courses over 8 terms) and three demo
+accounts; on the sign in page, "Demo, sign in as" switches between a student, an instructor and the head of department.
+Later starts keep the data. `docker compose down -v` deletes it. If port 5432 is taken, `DB_PORT=5433 docker compose up`.
+
+To work on the code, run only the database in Docker and Django outside it:
+
+```
+docker compose up -d db
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 python manage.py migrate
+python manage.py fake_data        # optional: same data as above; demo_data also adds the demo accounts
 python manage.py runserver
 ```
 
-Settings come from environment variables, see `.env.example`. The defaults match the compose database.
+Settings come from environment variables, see `.env.example`. The defaults match the compose database. `DEMO=1` turns
+on the role switcher; never on a deployment with real accounts.
 
 ## Tests
 

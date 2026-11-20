@@ -2,13 +2,14 @@ import json
 from decimal import Decimal
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.core import signing
 from django.db import OperationalError
 from django.db.models import Case, Count, IntegerField, Prefetch, Value, When
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from .access import (
     HEAD,
@@ -19,6 +20,7 @@ from .access import (
     role_of,
     visible_enrollments,
 )
+from .demo import demo_user
 from .explain import explain_all, explain_po
 from .grade_history import grade_change_actor
 from .grade_import import (
@@ -507,3 +509,19 @@ def _save_scores(assessment, scores):
             enrollment_id=enrollment_id,
             defaults={"score": score, "status": Grade.Status.GRADED},
         )
+
+
+@require_POST
+def demo_switch(request, role):
+    """Sign in as the demo student, instructor or head (#46).
+
+    Only with DEMO=1; otherwise the URL does not exist. POST with CSRF, so a
+    link on another site cannot switch someone's session.
+    """
+    if not settings.DEMO:
+        raise Http404
+    user = demo_user(role)
+    if user is None:
+        raise Http404
+    login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+    return redirect("home")

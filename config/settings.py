@@ -42,6 +42,10 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # docs/decisions/0006). Red on the profile means below it.
 PO_TARGET = os.environ.get('PO_TARGET', '70')
 
+# The demo deployment only (#46): one click to become a student, an instructor
+# or the head, as accounts that have no password. Never set it with real data.
+DEMO = os.environ.get('DEMO', '0') == '1'
+
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'login'

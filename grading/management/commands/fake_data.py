@@ -2,9 +2,11 @@ import random
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
+from grading.access import STUDENT
 from grading.materialized_views import refresh_materialized_views
 from grading.models import (
     Assessment,
@@ -74,6 +76,10 @@ class Command(BaseCommand):
                 user.save(update_fields=["password"])
                 created_students += 1
 
+        # Without the group a fake student has no role and cannot open their profile.
+        Group.objects.get_or_create(name=STUDENT)[0].user_set.add(
+            *User.objects.filter(username__startswith="fake_student_")
+        )
         self.stdout.write(self.style.SUCCESS(f"Created {created_students} fake students."))
 
         terms = [
