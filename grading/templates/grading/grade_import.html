@@ -109,6 +109,8 @@
     }));
   };
   input.addEventListener("change", show);
+   show();
+
   ["dragenter", "dragover"].forEach((type) => drop.addEventListener(type, () => drop.classList.add("over")));
   ["dragleave", "drop"].forEach((type) => drop.addEventListener(type, () => drop.classList.remove("over")));
 })();
