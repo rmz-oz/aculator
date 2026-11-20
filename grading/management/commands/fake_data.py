@@ -2,7 +2,7 @@ import random
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from grading.materialized_views import refresh_materialized_views
@@ -45,6 +45,12 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--students", type=int, default=400, help="Number of fake students.")
         parser.add_argument("--seed", type=int, default=42, help="Random seed.")
+        parser.add_argument(
+            "--years",
+            type=int,
+            default=4,
+            help="Number of academic years to generate.",
+        )
 
     def rng(self, *key):
         # One generator per object, so adding students or courses does not
@@ -55,6 +61,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.seed = options["seed"]
         student_count = options["students"]
+        year_count = options["years"]
+        if year_count < 1:
+            raise CommandError("--years must be at least 1.")
         User = get_user_model()
 
         created_students = 0
@@ -78,7 +87,7 @@ class Command(BaseCommand):
 
         terms = [
             Term.objects.get_or_create(year=year, season=season)[0]
-            for year in range(2023, 2027)
+            for year in range(2023, 2023 + year_count)
             for season in ("fall", "spring")
         ]
 
@@ -200,8 +209,14 @@ class Command(BaseCommand):
         for student in students:
             r = self.rng("student", student.username)
 
+            entry_year = r.randint(2023, 2023 + year_count - 1)
+            available_terms=[
+                term for term in terms
+                if entry_year <= term.year < entry_year + 4
+            ]
+
             for course in r.sample(courses, k=min(COURSES_PER_STUDENT, len(courses))):
-                term = r.choice(terms)
+                term = r.choice(available_terms)
                 enrollments.append(
                     Enrollment(
                         student=student,
@@ -236,6 +251,7 @@ class Command(BaseCommand):
                     Grade(
                         enrollment=enrollment,
                         assessment=assessment,
+                        term_id=enrollment.offering.term_id,
                         score=score,
                     )
                 )

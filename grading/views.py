@@ -313,5 +313,8 @@ def _save_scores(assessment, scores):
         Grade.objects.update_or_create(
             assessment=assessment,
             enrollment_id=enrollment_id,
-            defaults={"score": score, "status": Grade.Status.GRADED},
+            defaults={
+                "score": score,
+                "status": Grade.Status.GRADED,
+            },
         )

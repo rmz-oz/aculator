@@ -190,6 +190,13 @@ class Grade(models.Model):
     class Status(models.TextChoices):
         GRADED = "graded", "Graded"
         ABSENT = "absent", "Absent"
+    term = models.ForeignKey(
+        Term,
+        on_delete=models.PROTECT,
+        related_name="grades",
+        null=True,
+        blank=True,
+    )
 
     enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, related_name="grades")
     assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="grades")
@@ -219,6 +226,19 @@ class Grade(models.Model):
                 name="grade_absent_is_zero",
             ),
         )
+    def save(self, *args, **kwargs):
+        expected_term_id = (
+             Enrollment.objects
+             .values_list("offering__term_id", flat=True)
+             .get(pk=self.enrollment_id)
+        )
+        if self.term_id is not None and self.term_id != expected_term_id:
+            raise ValidationError(
+                {"term": "Grade term must match the enrollment's term."}
+            )
+
+        self.term_id = expected_term_id
+        super().save(*args, **kwargs)
 
     def __str__(self):
         shown = "absent" if self.status == self.Status.ABSENT else self.score

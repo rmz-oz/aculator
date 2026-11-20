@@ -109,6 +109,7 @@ Grade: {
   shape: class
   "status": "choice(graded, absent)"
   "score": "Decimal(6,2) >= 0"
+  "save()": ""
   "clean()": ""
   style: {
     fill: "#0D1117"
@@ -183,6 +184,11 @@ Enrollment -> CourseOffering: "offering" {
   style: {stroke: "#41464E"; stroke-width: 2; font-color: "#41464E"}
 }
 Enrollment -> User: "student, PROTECT" {
+  source-arrowhead.label: "*"
+  target-arrowhead.label: "1"
+  style: {stroke: "#C8102E"; stroke-width: 2; font-color: "#C8102E"}
+}
+Grade -> Term: "term, PROTECT" {
   source-arrowhead.label: "*"
   target-arrowhead.label: "1"
   style: {stroke: "#C8102E"; stroke-width: 2; font-color: "#C8102E"}
