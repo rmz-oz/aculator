@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from . import models as m
+from .access import HEAD, role_of
 
 
 class LearningOutcomeInline(admin.TabularInline):
@@ -62,16 +63,21 @@ class CourseAdmin(admin.ModelAdmin):
     list_display = ("code", "name", "ects")
     search_fields = ("code", "name")
 
-
 @admin.register(m.CourseOffering)
 class CourseOfferingAdmin(admin.ModelAdmin):
-    list_display = ("course", "term")
+    list_display = ("course", "term", "ects")
     list_filter = ("term",)
     list_select_related = ("course", "term")
     search_fields = ("course__code", "course__name")
     autocomplete_fields = ("course",)
     filter_horizontal = ("instructors",)
     inlines = (LearningOutcomeInline, AssessmentInline, EnrollmentInline)
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = super().get_readonly_fields(request, obj)
+        if obj is None or role_of(request.user) != HEAD:
+            return (*readonly_fields, "ects")
+        return readonly_fields
 
 
 @admin.register(m.LearningOutcome)
