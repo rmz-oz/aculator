@@ -3,6 +3,7 @@ from django.contrib import admin
 from . import models as m
 from .access import HEAD, role_of
 
+
 class LearningOutcomeInline(admin.TabularInline):
     model = m.LearningOutcome
     extra = 0

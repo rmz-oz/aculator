@@ -1,7 +1,8 @@
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser, Group
 from django.test import RequestFactory, TestCase
-from django.contrib import admin
+
 from . import access
 from .models import Assessment, Course, CourseOffering, Enrollment, Grade, Term
 
