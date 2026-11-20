@@ -191,7 +191,7 @@ def student_component_scores(student, enrollments=None):
 
     groups = defaultdict(list)
     for enrollment in enrollments:
-        ects = Decimal(enrollment.offering.course.ects)
+        ects = Decimal(enrollment.offering.ects)
         for key, score in results[enrollment.pk][1].items():
             groups[key].append((score, ects))
 

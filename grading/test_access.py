@@ -1,6 +1,7 @@
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser, Group
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 
 from . import access
 from .models import Assessment, Course, CourseOffering, Enrollment, Grade, Term
@@ -60,6 +61,20 @@ class AccessTests(TestCase):
         self.assertIsNone(access.role_of(self.nobody))
         self.assertIsNone(access.role_of(self.inactive))
         self.assertIsNone(access.role_of(AnonymousUser()))
+
+    def test_only_head_can_edit_existing_offering_ects_in_admin(self):
+        offering_admin = admin.site.get_model_admin(CourseOffering)
+        request = RequestFactory().get("/admin/grading/courseoffering/")
+
+        for user, can_edit in ((self.ayse, False), (self.head, True)):
+            with self.subTest(user=user.username):
+                request.user = user
+                edit_form = offering_admin.get_form(request, obj=self.cse321)
+                self.assertEqual("ects" in edit_form.base_fields, can_edit)
+
+        request.user = self.head
+        add_form = offering_admin.get_form(request)
+        self.assertNotIn("ects", add_form.base_fields)
 
     def test_widest_role_wins(self):
         self.mert.groups.add(Group.objects.get(name=access.INSTRUCTOR))
