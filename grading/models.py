@@ -86,6 +86,8 @@ class CourseOffering(models.Model):
 
     course = models.ForeignKey(Course, on_delete=models.PROTECT, related_name="offerings")
     term = models.ForeignKey(Term, on_delete=models.PROTECT, related_name="offerings")
+    ects = models.PositiveSmallIntegerField()
+
     # Who teaches this offering. Instructors see only the offerings listed here.
     instructors = models.ManyToManyField(
         settings.AUTH_USER_MODEL, blank=True, related_name="teaching"
@@ -96,6 +98,13 @@ class CourseOffering(models.Model):
         constraints = (
             models.UniqueConstraint(fields=["course", "term"], name="uniq_offering_course_term"),
         )
+
+    def save(self, *args, **kwargs):
+        # A new offering takes the catalog ECTS unless one is given. Later
+        # catalog edits leave it alone, so past PO scores do not move (#80).
+        if self._state.adding and self.ects is None:
+            self.ects = self.course.ects
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.course.code} ({self.term})"
