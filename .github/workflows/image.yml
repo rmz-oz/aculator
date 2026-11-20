@@ -4,7 +4,7 @@ name: Image
 # working app with fake data (#81). Pushing happens in Deploy.
 on:
   pull_request:
-    paths: [Dockerfile, .dockerignore, start.sh, docker-compose.yml, requirements.txt, config/settings.py, grading/demo.py, grading/management/commands/**]
+    paths: [Dockerfile, .dockerignore, start.sh, docker-compose.yml, requirements.txt, config/settings.py, grading/demo.py, grading/demo_scenarios.py, grading/management/commands/**]
 
 jobs:
   compose:

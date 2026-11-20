@@ -220,8 +220,10 @@ class Command(BaseCommand):
             ignore_conflicts=True,
             batch_size=1000,
         )
+        # Only the offerings made here: demo_scenarios adds others (summer, elective).
         enrollments = Enrollment.objects.filter(
             student__in=students,
+            offering_id__in=assessments,
         ).select_related("student")
 
         grades = []
