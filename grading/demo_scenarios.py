@@ -257,7 +257,9 @@ class _Scenarios:
             for assessment in assessments:
                 percent = D(str(round(min(max(r.gauss(mean, 8), 0), 100), 1)))
                 grades.append(Grade(
-                    enrollment=enrollment, assessment=assessment,
+                    enrollment=enrollment,
+                    assessment=assessment,
+                    term_id=offering.term_id,
                     score=(assessment.max_score * percent / 100).quantize(D("0.01")),
                 ))
         Grade.objects.bulk_create(grades, ignore_conflicts=True)

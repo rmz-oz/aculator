@@ -48,7 +48,8 @@ class ExplanationMatchesServiceTests(TestCase):
             self.assertEqual(set(explanations), set(scores), student.username)
             for code, score in scores.items():
                 explanation = explanations[code]
-                self.assertEqual(explain_po(student, code).score, explanation.score)
+                # Same grades summed in another order: equal up to the last of 28 digits.
+                self.assertLess(abs(explain_po(student, code).score - explanation.score), TOLERANCE)
                 self.assertLess(abs(explanation.score - score), TOLERANCE, (student.username, code))
                 total = sum(p.contribution for p in explanation.grades)
                 self.assertLess(abs(total - score), TOLERANCE, (student.username, code))

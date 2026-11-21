@@ -119,6 +119,7 @@ class GradeAdmin(admin.ModelAdmin):
         "assessment__offering__course",
     )
     autocomplete_fields = ("enrollment", "assessment")
+    readonly_fields = ("term",)
 
 
 @admin.register(m.GradeChange)

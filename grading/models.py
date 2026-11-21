@@ -220,6 +220,10 @@ class Grade(models.Model):
     score = models.DecimalField(
         max_digits=6, decimal_places=2, blank=True, validators=[MinValueValidator(0)]
     )
+    # The offering's term, copied here so grades can be partitioned by it
+    # (#33). Set on every save; empty only for rows an older version wrote
+    # while this one was being deployed, the partitioning migration fills those.
+    term = models.ForeignKey(Term, on_delete=models.PROTECT, related_name="grades", null=True, editable=False)
 
     class Meta:
         constraints = (
@@ -240,6 +244,9 @@ class Grade(models.Model):
                 name="grade_absent_is_zero",
             ),
         )
+    def save(self, *args, **kwargs):
+        self.term_id = Enrollment.objects.values_list("offering__term_id", flat=True).get(pk=self.enrollment_id)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         shown = "absent" if self.status == self.Status.ABSENT else self.score
