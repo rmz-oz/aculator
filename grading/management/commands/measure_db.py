@@ -23,20 +23,33 @@ from grading.materialized_views import refresh_materialized_views
 
 WARMUP = 3
 
+# A partitioned table (grades, #33) is one row here with its partitions added
+# up. pg_partition_tree returns nothing for a plain table on PostgreSQL 15, so
+# the plain sizes are the fallback.
 TABLES_SQL = """
 SELECT c.relname,
-       CASE c.relkind WHEN 'm' THEN 'materialized view' ELSE 'table' END,
+       CASE c.relkind WHEN 'm' THEN 'materialized view'
+                      WHEN 'p' THEN 'table, ' || (SELECT count(*) - 1 FROM pg_partition_tree(c.oid)) || ' partitions'
+                      ELSE 'table' END,
        (SELECT count(*) FROM pg_attribute a
          WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped),
-       pg_table_size(c.oid), pg_indexes_size(c.oid), pg_total_relation_size(c.oid)
+       COALESCE(s.table_size, pg_table_size(c.oid)), COALESCE(s.index_size, pg_indexes_size(c.oid)),
+       COALESCE(s.total_size, pg_total_relation_size(c.oid))
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname = 'public' AND c.relkind IN ('r', 'm')
-ORDER BY pg_total_relation_size(c.oid) DESC, c.relname
+CROSS JOIN LATERAL (
+    SELECT sum(pg_table_size(t.relid)) AS table_size, sum(pg_indexes_size(t.relid)) AS index_size,
+           sum(pg_total_relation_size(t.relid)) AS total_size
+    FROM pg_partition_tree(c.oid) t
+) s
+WHERE n.nspname = 'public' AND c.relkind IN ('r', 'm', 'p') AND NOT c.relispartition
+ORDER BY 6 DESC, c.relname
 """
 
 INDEXES_SQL = """
-SELECT t.relname, i.relname, pg_relation_size(i.oid), pg_get_indexdef(i.oid)
+SELECT t.relname, i.relname,
+       COALESCE((SELECT sum(pg_relation_size(p.relid)) FROM pg_partition_tree(i.oid) p), pg_relation_size(i.oid)),
+       pg_get_indexdef(i.oid)
 FROM pg_index x
 JOIN pg_class i ON i.oid = x.indexrelid
 JOIN pg_class t ON t.oid = x.indrelid

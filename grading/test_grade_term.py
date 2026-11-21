@@ -1,4 +1,4 @@
-"""Each grade stores its offering's term (#33), filled in on save."""
+"""Each grade stores its offering's term (#33), filled in on save. A wrong term is refused (test_partitioning)."""
 
 from decimal import Decimal as D
 
@@ -21,12 +21,6 @@ class GradeTermTests(TestCase):
 
     def test_term_is_the_offerings_term(self):
         grade = Grade.objects.create(enrollment=self.enrollment, assessment=self.assessment, score=D(70))
-        self.assertEqual(grade.term_id, self.fall.pk)
-
-    def test_a_wrong_term_in_memory_is_corrected_on_save(self):
-        grade = Grade(enrollment=self.enrollment, assessment=self.assessment, score=D(70), term=self.spring)
-        grade.save()
-        grade.refresh_from_db()
         self.assertEqual(grade.term_id, self.fall.pk)
 
 

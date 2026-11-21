@@ -20,6 +20,12 @@ class MeasureDbTests(TestCase):
         text = out.getvalue()
         for name in ("grading_grade", "auth_user", "cross_course_po_scores", "student_lo_scores"):
             self.assertIn(f"`{name}`", text)
+        # The grade table is one row with its partitions added up (#33), not a row per partition.
+        tables = text.split("## Indexes")[0]
+        [row] = [line for line in tables.splitlines() if line.startswith("| `grading_grade` |")]
+        self.assertRegex(row, r"\| table, \d+ partitions \|")
+        self.assertNotIn("| 0 bytes |", row)
+        self.assertNotIn("grading_grade_part_", tables)
         self.assertIn("| Grades of one enrollment |", text)
         self.assertIn("Seq Scan", text)
         self.assertNotIn("—", text)

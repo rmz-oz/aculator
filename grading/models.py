@@ -75,6 +75,18 @@ class Course(models.Model):
         return f"{self.code} - {self.name}"
 
 
+def refuse_moving_graded(instance, field, grades):
+    """Grades stay in their term's partition (#33), and the database refuses
+    moving what they hang on. Say so in the form instead of failing with a 500."""
+    if instance.pk is None:
+        return
+    saved = type(instance).objects.filter(pk=instance.pk).values_list(field, flat=True).first()
+    if saved is not None and saved != getattr(instance, field) and grades().exists():
+        raise ValidationError({
+            field.removesuffix("_id"): "This has grades and cannot move. Delete the grades first, or create a new one.",
+        })
+
+
 class CourseOffering(models.Model):
     """A course taught in a specific term (course + term).
 
@@ -105,6 +117,10 @@ class CourseOffering(models.Model):
         if self._state.adding and self.ects is None:
             self.ects = self.course.ects
         super().save(*args, **kwargs)
+
+    def clean(self):
+        super().clean()
+        refuse_moving_graded(self, "term_id", lambda: Grade.objects.filter(enrollment__offering=self))
 
     def __str__(self):
         return f"{self.course.code} ({self.term})"
@@ -163,7 +179,12 @@ class Assessment(models.Model):
     def __str__(self):
         return f"{self.offering} / {self.name}"
 
+    def term_grades(self):
+        """This assessment's grades, read from its term's partition only (#33)."""
+        return self.grades.filter(term_id=self.offering.term_id)
+
     def clean(self):
+        refuse_moving_graded(self, "offering_id", lambda: self.grades.all())
         # Lowering the maximum under a score already given would put that
         # student above 100% in every LO and PO it feeds (#101).
         if self.pk is None or self.max_score is None:
@@ -196,6 +217,10 @@ class Enrollment(models.Model):
             models.UniqueConstraint(fields=["offering", "student"], name="uniq_enrollment"),
         )
 
+    def clean(self):
+        super().clean()
+        refuse_moving_graded(self, "offering_id", lambda: self.grades.all())
+
     def __str__(self):
         return f"{self.student} -> {self.offering}"
 
@@ -220,10 +245,9 @@ class Grade(models.Model):
     score = models.DecimalField(
         max_digits=6, decimal_places=2, blank=True, validators=[MinValueValidator(0)]
     )
-    # The offering's term, copied here so grades can be partitioned by it
-    # (#33). Set on every save; empty only for rows an older version wrote
-    # while this one was being deployed, the partitioning migration fills those.
-    term = models.ForeignKey(Term, on_delete=models.PROTECT, related_name="grades", null=True, editable=False)
+    # The offering's term: grades are partitioned by it (#33). Set from the
+    # enrollment on save; the database refuses a term that does not match.
+    term = models.ForeignKey(Term, on_delete=models.PROTECT, related_name="grades", editable=False)
 
     class Meta:
         constraints = (
@@ -244,9 +268,28 @@ class Grade(models.Model):
                 name="grade_absent_is_zero",
             ),
         )
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        grade = super().from_db(db, field_names, values)
+        grade._saved_term_id = grade.__dict__.get("term_id")
+        return grade
+
     def save(self, *args, **kwargs):
-        self.term_id = Enrollment.objects.values_list("offering__term_id", flat=True).get(pk=self.enrollment_id)
+        if self.term_id is None:
+            self.term_id = Enrollment.objects.values_list("offering__term_id", flat=True).get(pk=self.enrollment_id)
+        saved = getattr(self, "_saved_term_id", None)
+        if not self._state.adding and saved is not None and self.term_id != saved:
+            # The row is in its term's partition; an UPDATE could not move it.
+            raise ValueError("A grade cannot move to another term. Delete it and enter it in the other course.")
         super().save(*args, **kwargs)
+        self._saved_term_id = self.term_id
+
+    def _do_update(self, base_qs, *args, **kwargs):
+        # Django updates by id alone, and PostgreSQL then plans and locks every
+        # partition: saving a class's grades took about three times as long.
+        # With the term the UPDATE touches one partition (#33).
+        term_id = getattr(self, "_saved_term_id", None) or self.term_id
+        return super()._do_update(base_qs.filter(term_id=term_id), *args, **kwargs)
 
     def __str__(self):
         shown = "absent" if self.status == self.Status.ABSENT else self.score
@@ -269,6 +312,15 @@ class Grade(models.Model):
             raise ValidationError(
                 "Enrollment and assessment must belong to the same offering."
             )
+
+        # A grade lives in its term's partition and stays there (#33).
+        term_id = self.enrollment.offering.term_id
+        saved = getattr(self, "_saved_term_id", None)
+        if self.pk is not None and saved is not None and saved != term_id:
+            raise ValidationError({
+                "enrollment": "A grade cannot move to another term. Delete it and enter it in the other course.",
+            })
+        self.term_id = term_id
 
         if self.score is not None and self.score > self.assessment.max_score:
             raise ValidationError({

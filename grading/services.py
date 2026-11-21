@@ -6,6 +6,7 @@ from django.db.models import F
 
 from .models import (
     AssessmentLOWeight,
+    CourseOffering,
     Enrollment,
     Grade,
     LOPOWeight,
@@ -59,7 +60,12 @@ def _component_results(enrollments):
     offerings = set(offering_of.values())
 
     percentages = defaultdict(dict)
+    # Grades are partitioned by term (#33). Naming the terms lets PostgreSQL
+    # plan and read only their partitions; without it every partition is
+    # planned (docs/partitioning.md). Costs one small query.
+    terms = set(CourseOffering.objects.filter(pk__in=offerings).values_list("term_id", flat=True))
     grades = Grade.objects.filter(
+        term_id__in=terms,
         enrollment_id__in=offering_of,
         assessment__offering_id=F("enrollment__offering_id"),
     ).select_related("assessment")

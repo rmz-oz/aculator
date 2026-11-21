@@ -90,6 +90,8 @@ def explain_all(student, enrollments=None, only=None):
     percent = {}
     grade_label = {}
     grades = Grade.objects.filter(
+        # Only the partitions of these terms (#33); the terms are already loaded.
+        term_id__in={e.offering.term_id for e in enrollments},
         enrollment_id__in=offering_of,
         assessment__offering_id=F("enrollment__offering_id"),
     ).select_related("assessment")
