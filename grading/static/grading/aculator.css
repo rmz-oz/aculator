@@ -194,7 +194,11 @@ h2 + .notice { margin-top: 0; }
    tabular set gives the decimal point a full figure width ("85 . 0"), and with
    one decimal and right alignment the columns still line up. */
 
-.table-wrap { overflow-x: auto; margin: 0 -12px; }
+/* position: the sr-only caption is absolute and would otherwise widen the page at 320px. */
+.table-wrap { overflow-x: auto; margin: 0 -12px; position: relative; border-left: 3px solid transparent; }
+/* Focus is a rule down the left edge, not a box around the table (decision 0006).
+   A border, because the zebra rows would paint over an inset shadow. */
+.table-wrap:focus-visible { outline: none; border-left-color: var(--blue); }
 
 table {
   border-collapse: collapse;
@@ -221,6 +225,12 @@ th:first-child, td:first-child { text-align: left; }
 thead th { color: var(--muted); font-weight: 500; padding-bottom: 8px; }
 tbody th { font-weight: 500; }
 tbody tr:nth-child(odd) { background: var(--wash); }
+
+/* The name stays put while the scores scroll under it on a narrow screen. */
+.table-wrap tbody th[scope="row"],
+.table-wrap thead th:first-child,
+.table-wrap tfoot td:first-child { position: sticky; left: 0; background: #FFFFFF; }
+.table-wrap tbody tr:nth-child(odd) th[scope="row"] { background: var(--wash); }
 tfoot td { font-weight: 700; padding-top: 18px; }
 
 .po { color: var(--blue); }
@@ -233,7 +243,7 @@ thead .po { color: var(--blue); font-weight: 700; }
   width: 2.6em;
   height: 0.9em;
   vertical-align: -0.05em;
-  background: repeating-linear-gradient(135deg, #B9BCC1 0 1.5px, transparent 1.5px 5px);
+  background: repeating-linear-gradient(135deg, #6E737A 0 1.5px, transparent 1.5px 5px);
 }
 
 .empty { color: var(--muted); font-size: 18px; margin-top: 40px; }
@@ -244,6 +254,15 @@ thead .po { color: var(--blue); font-weight: 700; }
 /* Home: a course is a block of type, not a card. */
 
 .courses { margin-top: 64px; display: grid; gap: 64px; }
+h2.term { margin: 64px 0 0; font-size: 26px; letter-spacing: -0.02em; }
+h2.term + .courses { margin-top: 32px; }
+
+/* Earlier terms fold away; the summary reads like the term heading above it. */
+details.term { margin-top: 40px; }
+details.term summary { cursor: pointer; }
+details.term summary h2.term { display: inline; margin: 0; }
+details.term summary .muted { font-size: 17px; font-weight: 400; letter-spacing: 0; margin-left: 8px; }
+details.term .courses { margin-top: 48px; }
 
 .course {
   display: grid;
@@ -425,9 +444,13 @@ input[type="password"]:focus { outline: 2px solid var(--blue); outline-offset: 0
 .demo .action.quiet:hover { color: var(--blue); }
 .signin .demo { grid-column: 2; margin-top: 8px; }
 
+/* On a narrow screen the slopegraph's three columns collapse into one; the tables carry the same numbers. */
+.slope-narrow { display: none; }
+
 @media (max-width: 760px) {
   .masthead { padding: 20px 20px 0; gap: 20px; flex-wrap: wrap; }
-  .who { margin-left: 0; width: 100%; }
+  .who { margin-left: 0; width: 100%; flex-wrap: wrap; gap: 12px 20px; }
+  .who .demo { width: 100%; column-gap: 12px; }
   main { padding: 48px 20px 80px; }
   h2 { margin-top: 64px; }
   .course, .signin, .split { grid-template-columns: 1fr; gap: 24px; }
@@ -436,11 +459,37 @@ input[type="password"]:focus { outline: 2px solid var(--blue); outline-offset: 0
   .drop { padding: 32px 24px; }
 }
 
+@media (max-width: 760px) {
+  .slope { display: none; }
+  .slope-narrow { display: block; }
+}
+
+/* Windows high contrast drops backgrounds and turns the transparent border black. */
+@media (forced-colors: active) {
+  .table-wrap { border-left-color: Canvas; }
+  .table-wrap:focus-visible { border-left-color: Canvas; outline: 2px solid Highlight; }
+  .missing { forced-color-adjust: none; background: repeating-linear-gradient(135deg, CanvasText 0 1.5px, transparent 1.5px 5px); }
+}
+
 @media print {
   .masthead, .actions, .skip { display: none; }
+  a { color: inherit; text-decoration: none; }
+  .missing { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   main { padding: 0; }
   tbody tr:nth-child(odd) { background: #F3F3F3; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+/* Paste grid: the zebra wash of the other tables instead of Tabulator's cell rules (0006). */
+#grade-grid.tabulator, #grade-grid .tabulator-header, #grade-grid .tabulator-col,
+#grade-grid .tabulator-row, #grade-grid .tabulator-cell { border: 0; }
+#grade-grid.tabulator { background: #FFFFFF; font-size: 15px; }
+#grade-grid .tabulator-header, #grade-grid .tabulator-col { background: #FFFFFF; color: var(--muted); font-weight: 400; }
+#grade-grid .tabulator-row { background: #FFFFFF; }
+#grade-grid .tabulator-row.tabulator-row-even { background: var(--wash); }
+#grade-grid .tabulator-cell, #grade-grid .tabulator-col-title { white-space: normal; overflow-wrap: break-word; }
+/* Tabulator drops the outline; the selected and the edited cell must show. */
+#grade-grid .tabulator-cell:focus-visible,
+#grade-grid .tabulator-cell.tabulator-editing { outline: 2px solid var(--blue); outline-offset: -2px; }
+
 .grade-paste-cell-error {
     display: block;
     color: #a51d2d;

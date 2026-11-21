@@ -44,6 +44,8 @@
     formatter: formatCell,
     variableHeight: true,
     headerSort: false,
+    // Fixed widths so the name takes what is left and wraps between words.
+    width: field === "student_number" ? 140 : 64,
     cellClick: (event, cell) => {
       anchor = cell;
       if (!(event.target instanceof HTMLInputElement)) grid.focus();
@@ -86,6 +88,38 @@
     const holder = grid.querySelector(".tabulator-tableholder");
     holder?.setAttribute("role", "presentation");
     holder?.removeAttribute("tabindex");
+    fitWidth();
+    new ResizeObserver(fitWidth).observe(grid);
+  });
+
+  // On a narrow screen the current score is left out so the student number,
+  // name and score keep room; it is only there to check against.
+  // Only on a change: showing or hiding redraws the grid, which would wake
+  // the ResizeObserver again and loop.
+  let narrow = null;
+  const fitWidth = () => {
+    const now = grid.clientWidth < 440;
+    if (now === narrow) return;
+    narrow = now;
+    if (narrow) table.hideColumn("_current");
+    else table.showColumn("_current");
+  };
+
+  // Keyboard: the cell Tab lands on is where a paste starts, like a click,
+  // and Enter opens it for editing like a double click (#45).
+  grid.addEventListener("focusin", (event) => {
+    const cellElement = event.target.closest?.(".tabulator-cell");
+    const field = cellElement?.getAttribute("tabulator-field");
+    if (field !== "student_number" && field !== "score") return;
+    const row = table.getRows().find((r) => r.getElement().contains(cellElement));
+    if (row) anchor = row.getCell(field);
+  });
+  grid.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || saving || !anchor) return;
+    if (event.target instanceof HTMLInputElement) return;
+    if (!anchor.getElement().contains(document.activeElement)) return;
+    event.preventDefault();
+    anchor.edit();
   });
 
   const redrawRows = () => table.getRows().forEach((row) => row.reformat());
@@ -95,7 +129,7 @@
 
     event.preventDefault();
     if (!anchor) {
-      status.textContent = "Click the cell where the paste should start.";
+      status.textContent = "Click or Tab to the cell where the paste should start.";
       return;
     }
 
@@ -131,6 +165,15 @@
     cellErrors.clear();
     await table.updateData(updates);
     redrawRows();
+    // The redraw replaces the cells; find the start cell again and keep
+    // keyboard focus on it, so Enter and the next paste still work there.
+    const [id, field] = [anchor.getRow().getIndex(), anchor.getField()];
+    // Two frames: Tabulator redraws the reformatted rows in the next one.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      // Not table.getRow(id): the first row's id is 0, which it treats as "no row".
+      anchor = table.getRows().find((row) => row.getIndex() === id).getCell(field);
+      anchor.getElement().focus();
+    }));
     status.textContent = `${updates.length} rows pasted. Check the student numbers before saving.`;
   });
 

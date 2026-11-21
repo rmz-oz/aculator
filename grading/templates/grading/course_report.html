@@ -18,8 +18,8 @@
 {% endif %}
 
 {% if rows %}
-<h2>Students</h2>
-<div class="table-wrap">
+<h2 id="students-title">Students</h2>
+<div class="table-wrap" data-label="students-title">
 <table>
   <caption class="sr-only">Learning outcome and program outcome scores for every student in {{ offering.course.code }}, {{ offering.term }}.</caption>
   <thead>
@@ -32,7 +32,7 @@
   <tbody>
     {% for row in rows %}
     <tr>
-      <th scope="row">{{ row.student.get_full_name|default:row.student.username }}</th>
+      <th scope="row"><a href="{% url 'student_profile' row.student.pk %}?from={{ offering.pk }}">{{ row.student.get_full_name|default:row.student.username }}</a></th>
       {% for cell in row.lo_cells %}
         <td>{% if cell.state == "score" %}{{ cell.value }}{% elif cell.state == "low_evidence" %}<span class="thin" title="Only {{ cell.count }} graded assessment so far">1 grade</span>{% else %}<span class="missing" title="No graded evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
       {% endfor %}
