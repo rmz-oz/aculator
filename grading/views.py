@@ -85,8 +85,14 @@ def home(request):
         ))
         .order_by("-term__year", "-season_order", "course__code")
     )
-    courses = [{"offering": o, "can_import": o.pk in writable} for o in offerings]
-    return render(request, "grading/home.html", {"nav": "home", "courses": courses})
+    # One group per term, newest first. The newest is open; earlier terms fold
+    # away so an instructor with years of courses does not scroll past them all.
+    terms = []
+    for o in offerings:
+        if not terms or terms[-1]["term"] != o.term:
+            terms.append({"term": o.term, "courses": []})
+        terms[-1]["courses"].append({"offering": o, "can_import": o.pk in writable})
+    return render(request, "grading/home.html", {"nav": "home", "terms": terms})
 
 
 @login_required
@@ -172,6 +178,7 @@ def student_profile(request, student_id):
     courses (grading.access.visible_enrollments).
     """
     student, own_profile, enrollments = _profile_scope(request, student_id)
+    from_report = _from_report(request, student)
     components = student_component_scores(student, enrollments)
     own = student_po_scores(student, enrollments)
     report = po_report(components, settings.PO_TARGET)
@@ -214,8 +221,25 @@ def student_profile(request, student_id):
         "own_profile": own_profile,
         "all_courses": own_profile or role_of(request.user) == HEAD,
         "min_students": DEPARTMENT_MIN_STUDENTS,
+        "from_report": from_report,
         "nav": "home" if own_profile else None,
     })
+
+
+def _from_report(request, student):
+    """The class report a profile was opened from (?from=<offering>), if the
+    viewer may open that report and the student is in it; otherwise None, so a
+    hand-edited link shows nothing extra."""
+    try:
+        offering_id = int(request.GET.get("from", ""))
+    except ValueError:  # also "²", which str.isdigit() lets through
+        return None
+    return (
+        report_offerings(request.user)
+        .select_related("course", "term")
+        .filter(pk=offering_id, enrollments__student=student)
+        .first()
+    )
 
 
 def _profile_scope(request, student_id):
@@ -254,6 +278,7 @@ def _ring(explanation):
 def po_detail(request, student_id, po_code):
     """How one PO score was computed: what each grade contributed (#41)."""
     student, own_profile, enrollments = _profile_scope(request, student_id)
+    from_report = _from_report(request, student)
     explanation = explain_po(student, po_code, enrollments)
     if explanation is None:
         raise Http404
@@ -292,6 +317,7 @@ def po_detail(request, student_id, po_code):
             for lo in explanation.los
         ],
         "chart": {"points": points, "links": links, "po": po_code},
+        "from_report": from_report,
         "nav": "home" if own_profile else None,
     })
 
