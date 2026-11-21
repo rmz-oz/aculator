@@ -20,8 +20,11 @@ case "$file" in
   *) cp "$file" "$work/backup.dump" ;;
 esac
 
-# --clean drops each object before creating it, so the target may hold an older copy.
-pg pg_restore --dbname="$url" --clean --if-exists --no-owner --no-acl --exit-on-error \
+# Start from an empty schema, so the target may hold an older copy. pg_restore
+# --clean cannot do this once grades are partitioned (#33): it tries to drop
+# each partition's inherited constraints one by one and stops.
+pg psql "$url" -v ON_ERROR_STOP=1 -qc 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+pg pg_restore --dbname="$url" --no-owner --no-acl --exit-on-error \
   "$(basename "$work")/backup.dump"
 echo "restored $file"
 

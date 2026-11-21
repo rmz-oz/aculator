@@ -211,13 +211,6 @@ class Grade(models.Model):
     class Status(models.TextChoices):
         GRADED = "graded", "Graded"
         ABSENT = "absent", "Absent"
-    term = models.ForeignKey(
-        Term,
-        on_delete=models.PROTECT,
-        related_name="grades",
-        null=True,
-        blank=True,
-    )
 
     enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, related_name="grades")
     assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="grades")
@@ -227,6 +220,10 @@ class Grade(models.Model):
     score = models.DecimalField(
         max_digits=6, decimal_places=2, blank=True, validators=[MinValueValidator(0)]
     )
+    # The offering's term, copied here so grades can be partitioned by it
+    # (#33). Set on every save; empty only for rows an older version wrote
+    # while this one was being deployed, the partitioning migration fills those.
+    term = models.ForeignKey(Term, on_delete=models.PROTECT, related_name="grades", null=True, editable=False)
 
     class Meta:
         constraints = (
@@ -248,17 +245,7 @@ class Grade(models.Model):
             ),
         )
     def save(self, *args, **kwargs):
-        expected_term_id = (
-             Enrollment.objects
-             .values_list("offering__term_id", flat=True)
-             .get(pk=self.enrollment_id)
-        )
-        if self.term_id is not None and self.term_id != expected_term_id:
-            raise ValidationError(
-                {"term": "Grade term must match the enrollment's term."}
-            )
-
-        self.term_id = expected_term_id
+        self.term_id = Enrollment.objects.values_list("offering__term_id", flat=True).get(pk=self.enrollment_id)
         super().save(*args, **kwargs)
 
     def __str__(self):

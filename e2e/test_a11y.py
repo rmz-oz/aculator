@@ -17,6 +17,9 @@ from django.core.management import call_command
 from django.test import override_settings, tag
 from django.urls import reverse
 
+from grading.access import report_offerings
+from grading.demo import demo_user
+
 from .test_flows import sync_playwright
 
 if sync_playwright:
@@ -116,10 +119,18 @@ class AccessibilityTests(StaticLiveServerTestCase):
     def test_profile_and_po_detail_opened_from_the_report(self):
         # The report links each student to their profile; the head and the
         # instructor see a different set of courses there than the student.
-        for role in ("Instructor", "Head of department"):
+        for slug, role in (("instructor", "Instructor"), ("head", "Head of department")):
             with self.subTest(role=role):
                 self.sign_in_as(role)
-                self.page.get_by_role("link", name="report", exact=False).first.click()
+                # A report with graded students: with only five fake students
+                # the first one on the start page can be empty.
+                offering = (
+                    report_offerings(demo_user(slug))
+                    .filter(enrollments__grades__isnull=False)
+                    .order_by("pk")
+                    .first()
+                )
+                self.page.goto(self.live_server_url + reverse("course_report", args=[offering.pk]))
                 self.page.locator("tbody th a").first.click()
                 expect(self.page.get_by_role("heading", level=1)).to_be_visible()
                 self.check(f"student profile, {role}")
