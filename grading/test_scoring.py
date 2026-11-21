@@ -424,8 +424,8 @@ class ElifExampleTests(TestCase):
         self.assertEqual(student_po_scores(student), {})
 
     def test_student_scores_query_count(self):
-        # Enrollments, grades, assessment weights, component weights.
-        with self.assertNumQueries(4):
+        # Enrollments, their terms (#33), grades, assessment weights, component weights.
+        with self.assertNumQueries(5):
             student_po_scores(self.elif_)
 
     def test_offering_scores_query_count(self):
@@ -436,5 +436,5 @@ class ElifExampleTests(TestCase):
                 student=student,
             )
 
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(5):
             offering_po_scores(self.offering)

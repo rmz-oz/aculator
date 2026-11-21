@@ -168,7 +168,7 @@ def grades_fingerprint(assessment):
     confirmed after someone else changed the grades or after it was already
     confirmed once.
     """
-    rows = assessment.grades.order_by("enrollment_id").values_list("enrollment_id", "status", "score")
+    rows = assessment.term_grades().order_by("enrollment_id").values_list("enrollment_id", "status", "score")
     text = ";".join(f"{enrollment_id},{status},{score}" for enrollment_id, status, score in rows)
     return hashlib.sha256(text.encode()).hexdigest()
 

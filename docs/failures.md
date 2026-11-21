@@ -38,8 +38,28 @@ would need a smaller gap, see replication below.
 - A new version does not start or fails `/healthz/`: Render keeps the previous version running. The Deploy workflow
   waits for the new commit on `/healthz/` and fails after 5 minutes, so the red run shows it.
 - A bad version starts but behaves wrong: redeploy an older image, every commit has one (`ghcr.io/rmz-oz/aculator:sha-<commit>`).
+  Across the grade partitioning (#33) see the next section.
 - The free plan stops the service after 15 minutes without requests; the next request waits for it to start again.
   Open the site a minute before showing it.
+
+## Partitioning the grades (#33)
+
+Done in two deploys, so the version still running during a deploy can always save grades. Migration 0011 adds each
+grade's term, which may be empty, and the code that sets it on every save. Migration 0012 partitions the grade table
+by term and fills any term an older version left empty. Merge 0012 only after 0011 is live. 0012 cannot be reversed.
+
+Before merging 0012 (merging to main deploys it):
+
+1. Run the Backup workflow by hand and wait for its restore job to pass.
+2. Merge when nobody is entering grades. 0012 locks the grade, enrollment, assessment, offering and term tables for
+   about 15 s per 480,000 grades, so every page waits meanwhile; it first waits for imports already running to
+   finish, and gives up after a minute. 0011 locks the grade table for about 13 s, and an import that was already
+   running when it started is refused with "Grades changed while you were saving" and has to be repeated.
+
+To go back after 0012, redeploy the image of the last commit before it. That version sets the term on every save and
+works on the partitioned table, so the partitioning can stay. To undo the partitioning itself, restore the backup from
+step 1 with `scripts/restore.sh` after redeploying that image; grades entered since the backup are lost. The
+`restore.sh` from before #33 cannot restore over a partitioned database.
 
 ## When the database goes down
 

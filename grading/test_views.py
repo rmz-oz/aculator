@@ -167,9 +167,9 @@ class CourseReportViewTests(TestCase):
             student = get_user_model().objects.create_user(username=f"extra{i}")
             Enrollment.objects.create(offering=self.offering, student=student)
 
-        # session, user, role, then offering, LOs, enrollments, grades, LO weights, PO weights,
-        # and whether the viewer may import grades here
-        with self.assertNumQueries(10):
+        # session, user, role, then offering, LOs, enrollments, the terms to read grades from (#33),
+        # grades, LO weights, PO weights, and whether the viewer may import grades here
+        with self.assertNumQueries(11):
             self.client.get(reverse("course_report", args=[self.offering.pk]))
 
     def test_student_names_open_their_profile_for_whoever_reads_the_report(self):

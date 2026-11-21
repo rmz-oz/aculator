@@ -389,7 +389,7 @@ def _already_saved(request, assessment):
     parsed = parse_grade_files(files, assessment, enrollments)
     if parsed.errors or not parsed.rows:
         return False
-    stored = {g.enrollment_id: (g.status, g.score) for g in assessment.grades.all()}
+    stored = {g.enrollment_id: (g.status, g.score) for g in assessment.term_grades()}
     return all(stored.get(e.pk) == (Grade.Status.GRADED, score) for e, score in parsed.rows)
 
 
@@ -405,7 +405,7 @@ def _import_page(request, assessment, status=200, **context):
     enrollments = assessment.offering.enrollments.select_related("student").order_by("student__username")
     current = {
         grade.enrollment_id: "absent" if grade.status == Grade.Status.ABSENT else f"{grade.score.normalize():f}"
-        for grade in assessment.grades.all()
+        for grade in assessment.term_grades()
     }
     paste_rows = [
         {"id": index, "student_number": e.student.username, "score": ""}
@@ -477,7 +477,7 @@ def _save_pasted_grades(request, assessment):
     return JsonResponse({"saved_count": len(scores)})
 
 def _preview(request, assessment, enrollments, parsed):
-    existing = {g.enrollment_id: g for g in assessment.grades.all()}
+    existing = {g.enrollment_id: g for g in assessment.term_grades()}
     changes = []
     for enrollment, score in parsed.rows:
         old = existing.get(enrollment.pk)
@@ -546,10 +546,13 @@ def _confirm_preview(request, assessment):
 
 
 def _save_scores(assessment, scores):
+    # With the term in the lookup only that term's partition is read (#33).
+    term_id = assessment.offering.term_id
     for enrollment_id, score in scores:
         Grade.objects.update_or_create(
             assessment=assessment,
             enrollment_id=enrollment_id,
+            term_id=term_id,
             defaults={
                 "score": score,
                 "status": Grade.Status.GRADED,
