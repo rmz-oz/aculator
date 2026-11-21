@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{{ student.get_full_name|default:student.username }}, program outcomes{% endblock %}
 {% block content %}
-<p class="eyebrow">{% if own_profile %}Your program outcomes{% else %}Program outcomes{% endif %}</p>
+<p class="eyebrow">{% if from_report %}<a href="{% url 'course_report' from_report.pk %}">{{ from_report.course.code }}, {{ from_report.term }} class report</a>{% elif own_profile %}Your program outcomes{% else %}Program outcomes{% endif %}</p>
 <h1>{{ student.get_full_name|default:student.username }}</h1>
 <p class="lede">Each score is weighted by ECTS across {% if own_profile %}every course you have taken{% elif all_courses %}every course the student has taken{% else %}the courses you teach this student; their other courses are not included{% endif %}.
   A PO is met when each of its components reaches {{ target }}. The department figure is the mean of all students, shown once at least {{ min_students }} have a score, so no one else's score can be worked out.</p>
@@ -14,9 +14,9 @@
     <p class="code">{{ row.code }}</p>
     <div class="outcome-main">
       {% if row.thin %}
-        <a class="score thin" href="{% url 'po_detail' student.pk row.code %}" aria-label="{{ row.code }}, one graded assessment so far, see it">1 grade</a>
+        <a class="score thin" href="{% url 'po_detail' student.pk row.code %}{% if from_report %}?from={{ from_report.pk }}{% endif %}" aria-label="{{ row.code }}, one graded assessment so far, see it">1 grade</a>
       {% elif row.own is not None %}
-        <a class="score {% if row.below_target %}below-target{% elif row.below_average %}below-mean{% endif %}" href="{% url 'po_detail' student.pk row.code %}" aria-label="{{ row.code }} {{ row.own }}, how it was computed">{{ row.own }}</a>
+        <a class="score {% if row.below_target %}below-target{% elif row.below_average %}below-mean{% endif %}" href="{% url 'po_detail' student.pk row.code %}{% if from_report %}?from={{ from_report.pk }}{% endif %}" aria-label="{{ row.code }} {{ row.own }}, how it was computed">{{ row.own }}</a>
         {% if row.ring %}{% with "ring-"|add:row.code as ring_id %}<div class="ring" data-ring="{{ ring_id }}" aria-hidden="true"></div>{{ row.ring|json_script:ring_id }}{% endwith %}{% endif %}
       {% else %}
         <p class="score"><span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span></p>
@@ -42,15 +42,15 @@
 </div>
 <p class="muted">Select a score to see what each grade contributed.</p>
 
-<h2>As a table</h2>
-<div class="table-wrap">
+<h2 id="table-title">As a table</h2>
+<div class="table-wrap" data-label="table-title">
 <table>
   <caption>The same scores for screen readers and printing.</caption>
   <thead><tr><th scope="col">PO</th><th scope="col">{% if own_profile %}You{% else %}Student{% endif %}</th><th scope="col">Department</th><th scope="col">Target {{ target }}</th></tr></thead>
   <tbody>
   {% for row in rows %}
     <tr>
-      <th scope="row">{% if row.own is not None %}<a href="{% url 'po_detail' student.pk row.code %}">{{ row.code }}</a>{% else %}{{ row.code }}{% endif %}</th>
+      <th scope="row">{% if row.own is not None %}<a href="{% url 'po_detail' student.pk row.code %}{% if from_report %}?from={{ from_report.pk }}{% endif %}">{{ row.code }}</a>{% else %}{{ row.code }}{% endif %}</th>
       <td class="{% if row.below_target %}below{% elif row.below_average or row.thin %}{% else %}po{% endif %}">{% if row.thin %}<span class="thin">1 grade</span>{% elif row.own is not None %}{{ row.own }}{% else %}<span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
       <td>{% if row.department is not None %}{{ row.department }}{% else %}<span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
       <td>{% if row.own is None %}<span class="missing"><span class="sr-only">no evidence</span></span>{% elif row.thin %}not yet{% elif row.below_target %}<span class="below">not met</span>{% elif row.components_missing %}not yet{% else %}met{% endif %}</td>

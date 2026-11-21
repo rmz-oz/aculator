@@ -1,3 +1,5 @@
+import html
+import re
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -86,12 +88,13 @@ class CourseReportViewTests(TestCase):
         )
 
         response = self.client.get(reverse("course_report", args=[self.offering.pk]))
+        profile = reverse("student_profile", args=[self.graded.pk]) + f"?from={self.offering.pk}"
 
         self.assertContains(
             response,
-            """
+            f"""
             <tr>
-                <th scope="row">Elif Demir</th>
+                <th scope="row"><a href="{profile}">Elif Demir</a></th>
                 <td>85.0</td>
                 <td class="po">85.0</td>
             </tr>
@@ -103,12 +106,15 @@ class CourseReportViewTests(TestCase):
 
     def test_report_distinguishes_low_evidence_from_no_evidence(self):
         response = self.client.get(reverse("course_report", args=[self.offering.pk]))
+        def profile(user):
+            return reverse("student_profile", args=[user.pk]) + f"?from={self.offering.pk}"
+
 
         self.assertContains(
             response,
-            """
+            f"""
             <tr>
-                <th scope="row">Elif Demir</th>
+                <th scope="row"><a href="{profile(self.graded)}">Elif Demir</a></th>
                 <td><span class="thin" title="Only 1 graded assessment so far">1 grade</span></td>
                 <td class="po"><span class="thin" title="Only 1 graded assessment so far">1 grade</span></td>
             </tr>
@@ -117,9 +123,9 @@ class CourseReportViewTests(TestCase):
         )
         self.assertContains(
             response,
-            """
+            f"""
             <tr>
-                <th scope="row">can</th>
+                <th scope="row"><a href="{profile(self.ungraded)}">can</a></th>
                 <td><span class="missing" title="No graded evidence"><span class="sr-only">no evidence</span></span></td>
                 <td class="po"><span class="missing" title="No graded evidence"><span class="sr-only">no evidence</span></span></td>
             </tr>
@@ -166,6 +172,58 @@ class CourseReportViewTests(TestCase):
         with self.assertNumQueries(10):
             self.client.get(reverse("course_report", args=[self.offering.pk]))
 
+    def test_student_names_open_their_profile_for_whoever_reads_the_report(self):
+        # The profile is open to the head and the course's instructors, so the
+        # report links each name to it. Every link must open, ungraded students too.
+        co_teacher = get_user_model().objects.create_user(username="co-teacher")
+        co_teacher.groups.add(Group.objects.get(name=INSTRUCTOR))
+        self.offering.instructors.add(co_teacher)
+        expected = {
+            reverse("student_profile", args=[u.pk]) + f"?from={self.offering.pk}"
+            for u in (self.graded, self.ungraded)
+        }
+        for user in (self.head, self.teacher, co_teacher):
+            with self.subTest(user=user):
+                self.client.force_login(user)
+                report = self.client.get(reverse("course_report", args=[self.offering.pk]))
+                links = set(re.findall(r'<th scope="row"><a href="([^"]+)"', report.content.decode()))
+                links = {html.unescape(link) for link in links}
+                self.assertEqual(links, expected)
+                for url in links:
+                    self.assertEqual(self.client.get(url).status_code, 200, url)
+
+    def test_profile_opened_from_the_report_links_back_to_it(self):
+        self.client.force_login(self.teacher)
+        report_url = reverse("course_report", args=[self.offering.pk])
+        profile = self.client.get(reverse("student_profile", args=[self.graded.pk]), {"from": self.offering.pk})
+        self.assertContains(profile, f'href="{report_url}"')
+        self.assertContains(profile, f"?from={self.offering.pk}")  # carried on to the PO detail links
+        detail = self.client.get(reverse("po_detail", args=[self.graded.pk, "PO1"]), {"from": self.offering.pk})
+        self.assertContains(detail, f"?from={self.offering.pk}")
+
+    def test_back_link_only_for_a_report_the_viewer_may_open(self):
+        # A hand-edited ?from must not name a course the viewer cannot open,
+        # nor one the student is not in.
+        other = CourseOffering.objects.create(course=Course.objects.create(code="CSE999", name="Other", ects=5),
+                                              term=self.term)
+        loner = get_user_model().objects.create_user(username="loner")
+        Enrollment.objects.create(offering=other, student=loner)
+        report_url = reverse("course_report", args=[self.offering.pk])
+        Enrollment.objects.create(offering=other, student=self.graded)
+        cases = [
+            (self.teacher, self.graded, other.pk),  # the student is in it, but the teacher may not open it
+            (self.head, loner, self.offering.pk),  # the head may open it, but this student is not in it
+            (self.teacher, self.graded, "abc"),
+            (self.teacher, self.graded, "²"),  # str.isdigit() is True, int() fails
+        ]
+        for user, student, from_id in cases:
+            with self.subTest(user=user, from_id=from_id):
+                self.client.force_login(user)
+                profile = self.client.get(reverse("student_profile", args=[student.pk]), {"from": from_id})
+                self.assertEqual(profile.status_code, 200)
+                self.assertNotContains(profile, "class report</a>")
+                self.assertNotContains(profile, f'href="{report_url}"')
+
     def test_only_head_and_own_instructor_can_open_the_report(self):
         url = reverse("course_report", args=[self.offering.pk])
         cases = [
@@ -198,6 +256,22 @@ class HomeViewTests(TestCase):
         self.assertContains(response, "CSE311")
         self.assertContains(response, reverse("grade_import", args=[self.midterm.pk]))
         self.assertContains(response, "1 of 2 graded")
+
+    def test_class_report_links_name_the_course_and_term(self):
+        # Every card has a "Class report" link; a screen reader's link list needs to tell them apart.
+        spring = Term.objects.create(year=2027, season=Term.Season.SPRING)
+        CourseOffering.objects.create(course=self.course, term=spring).instructors.add(self.teacher)
+        response = self.get_home(self.teacher)
+        self.assertContains(response, f'aria-label="Class report, CSE311 {self.term}"')
+        self.assertContains(response, f'aria-label="Class report, CSE311 {spring}"')
+
+    def test_newest_term_is_open_and_earlier_terms_fold(self):
+        spring = Term.objects.create(year=2027, season=Term.Season.SPRING)
+        CourseOffering.objects.create(course=self.course, term=spring).instructors.add(self.teacher)
+        content = self.get_home(self.teacher).content.decode()
+        open_part, _, folded = content.partition('<details class="term">')
+        self.assertIn(f'<h2 class="term">{spring}</h2>', open_part)
+        self.assertIn(f'<h2 class="term">{self.term}</h2>', folded)
 
     def test_head_sees_the_report_but_no_import_link(self):
         response = self.get_home(self.head)

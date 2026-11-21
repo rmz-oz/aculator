@@ -199,6 +199,47 @@ class BrowserFlowTests(StaticLiveServerTestCase):
         self.assertEqual(grades.get(enrollment__student=self.can).score, Decimal("12.50"))
         self.assertEqual(grades.get(enrollment=self.enrollment).score, Decimal(0))
 
+    def test_instructor_pastes_and_edits_grades_with_the_keyboard_only(self):
+        # Tab to a score cell instead of clicking it: the paste starts there,
+        # and Enter opens the cell for editing (#45).
+        self.log_in("ayse", reverse("grade_import", args=[self.midterm.pk]))
+        score_cells = self.page.locator('#grade-grid .tabulator-cell[tabulator-field="score"]')
+        expect(score_cells).to_have_count(2)
+
+        for _ in range(40):
+            self.page.keyboard.press("Tab")
+            if score_cells.nth(0).evaluate("cell => cell === document.activeElement"):
+                break
+        else:
+            self.fail("Tab never reached the first score cell")
+
+        self.page.evaluate(
+            """() => {
+                const clipboardData = new DataTransfer();
+                clipboardData.setData("text/plain", "55\\n66");
+                document.activeElement.dispatchEvent(new ClipboardEvent("paste", {
+                    clipboardData,
+                    bubbles: true,
+                    cancelable: true,
+                }));
+            }"""
+        )
+        expect(score_cells.nth(0)).to_have_text("55")
+        expect(score_cells.nth(1)).to_have_text("66")
+        expect(score_cells.nth(0)).to_be_focused()  # still where the paste started
+
+        self.page.keyboard.press("Enter")
+        editor = score_cells.nth(0).locator("input")
+        expect(editor).to_be_focused()
+        editor.fill("57")
+        editor.press("Enter")
+        self.page.get_by_role("button", name="Save pasted grades").click()
+
+        expect(self.page.locator("#paste-grades-status")).to_have_text("2 grades saved.")
+        grades = Grade.objects.filter(assessment=self.midterm)
+        self.assertEqual(grades.get(enrollment__student=self.can).score, Decimal(57))  # first row, edited
+        self.assertEqual(grades.get(enrollment=self.enrollment).score, Decimal(66))
+
     def test_head_sees_the_report_but_cannot_import(self):
         self.log_in("head")
 

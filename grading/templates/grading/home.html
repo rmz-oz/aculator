@@ -7,36 +7,22 @@
   {% else %}Import an assessment's grades from CSV, then read the class report. Scores update as soon as grades are saved.{% endif %}
 </p>
 
-{% if courses %}
+{% if terms %}
+{% for group in terms %}
+{% if forloop.first %}
+<h2 class="term">{{ group.term }}</h2>
 <div class="courses">
-  {% for item in courses %}{% with o=item.offering %}
-  <section class="course" aria-labelledby="course-{{ o.pk }}">
-    <div>
-      <p class="code" id="course-{{ o.pk }}">{{ o.course.code }}</p>
-      <p class="name">{{ o.course.name }}<br>{{ o.term }}, {{ o.students }} student{{ o.students|pluralize }}</p>
-    </div>
-    <div>
-      <ul>
-        <li>
-          <span class="label"><a class="action" href="{% url 'course_report' o.pk %}">Class report</a></span>
-          <span class="meta">LO and PO scores</span>
-        </li>
-        {% if item.can_import %}
-          {% for a in o.assessments.all %}
-          <li>
-            <span class="label">{{ a.name }} <span class="muted num">out of {{ a.max_score|floatformat:"-2" }}</span></span>
-            <span class="meta">{{ a.graded }} of {{ o.students }} graded</span>
-            <a class="action" href="{% url 'grade_import' a.pk %}" aria-label="Import grades for {{ o.course.code }} {{ a.name }}">Import grades</a>
-          </li>
-          {% empty %}
-          <li><span class="label muted">No assessments yet. Add them in the admin.</span></li>
-          {% endfor %}
-        {% endif %}
-      </ul>
-    </div>
-  </section>
-  {% endwith %}{% endfor %}
+  {% for item in group.courses %}{% include "grading/_course.html" %}{% endfor %}
 </div>
+{% else %}
+<details class="term">
+  <summary><h2 class="term">{{ group.term }}</h2> <span class="muted">{{ group.courses|length }} course{{ group.courses|length|pluralize }}</span></summary>
+  <div class="courses">
+    {% for item in group.courses %}{% include "grading/_course.html" %}{% endfor %}
+  </div>
+</details>
+{% endif %}
+{% endfor %}
 {% else %}
 <p class="empty">{% if role == "Head of department" %}No course offerings yet. Add them in the admin.{% elif role %}You are not listed as an instructor of any course yet.{% else %}Your account has no role yet. Ask the department to add you as an instructor or student.{% endif %}</p>
 {% endif %}
