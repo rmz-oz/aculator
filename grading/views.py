@@ -117,7 +117,7 @@ def course_report(request, offering_id):
 
     # Read precomputed LO/PO scores from materialized views.
     scores = report_scores_from_views(enrollments)
-    
+
     lo_values = {lo.pk: [] for lo in los}
     po_values = {}
     rows = []
