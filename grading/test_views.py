@@ -77,6 +77,9 @@ class CourseReportViewTests(TestCase):
 
     def setUp(self):
         self.client.force_login(self.head)
+        # The report reads the score views. A TestCase never commits, so the
+        # refresh signals.py schedules never runs; each test refreshes itself.
+        refresh_materialized_views()
 
     def test_renders_scores_and_class_average(self):
         final = Assessment.objects.create(offering=self.offering, name="Final", max_score=D(100))
@@ -86,6 +89,7 @@ class CourseReportViewTests(TestCase):
         Grade.objects.create(
             enrollment=self.graded_enrollment, assessment=final, score=D(80)
         )
+        refresh_materialized_views()
 
         response = self.client.get(reverse("course_report", args=[self.offering.pk]))
         profile = reverse("student_profile", args=[self.graded.pk]) + f"?from={self.offering.pk}"
@@ -140,6 +144,7 @@ class CourseReportViewTests(TestCase):
         # Can has one grade only: shown as "1 grade" and left out of the average.
         can_enrollment = Enrollment.objects.get(offering=self.offering, student=self.ungraded)
         Grade.objects.create(enrollment=can_enrollment, assessment=self.midterm, score=D(10))
+        refresh_materialized_views()
 
         response = self.client.get(reverse("course_report", args=[self.offering.pk]))
 
@@ -168,8 +173,9 @@ class CourseReportViewTests(TestCase):
             Enrollment.objects.create(offering=self.offering, student=student)
 
         # session, user, role, then offering, LOs, enrollments, the terms to read grades from (#33),
-        # grades, LO weights, PO weights, and whether the viewer may import grades here
-        with self.assertNumQueries(11):
+        # LO and PO scores from the views, grades, LO weights, PO weights,
+        # and whether the viewer may import grades here
+        with self.assertNumQueries(13):
             self.client.get(reverse("course_report", args=[self.offering.pk]))
 
     def test_student_names_open_their_profile_for_whoever_reads_the_report(self):

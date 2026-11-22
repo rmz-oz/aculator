@@ -36,7 +36,7 @@ from .services import (
     department_po_scores,
     display,
     po_report,
-    scores_with_evidence_by_enrollment,
+    report_scores_from_views,
     student_component_scores,
     student_po_scores,
     weighted_mean,
@@ -115,8 +115,8 @@ def course_report(request, offering_id):
         )
     )
 
-    # One batched call for the whole class, not one query per student.
-    scores = scores_with_evidence_by_enrollment(enrollments)
+    # Read precomputed LO/PO scores from materialized views.
+    scores = report_scores_from_views(enrollments)
 
     lo_values = {lo.pk: [] for lo in los}
     po_values = {}
