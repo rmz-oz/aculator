@@ -310,3 +310,113 @@ def department_po_scores(min_students=DEPARTMENT_MIN_STUDENTS):
             [min_students],
         )
         return {code: score for code, score in cursor.fetchall()}
+
+def report_scores_from_views(enrollments):
+    """Read report scores from materialized views and count graded evidence."""
+    enrollments = list(enrollments)
+    if not enrollments:
+        return {}
+
+    offering_of = {e.pk: e.offering_id for e in enrollments}
+    enrollment_by_student_offering = {
+        (e.student_id, e.offering_id): e.pk for e in enrollments
+    }
+    offering_ids = set(offering_of.values())
+
+    results = {
+        e.pk: ({}, {}, {}, {}) for e in enrollments
+    }
+
+    # LO scores from materialized view.
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT student_id, offering_id, learning_outcome_id, score
+            FROM student_lo_scores
+            WHERE offering_id = ANY(%s)
+            """,
+            [list(offering_ids)],
+        )
+        for student_id, offering_id, lo_id, score in cursor.fetchall():
+            enrollment_id = enrollment_by_student_offering.get(
+                (student_id, offering_id)
+            )
+            if enrollment_id is not None:
+                results[enrollment_id][0][lo_id] = score
+
+    # PO scores from materialized view.
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT s.student_id, s.offering_id, p.code, s.score
+            FROM course_po_scores s
+            JOIN grading_programoutcome p
+              ON p.id = s.program_outcome_id
+            WHERE s.offering_id = ANY(%s)
+            """,
+            [list(offering_ids)],
+        )
+        for student_id, offering_id, code, score in cursor.fetchall():
+            enrollment_id = enrollment_by_student_offering.get(
+                (student_id, offering_id)
+            )
+            if enrollment_id is not None:
+                results[enrollment_id][1][code] = score
+
+    # Count distinct graded assessments per LO and PO.
+    terms = set(
+        CourseOffering.objects.filter(
+            pk__in=offering_ids
+        ).values_list("term_id", flat=True)
+    )
+
+    grade_assessments = defaultdict(set)
+    for enrollment_id, assessment_id in Grade.objects.filter(
+        term_id__in=terms,
+        enrollment_id__in=offering_of,
+        assessment__offering_id=F("enrollment__offering_id"),
+    ).values_list("enrollment_id", "assessment_id"):
+        grade_assessments[enrollment_id].add(assessment_id)
+
+    lo_assessments = defaultdict(lambda: defaultdict(set))
+    for offering_id, assessment_id, lo_id in AssessmentLOWeight.objects.filter(
+        learning_outcome__offering_id__in=offering_ids,
+        assessment__offering_id=F("learning_outcome__offering_id"),
+        weight__gt=0,
+    ).values_list(
+        "learning_outcome__offering_id",
+        "assessment_id",
+        "learning_outcome_id",
+    ):
+        lo_assessments[offering_id][lo_id].add(assessment_id)
+
+    po_los = defaultdict(lambda: defaultdict(set))
+    for offering_id, lo_id, po_code in LOPOWeight.objects.filter(
+        learning_outcome__offering_id__in=offering_ids,
+    ).values_list(
+        "learning_outcome__offering_id",
+        "learning_outcome_id",
+        "component__program_outcome__code",
+    ):
+        po_los[offering_id][po_code].add(lo_id)
+
+    for enrollment_id, offering_id in offering_of.items():
+        graded = grade_assessments[enrollment_id]
+        lo_counts = results[enrollment_id][2]
+        po_counts = results[enrollment_id][3]
+
+        for lo_id, assessment_ids in lo_assessments[offering_id].items():
+            count = len(graded & assessment_ids)
+            if count:
+                lo_counts[lo_id] = count
+
+        for po_code, lo_ids in po_los[offering_id].items():
+            evidence = set()
+            for lo_id in lo_ids:
+                evidence.update(
+                    graded & lo_assessments[offering_id][lo_id]
+                )
+            if evidence:
+                po_counts[po_code] = len(evidence)
+
+    return results

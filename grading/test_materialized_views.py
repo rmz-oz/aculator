@@ -1,6 +1,8 @@
+import io
 from decimal import Decimal
 from unittest import mock
 
+from django.core.management import call_command
 from django.db import connection, transaction
 from django.test import TestCase
 
@@ -16,7 +18,13 @@ from .models import (
     LOPOWeight,
     Term,
 )
-from .services import course_po_scores, lo_scores, student_po_scores
+from .services import (
+    course_po_scores,
+    lo_scores,
+    report_scores_from_views,
+    scores_with_evidence_by_enrollment,
+    student_po_scores,
+)
 from .test_scoring import ElifExampleTests
 
 TOL = Decimal("1e-20")
@@ -208,3 +216,36 @@ class MaterializedViewTests(TestCase):
         ))
         want = student_po_scores(self.elif_)
         self.assertClose(got[self.po1.pk], want["PO1"])
+
+
+class CourseReportFromViewsTests(TestCase):
+    """The course report reads the views (#79); it must show what the service computes."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("fake_data", students=30, years=1, stdout=io.StringIO())
+        # The fake data has neither of these; the views treat both specially.
+        grade = Grade.objects.order_by("pk").first()
+        grade.status, grade.score = Grade.Status.ABSENT, Decimal(0)
+        grade.save()
+        AssessmentLOWeight.objects.filter(pk=AssessmentLOWeight.objects.order_by("pk").first().pk).update(
+            weight=Decimal(0)
+        )
+
+    def test_every_offering_matches_the_service(self):
+        refresh_materialized_views()
+        offerings = CourseOffering.objects.filter(enrollments__isnull=False).distinct()
+        self.assertGreater(offerings.count(), 1)
+        for offering in offerings:
+            enrollments = list(offering.enrollments.all())
+            expected = scores_with_evidence_by_enrollment(enrollments)
+            got = report_scores_from_views(enrollments)
+            self.assertEqual(got.keys(), expected.keys())
+            for pk in expected:
+                for want, have in zip(expected[pk], got[pk]):
+                    self.assertEqual(have.keys(), want.keys(), f"offering {offering.pk}, enrollment {pk}")
+                    for key in want:
+                        self.assertLess(abs(have[key] - want[key]), TOL, f"offering {offering.pk}, {key}")
+
+    def test_no_enrollments(self):
+        self.assertEqual(report_scores_from_views([]), {})
