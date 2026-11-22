@@ -1,7 +1,6 @@
 import html
 import re
 from decimal import Decimal
-from .services import report_scores_from_views
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -23,7 +22,7 @@ from .models import (
     ProgramOutcome,
     Term,
 )
-from .services import scores_with_evidence_by_enrollment
+from .services import report_scores_from_views, scores_with_evidence_by_enrollment
 
 D = Decimal
 

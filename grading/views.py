@@ -1,6 +1,5 @@
 import json
 from decimal import Decimal
-from .services import report_scores_from_views
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
@@ -37,7 +36,7 @@ from .services import (
     department_po_scores,
     display,
     po_report,
-    scores_with_evidence_by_enrollment,
+    report_scores_from_views,
     student_component_scores,
     student_po_scores,
     weighted_mean,
