@@ -278,5 +278,5 @@ class Command(BaseCommand):
 
         refresh_materialized_views()
         self.stdout.write(
-            self.style.SUCCESS("Materialized views refreshed successfully!")
+            self.style.SUCCESS("Scores recomputed.")
         )

@@ -83,7 +83,7 @@ QUERIES = (
     ),
     (
         "Department mean per PO",
-        "student profile, reads every row of the view",
+        "department mean, what department_po_means stores",
         "SELECT program_outcome_id, avg(score) FROM cross_course_po_scores GROUP BY program_outcome_id",
         None,
     ),
@@ -231,10 +231,11 @@ class Command(BaseCommand):
             out += [f"- {name}: `{sql}`"]
         out += [
             "",
-            "## Refreshing the materialized views",
+            "## Recomputing every score",
             "",
-            (f"`refresh_materialized_views()` refreshes all three views concurrently after every committed change to a"
-            f" score input. Median of {len(refresh)} runs: **{statistics.median(refresh):.0f} ms**"
+            (f"`refresh_materialized_views()` recomputes every score table from scratch, as after fake_data or a"
+            " restored backup. A grade change recomputes only its offering (`refresh_scores`, #79)."
+            f" Median of {len(refresh)} runs: **{statistics.median(refresh):.0f} ms**"
             f" (min {min(refresh):.0f}, max {max(refresh):.0f})."),
             "",
             "## Reading the numbers",
