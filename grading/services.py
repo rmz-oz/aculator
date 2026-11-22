@@ -294,19 +294,18 @@ DEPARTMENT_MIN_STUDENTS = 5
 def department_po_scores(min_students=DEPARTMENT_MIN_STUDENTS):
     """Mean of every student's cross-course score per PO, keyed by PO code.
 
-    Reads the cross_course_po_scores materialized view (#9) instead of
-    recomputing every grade in the department on each profile view. Only the
-    per-PO mean leaves this function, and only for POs with at least
-    `min_students` scored students, so the comparison stays anonymous (#14).
+    Reads the department_po_means materialized view (#9, #79), one row per
+    PO, instead of recomputing every grade in the department on each profile
+    view. Only the per-PO mean leaves this function, and only for POs with at
+    least `min_students` scored students, so the comparison stays anonymous (#14).
     """
     with connection.cursor() as cursor:
         cursor.execute(
             """
-            SELECT po.code, AVG(s.score)
-            FROM cross_course_po_scores s
-            JOIN grading_programoutcome po ON po.id = s.program_outcome_id
-            GROUP BY po.code
-            HAVING COUNT(*) >= %s
+            SELECT po.code, d.score
+            FROM department_po_means d
+            JOIN grading_programoutcome po ON po.id = d.program_outcome_id
+            WHERE d.students >= %s
             """,
             [min_students],
         )

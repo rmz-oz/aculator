@@ -39,8 +39,8 @@ scans the whole view; an index on `offering_id` brings the 849 student case to
 33 ms. The score tables in #79's follow-up have their primary key start with
 `offering_id`, which covers this.
 
-## Open
+## Refresh cost
 
-Every score change refreshes all three views over the whole database after the
-commit, inside the request: 0.27 s with 400 students, about 4 s with 4000. The
-follow-up branch `fix/79-score-tables` recomputes only the changed offering.
+Every score change refreshed all three views over the whole database after the
+commit, inside the request: 0.27 s with 400 students, about 4 s with 4000.
+#115 recomputes only the changed offering instead (decision 0010).

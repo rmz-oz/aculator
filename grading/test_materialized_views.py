@@ -152,18 +152,20 @@ class MaterializedViewTests(TestCase):
 
     def test_grade_change_refreshes_once_after_commit(self):
         with (
-            mock.patch("grading.signals.refresh_materialized_views") as refresh,
+            mock.patch("grading.signals.refresh_scores") as refresh,
             self.captureOnCommitCallbacks(execute=True),
             transaction.atomic(),
         ):
             for grade in Grade.objects.all():
                 grade.score = grade.score - 1
                 grade.save()
-        # Three grades changed, one refresh.
+        # Every grade changed, one refresh, for exactly their offerings.
         self.assertEqual(refresh.call_count, 1)
+        offerings = set(Grade.objects.values_list("assessment__offering_id", flat=True))
+        self.assertEqual(set(refresh.call_args.args[0]), offerings)
 
     def test_rolled_back_change_does_not_refresh(self):
-        with mock.patch("grading.signals.refresh_materialized_views") as refresh:
+        with mock.patch("grading.signals.refresh_scores") as refresh:
             with self.captureOnCommitCallbacks(execute=True):
                 try:
                     with transaction.atomic():

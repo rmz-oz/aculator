@@ -311,7 +311,7 @@ class GradeImportTests(TransactionTestCase):
     def test_failed_view_refresh_after_commit_still_reports_the_save(self):
         # The grades are committed before the refresh runs; a refresh error must
         # not turn that into a server error (#102).
-        with patch("grading.signals.refresh_materialized_views", side_effect=OperationalError("timeout")), \
+        with patch("grading.signals.refresh_scores", side_effect=OperationalError("timeout")), \
                 self.assertLogs("django.db.backends.base", level="ERROR"):
             response = self.upload(csv_file(HEADER + b"20230001,40\n"))
 
