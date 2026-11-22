@@ -1,6 +1,7 @@
 import html
 import re
 from decimal import Decimal
+from .services import report_scores_from_views
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -27,56 +28,180 @@ from .services import scores_with_evidence_by_enrollment
 D = Decimal
 
 
+
 class CourseReportViewTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.term = Term.objects.create(year=2026, season=Term.Season.FALL)
-        cls.course = Course.objects.create(code="CSE311", name="Software Engineering", ects=6)
-        cls.offering = CourseOffering.objects.create(course=cls.course, term=cls.term)
+        cls.term = Term.objects.create(
+            year=2026,
+            season=Term.Season.FALL,
+        )
+        cls.course = Course.objects.create(
+            code="CSE311",
+            name="Software Engineering",
+            ects=6,
+        )
+        cls.offering = CourseOffering.objects.create(
+            course=cls.course,
+            term=cls.term,
+        )
         cls.po1 = ProgramOutcome.objects.create(code="PO1")
-        cls.lo1 = LearningOutcome.objects.create(offering=cls.offering, code="LO1")
-        component = POComponent.objects.create(program_outcome=cls.po1, code="a")
-        LOPOWeight.objects.create(learning_outcome=cls.lo1, component=component, weight=1)
+        cls.lo1 = LearningOutcome.objects.create(
+            offering=cls.offering,
+            code="LO1",
+        )
+        component = POComponent.objects.create(
+            program_outcome=cls.po1,
+            code="a",
+        )
+        LOPOWeight.objects.create(
+            learning_outcome=cls.lo1,
+            component=component,
+            weight=1,
+        )
 
-        cls.midterm = Assessment.objects.create(offering=cls.offering, name="Midterm", max_score=D("100"))
-        AssessmentLOWeight.objects.create(assessment=cls.midterm, learning_outcome=cls.lo1, weight=D("1"))
+        cls.midterm = Assessment.objects.create(
+            offering=cls.offering,
+            name="Midterm",
+            max_score=D("100"),
+        )
+        AssessmentLOWeight.objects.create(
+            assessment=cls.midterm,
+            learning_outcome=cls.lo1,
+            weight=D("1"),
+        )
 
         cls.graded = get_user_model().objects.create_user(
-            username="elif", first_name="Elif", last_name="Demir",
+            username="elif",
+            first_name="Elif",
+            last_name="Demir",
         )
-        cls.graded_enrollment = Enrollment.objects.create(offering=cls.offering, student=cls.graded)
-        Grade.objects.create(enrollment=cls.graded_enrollment, assessment=cls.midterm, score=D("90"))
+        cls.graded_enrollment = Enrollment.objects.create(
+            offering=cls.offering,
+            student=cls.graded,
+        )
+        Grade.objects.create(
+            enrollment=cls.graded_enrollment,
+            assessment=cls.midterm,
+            score=D("90"),
+        )
 
-        cls.ungraded = get_user_model().objects.create_user(username="can")
-        Enrollment.objects.create(offering=cls.offering, student=cls.ungraded)
+        cls.ungraded = get_user_model().objects.create_user(
+            username="can",
+        )
+        Enrollment.objects.create(
+            offering=cls.offering,
+            student=cls.ungraded,
+        )
 
         users = get_user_model().objects
+
         cls.head = users.create_user(username="head")
         cls.head.groups.add(Group.objects.get(name=HEAD))
+
         cls.teacher = users.create_user(username="teacher")
         cls.teacher.groups.add(Group.objects.get(name=INSTRUCTOR))
         cls.offering.instructors.add(cls.teacher)
-        cls.other_teacher = users.create_user(username="other-teacher")
-        cls.other_teacher.groups.add(Group.objects.get(name=INSTRUCTOR))
+
+        cls.other_teacher = users.create_user(
+            username="other-teacher",
+        )
+        cls.other_teacher.groups.add(
+            Group.objects.get(name=INSTRUCTOR)
+        )
         cls.graded.groups.add(Group.objects.get(name=STUDENT))
 
-    def test_po_counts_one_assessment_reaching_it_through_two_los(self):
-        lo2 = LearningOutcome.objects.create(offering=self.offering, code="LO2")
-        AssessmentLOWeight.objects.create(
-            assessment=self.midterm, learning_outcome=lo2, weight=D(1)
+    def test_report_scores_from_views_match_service(self):
+        refresh_materialized_views()
+
+        enrollments = list(
+            self.offering.enrollments.select_related("student")
         )
-        component = POComponent.objects.get(program_outcome=self.po1, code="a")
-        LOPOWeight.objects.create(learning_outcome=lo2, component=component, weight=1)
 
-        _, _, lo_counts, po_counts = scores_with_evidence_by_enrollment(
-            [self.graded_enrollment]
-        )[self.graded_enrollment.pk]
+        expected = scores_with_evidence_by_enrollment(enrollments)
+        actual = report_scores_from_views(enrollments)
 
-        self.assertEqual(lo_counts, {self.lo1.pk: 1, lo2.pk: 1})
-        self.assertEqual(po_counts, {"PO1": 1})
+        self.assertEqual(actual.keys(), expected.keys())
+
+        for enrollment_id in expected:
+            (
+                expected_lo,
+                expected_po,
+                expected_lo_counts,
+                expected_po_counts,
+            ) = expected[enrollment_id]
+
+            (
+                actual_lo,
+                actual_po,
+                actual_lo_counts,
+                actual_po_counts,
+            ) = actual[enrollment_id]
+
+            self.assertEqual(actual_lo.keys(), expected_lo.keys())
+            self.assertEqual(actual_po.keys(), expected_po.keys())
+
+            for lo_id in expected_lo:
+                self.assertAlmostEqual(
+                    actual_lo[lo_id],
+                    expected_lo[lo_id],
+                    places=15,
+                )
+
+            for po_code in expected_po:
+                self.assertAlmostEqual(
+                    actual_po[po_code],
+                    expected_po[po_code],
+                    places=15,
+                )
+
+            self.assertEqual(
+                actual_lo_counts,
+                expected_lo_counts,
+            )
+            self.assertEqual(
+                actual_po_counts,
+                expected_po_counts,
+            )
+
+    def test_po_counts_one_assessment_reaching_it_through_two_los(self):
+        lo2 = LearningOutcome.objects.create(
+            offering=self.offering,
+            code="LO2",
+        )
+        AssessmentLOWeight.objects.create(
+            assessment=self.midterm,
+            learning_outcome=lo2,
+            weight=D(1),
+        )
+        component = POComponent.objects.get(
+            program_outcome=self.po1,
+            code="a",
+        )
+        LOPOWeight.objects.create(
+            learning_outcome=lo2,
+            component=component,
+            weight=1,
+        )
+
+        _, _, lo_counts, po_counts = (
+            scores_with_evidence_by_enrollment(
+                [self.graded_enrollment]
+            )[self.graded_enrollment.pk]
+        )
+
+        self.assertEqual(
+            lo_counts,
+            {self.lo1.pk: 1, lo2.pk: 1},
+        )
+        self.assertEqual(
+            po_counts,
+            {"PO1": 1},
+        )
 
     def setUp(self):
         self.client.force_login(self.head)
+        refresh_materialized_views()
 
     def test_renders_scores_and_class_average(self):
         final = Assessment.objects.create(offering=self.offering, name="Final", max_score=D(100))
@@ -86,7 +211,7 @@ class CourseReportViewTests(TestCase):
         Grade.objects.create(
             enrollment=self.graded_enrollment, assessment=final, score=D(80)
         )
-
+        refresh_materialized_views()
         response = self.client.get(reverse("course_report", args=[self.offering.pk]))
         profile = reverse("student_profile", args=[self.graded.pk]) + f"?from={self.offering.pk}"
 
@@ -137,10 +262,10 @@ class CourseReportViewTests(TestCase):
         final = Assessment.objects.create(offering=self.offering, name="Final", max_score=D(100))
         AssessmentLOWeight.objects.create(assessment=final, learning_outcome=self.lo1, weight=D(1))
         Grade.objects.create(enrollment=self.graded_enrollment, assessment=final, score=D(80))
-        # Can has one grade only: shown as "1 grade" and left out of the average.
+        
         can_enrollment = Enrollment.objects.get(offering=self.offering, student=self.ungraded)
         Grade.objects.create(enrollment=can_enrollment, assessment=self.midterm, score=D(10))
-
+        refresh_materialized_views()
         response = self.client.get(reverse("course_report", args=[self.offering.pk]))
 
         self.assertEqual(response.context["lo_class_avg"], [D("85.0")])
@@ -163,14 +288,25 @@ class CourseReportViewTests(TestCase):
         self.assertContains(response, "No students enrolled yet")
 
     def test_query_count_does_not_grow_per_student(self):
-        for i in range(10):
-            student = get_user_model().objects.create_user(username=f"extra{i}")
-            Enrollment.objects.create(offering=self.offering, student=student)
+        url = reverse("course_report", args=[self.offering.pk])
 
-        # session, user, role, then offering, LOs, enrollments, the terms to read grades from (#33),
-        # grades, LO weights, PO weights, and whether the viewer may import grades here
-        with self.assertNumQueries(11):
-            self.client.get(reverse("course_report", args=[self.offering.pk]))
+        # Measure the query count with the original students.
+        with self.assertNumQueries(13):
+            self.client.get(url)
+
+        # Add 10 more students.
+        for i in range(10):
+            student = get_user_model().objects.create_user(
+                username=f"extra{i}"
+            )
+            Enrollment.objects.create(
+                offering=self.offering,
+                student=student,
+            )
+
+        # Query count should remain constant as students increase.
+        with self.assertNumQueries(13):
+            self.client.get(url)
 
     def test_student_names_open_their_profile_for_whoever_reads_the_report(self):
         # The profile is open to the head and the course's instructors, so the
@@ -244,7 +380,9 @@ class CourseReportViewTests(TestCase):
 class HomeViewTests(TestCase):
     """The start page, with the course report fixtures: one offering, a teacher, the head."""
 
-    setUpTestData = classmethod(CourseReportViewTests.setUpTestData.__func__)
+    setUpTestData = classmethod(
+        CourseReportViewTests.__dict__["setUpTestData"].__func__
+    )
 
     def get_home(self, user):
         self.client.force_login(user)

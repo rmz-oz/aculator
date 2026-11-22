@@ -1,5 +1,6 @@
 import json
 from decimal import Decimal
+from .services import report_scores_from_views
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
@@ -115,9 +116,9 @@ def course_report(request, offering_id):
         )
     )
 
-    # One batched call for the whole class, not one query per student.
-    scores = scores_with_evidence_by_enrollment(enrollments)
-
+    # Read precomputed LO/PO scores from materialized views.
+    scores = report_scores_from_views(enrollments)
+    
     lo_values = {lo.pk: [] for lo in los}
     po_values = {}
     rows = []
