@@ -137,3 +137,38 @@ Extra work, no points: decision notes on outcome weights ([#62](https://github.c
 
 - Goal: nothing is lost when the free database expires on Dec 3, grades keep a history, and the report reads the precomputed views.
 - 28 points, at the average of 28. #79 goes to Yaren, who built the materialized views; #80 to Esin with the calculation; #81 to Ramiz with deploy.
+
+### Review (2026-11-26)
+
+- 24 of 28 planned points done, plus 6 points that came up during the sprint (#100 to #103). Velocity so far: 20, 34, 29, 30. Average 28.
+- Backups run every night as an encrypted artifact and each one is restored into an empty database to check it (#32). What to do when something breaks is in `docs/failures.md`.
+- Grades are partitioned by term in two steps, first the term column and then the partitions (#33). The course report went from 26 to 9 ms, saving a grade is 13% slower (`docs/partitioning.md`).
+- Every grade change is kept with who made it and when (#35). Grades can be pasted from Excel into the grid (#47). An offering keeps the ECTS it was taught with, so editing a course does not change old reports (#80).
+- The course report reads score tables that are recomputed per offering after a change, not every view at once (#79, decision 0010).
+- axe runs in CI, every page is checked at 320 px, wide tables scroll on their own (#45).
+- `docker compose up` starts the whole app and `DEMO=1` adds a role switcher (#81, #46). Demo data now includes realistic mistakes: a wrong max score, a duplicate column, a course with no LOs and more (#100). Three bugs found this way were fixed: scores above 100 after lowering a max score (#101), a 500 when the view refresh failed after saving (#102), a double click on Import that said nothing was saved (#103).
+- Not done: #82, the new Render database can only be created between Dec 1 and 3 (decision 0009). #96 still needs a real export from the optical reader. Both move to Sprint 5.
+- Found and left open: two imports into the same term at the same time sometimes get a 409 because of SERIALIZABLE; the second one can retry.
+
+`main` tagged `sprint-4` when this lands.
+
+## Sprint 5 (2026-11-26 to 2026-12-03): Real course cases and setup from the syllabus
+
+| # | Issue | Assignee | Points |
+|---|---|---|---|
+| [#48](https://github.com/rmz-oz/aculator/issues/48) | Open API with OpenAPI docs | esinsarialtin | 5 |
+| [#49](https://github.com/rmz-oz/aculator/issues/49) | Turkish and English interface | ranayilmazz | 5 |
+| [#50](https://github.com/rmz-oz/aculator/issues/50) | Load test | sarginyaren | 3 |
+| [#82](https://github.com/rmz-oz/aculator/issues/82) | Render database is deleted on Dec 3 | rmz-oz | 2 |
+| [#85](https://github.com/rmz-oz/aculator/issues/85) | Read LOs from a syllabus PDF | rmz-oz | 3 |
+| [#86](https://github.com/rmz-oz/aculator/issues/86) | Read the LO-PO matrix from a syllabus PDF | rmz-oz | 3 |
+| [#87](https://github.com/rmz-oz/aculator/issues/87) | Instructor checks and saves the parsed syllabus | rmz-oz | 2 |
+| [#96](https://github.com/rmz-oz/aculator/issues/96) | Optical reader export through the CSV import | esinsarialtin | 2 |
+| [#104](https://github.com/rmz-oz/aculator/issues/104) | Course retake: only the attempt that counts goes into PO scores | rmz-oz | 3 |
+| [#105](https://github.com/rmz-oz/aculator/issues/105) | Makeup exam (bütünleme) replaces the final | rmz-oz | 3 |
+| [#106](https://github.com/rmz-oz/aculator/issues/106) | Grade import errors that say what to fix | esinsarialtin | 2 |
+
+### Planning (2026-11-26)
+
+- Goal: retakes and makeup exams count the way the university counts them, a course can be set up from its syllabus PDF, and the database moves before Dec 3.
+- 33 points, above the average of 28. #82 and #96 carried over from Sprint 4.
