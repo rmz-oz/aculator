@@ -44,6 +44,66 @@ def display(value, places="0.1"):
     )
 
 
+SEASON_ORDER = {"spring": 1, "summer": 2, "fall": 3}
+
+
+def attempt_order(offering):
+    """Sort key of an attempt: later terms last (spring, summer, fall within a year)."""
+    return (offering.term.year, SEASON_ORDER[offering.term.season], offering.pk)
+
+
+def counting_enrollments(enrollments, has_scores):
+    """Pks of the attempts that count across courses (#104, decision 0011).
+
+    A course taken more than once counts once: its latest attempt with scores,
+    as the regulation counts the last grade. An attempt without scores (a
+    withdrawal, a retake not graded yet) leaves the earlier one in place.
+    Same rule as refresh_scores() in migration 0014.
+    """
+    latest = {}
+    for enrollment in enrollments:
+        if not has_scores(enrollment):
+            continue
+        key = (enrollment.student_id, enrollment.offering.course_id)
+        if key not in latest or attempt_order(enrollment.offering) > attempt_order(latest[key].offering):
+            latest[key] = enrollment
+    return {enrollment.pk for enrollment in latest.values()}
+
+
+def counting_enrollment_ids(student):
+    """Pks of the student's attempts that count, decided over all their courses (#104).
+
+    Decided over every enrollment, not the ones a viewer may see: an instructor
+    who taught only the failed attempt must not see it counted.
+    """
+    enrollments = list(
+        Enrollment.objects.filter(student=student).select_related("offering__term")
+    )
+    courses = [e.offering.course_id for e in enrollments]
+    if len(courses) == len(set(courses)):
+        return {e.pk for e in enrollments}
+    results = _component_results(enrollments)
+    return counting_enrollments(enrollments, lambda e: bool(results[e.pk][1]))
+
+
+def replaced_grades(grades):
+    """{(enrollment id, assessment id)} left out because of a makeup (#105).
+
+    A graded makeup leaves out the assessment it replaces. A makeup the student
+    is marked absent from is no attempt: it is left out itself and the replaced
+    grade stays. Same rule as refresh_scores() in migration 0014.
+    """
+    left_out = set()
+    for grade in grades:
+        if grade.assessment.replaces_id is None:
+            continue
+        if grade.status == Grade.Status.GRADED:
+            left_out.add((grade.enrollment_id, grade.assessment.replaces_id))
+        else:
+            left_out.add((grade.enrollment_id, grade.assessment_id))
+    return left_out
+
+
 def _means(groups):
     """Return weighted group means, omitting groups without evidence."""
     results = {}
@@ -72,10 +132,13 @@ def _component_results(enrollments):
 
     # Absent grades are stored as 0 and count. max_score > 0 is a database
     # constraint, so the division is safe.
+    grades = list(grades)
     for grade in grades:
         percentages[grade.enrollment_id][grade.assessment_id] = (
             grade.score / grade.assessment.max_score * HUNDRED
         )
+    for enrollment_id, assessment_id in replaced_grades(grades):
+        percentages[enrollment_id].pop(assessment_id, None)
 
     lo_weights = defaultdict(list)
     rows = AssessmentLOWeight.objects.filter(
@@ -186,17 +249,24 @@ def student_component_scores(student, enrollments=None):
     `enrollments` narrows the courses, e.g. to the ones a viewer may see;
     by default every course the student has taken counts.
     """
-    if enrollments is None:
+    every_course = enrollments is None
+    if every_course:
         enrollments = Enrollment.objects.all()
     enrollments = list(
         enrollments.filter(student=student).select_related(
-            "offering__course",
+            "offering__course", "offering__term",
         ),
     )
     results = _component_results(enrollments)
+    if every_course:
+        counting = counting_enrollments(enrollments, lambda e: bool(results[e.pk][1]))
+    else:
+        counting = counting_enrollment_ids(student)
 
     groups = defaultdict(list)
     for enrollment in enrollments:
+        if enrollment.pk not in counting:
+            continue
         ects = Decimal(enrollment.offering.ects)
         for key, score in results[enrollment.pk][1].items():
             groups[key].append((score, ects))
@@ -371,12 +441,18 @@ def report_scores_from_views(enrollments):
     )
 
     grade_assessments = defaultdict(set)
-    for enrollment_id, assessment_id in Grade.objects.filter(
+    replaced = set()
+    for enrollment_id, assessment_id, replaces_id, status in Grade.objects.filter(
         term_id__in=terms,
         enrollment_id__in=offering_of,
         assessment__offering_id=F("enrollment__offering_id"),
-    ).values_list("enrollment_id", "assessment_id"):
+    ).values_list("enrollment_id", "assessment_id", "assessment__replaces_id", "status"):
         grade_assessments[enrollment_id].add(assessment_id)
+        if replaces_id is not None:
+            replaced.add((enrollment_id, replaces_id if status == Grade.Status.GRADED else assessment_id))
+    # A makeup's replaced grade is not evidence (#105), as in refresh_scores().
+    for enrollment_id, assessment_id in replaced:
+        grade_assessments[enrollment_id].discard(assessment_id)
 
     lo_assessments = defaultdict(lambda: defaultdict(set))
     for offering_id, assessment_id, lo_id in AssessmentLOWeight.objects.filter(

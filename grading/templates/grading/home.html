@@ -1,10 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Courses, aculator{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Courses" %}, aculator{% endblock %}
 {% block content %}
-<h1>{% if role == "Head of department" %}Every course in the department{% else %}Your courses{% endif %}</h1>
+<h1>{% if role == "Head of department" %}{% trans "Every course in the department" %}{% else %}{% trans "Your courses" %}{% endif %}</h1>
 <p class="lede">
-  {% if role == "Head of department" %}Open a class report to see learning and program outcome scores for every student.
-  {% else %}Import an assessment's grades from CSV, then read the class report. Scores update as soon as grades are saved.{% endif %}
+  {% if role == "Head of department" %}{% trans "Open a class report to see learning and program outcome scores for every student." %}
+  {% else %}{% trans "Import an assessment's grades from CSV, then read the class report. Scores update as soon as grades are saved." %}{% endif %}
 </p>
 
 {% if terms %}
@@ -16,7 +17,7 @@
 </div>
 {% else %}
 <details class="term">
-  <summary><h2 class="term">{{ group.term }}</h2> <span class="muted">{{ group.courses|length }} course{{ group.courses|length|pluralize }}</span></summary>
+  <summary><h2 class="term">{{ group.term }}</h2> <span class="muted">{% blocktrans count counter=group.courses|length %}{{ counter }} course{% plural %}{{ counter }} courses{% endblocktrans %}</span></summary>
   <div class="courses">
     {% for item in group.courses %}{% include "grading/_course.html" %}{% endfor %}
   </div>
@@ -24,6 +25,6 @@
 {% endif %}
 {% endfor %}
 {% else %}
-<p class="empty">{% if role == "Head of department" %}No course offerings yet. Add them in the admin.{% elif role %}You are not listed as an instructor of any course yet.{% else %}Your account has no role yet. Ask the department to add you as an instructor or student.{% endif %}</p>
+<p class="empty">{% if role == "Head of department" %}{% trans "No course offerings yet. Add them in the admin." %}{% elif role %}{% trans "You are not listed as an instructor of any course yet." %}{% else %}{% trans "Your account has no role yet. Ask the department to add you as an instructor or student." %}{% endif %}</p>
 {% endif %}
 {% endblock %}

@@ -4,6 +4,10 @@
   if (!window.echarts) return;
   const BLUE = "#1D4ED8";
   const EMPTY = "#EEF0F2";
+  // toFixed() always uses a dot; Intl follows the page's own language (#49).
+  const number = new Intl.NumberFormat(document.documentElement.lang, {
+    minimumFractionDigits: 1, maximumFractionDigits: 1,
+  });
   document.querySelectorAll("[data-ring]").forEach((el) => {
     const source = document.getElementById(el.dataset.ring);
     if (!source) return;
@@ -20,7 +24,7 @@
       tooltip: {
         trigger: "item",
         confine: true,
-        formatter: (p) => p.data.label || `${p.name}: ${p.value.toFixed(1)}`,
+        formatter: (p) => p.data.label || `${p.name}: ${number.format(p.value)}`,
         textStyle: { fontFamily: "Schibsted Grotesk, system-ui, sans-serif", color: "#0D1117" },
         borderWidth: 0,
         extraCssText: "box-shadow: none; background: #FFFFFF;",

@@ -20,7 +20,7 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.db import connection
 from django.http import JsonResponse
-from django.urls import path
+from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from grading import api as grading_api
@@ -40,6 +40,7 @@ def healthz(request):
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("healthz/", healthz),
+    path("i18n/", include("django.conf.urls.i18n")),
     path("", grading_views.home, name="home"),
     path("accounts/login/", auth_views.LoginView.as_view(), name="login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
@@ -48,6 +49,11 @@ urlpatterns = [
         "offerings/<int:offering_id>/report/",
         grading_views.course_report,
         name="course_report",
+    ),
+    path(
+        "offerings/<int:offering_id>/outcomes/",
+        grading_views.syllabus_import,
+        name="syllabus_import",
     ),
     path(
         "assessments/<int:assessment_id>/import/",

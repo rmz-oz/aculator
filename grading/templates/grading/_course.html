@@ -1,25 +1,26 @@
+{% load i18n %}
 {# One offering on the start page: its class report and, for its instructors, grade import. #}
 {% with o=item.offering %}
 <section class="course">
   <div>
     <p class="code">{{ o.course.code }}</p>
-    <p class="name">{{ o.course.name }}<br>{{ o.term }}, {{ o.students }} student{{ o.students|pluralize }}</p>
+    <p class="name">{{ o.course.name }}<br>{{ o.term }}, {% blocktrans count counter=o.students %}{{ counter }} student{% plural %}{{ counter }} students{% endblocktrans %}</p>
   </div>
   <div>
     <ul>
       <li>
-        <span class="label"><a class="action" href="{% url 'course_report' o.pk %}" aria-label="Class report, {{ o.course.code }} {{ o.term }}">Class report</a></span>
-        <span class="meta">LO and PO scores</span>
+        <span class="label"><a class="action" href="{% url 'course_report' o.pk %}" aria-label="{% blocktrans with code=o.course.code term=o.term %}Class report, {{ code }} {{ term }}{% endblocktrans %}">{% trans "Class report" %}</a></span>
+        <span class="meta">{% trans "LO and PO scores" %}</span>
       </li>
       {% if item.can_import %}
         {% for a in o.assessments.all %}
         <li>
-          <span class="label">{{ a.name }} <span class="muted num">out of {{ a.max_score|floatformat:"-2" }}</span></span>
-          <span class="meta">{{ a.graded }} of {{ o.students }} graded</span>
-          <a class="action" href="{% url 'grade_import' a.pk %}" aria-label="Import grades for {{ o.course.code }} {{ a.name }}">Import grades</a>
+          <span class="label">{{ a.name }} <span class="muted num">{% blocktrans with max_score=a.max_score|floatformat:"-2" %}out of {{ max_score }}{% endblocktrans %}</span></span>
+          <span class="meta">{% blocktrans with graded=a.graded students=o.students %}{{ graded }} of {{ students }} graded{% endblocktrans %}</span>
+          <a class="action" href="{% url 'grade_import' a.pk %}" aria-label="{% blocktrans with code=o.course.code name=a.name %}Import grades for {{ code }} {{ name }}{% endblocktrans %}">{% trans "Import grades" %}</a>
         </li>
         {% empty %}
-        <li><span class="label muted">No assessments yet. Add them in the admin.</span></li>
+        <li><span class="label muted">{% trans "No assessments yet. Add them in the admin." %}</span></li>
         {% endfor %}
       {% endif %}
     </ul>

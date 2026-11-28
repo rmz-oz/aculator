@@ -4,15 +4,16 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class Term(models.Model):
     """An academic term, e.g. 2026 Fall."""
 
     class Season(models.TextChoices):
-        FALL = "fall", "Fall"
-        SPRING = "spring", "Spring"
-        SUMMER = "summer", "Summer"
+        FALL = "fall", _("Fall")
+        SPRING = "spring", _("Spring")
+        SUMMER = "summer", _("Summer")
 
     year = models.PositiveSmallIntegerField()
     season = models.CharField(max_length=10, choices=Season.choices)
@@ -162,6 +163,13 @@ class Assessment(models.Model):
         max_digits=6, decimal_places=2, default=100,
         validators=[MinValueValidator(Decimal("0.01"))],
     )
+    # A makeup (bütünleme) replaces the final for the students who take it
+    # (#105, decision 0011): a graded score here leaves `replaces` out of
+    # that student's calculation. Same offering, and no chains.
+    replaces = models.OneToOneField(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="replaced_by",
+        help_text="For a makeup: the assessment it replaces for the students who take it.",
+    )
 
     class Meta:
         ordering = ("offering", "name")
@@ -174,6 +182,10 @@ class Assessment(models.Model):
                 condition=models.Q(max_score__gt=0),
                 name="assessment_max_score_positive",
             ),
+            models.CheckConstraint(
+                condition=~models.Q(replaces=models.F("pk")),
+                name="assessment_not_replacing_itself",
+            ),
         )
 
     def __str__(self):
@@ -185,6 +197,19 @@ class Assessment(models.Model):
 
     def clean(self):
         refuse_moving_graded(self, "offering_id", lambda: self.grades.all())
+        # Moving a replaced assessment would leave its makeup in another offering.
+        if self.pk and self.offering_id and Assessment.objects.filter(
+            replaces_id=self.pk
+        ).exclude(offering_id=self.offering_id).exists():
+            raise ValidationError({"offering": "A makeup replaces this assessment; move or unlink the makeup first."})
+        if self.replaces_id is not None:
+            replaced = self.replaces
+            if replaced.pk == self.pk:
+                raise ValidationError({"replaces": "An assessment cannot replace itself."})
+            if replaced.offering_id != self.offering_id:
+                raise ValidationError({"replaces": "A makeup can only replace an assessment of the same course offering."})
+            if replaced.replaces_id is not None or (self.pk and Assessment.objects.filter(replaces_id=self.pk).exists()):
+                raise ValidationError({"replaces": "A makeup cannot replace another makeup, and a replaced assessment cannot replace one."})
         # Lowering the maximum under a score already given would put that
         # student above 100% in every LO and PO it feeds (#101).
         if self.pk is None or self.max_score is None:
@@ -234,8 +259,8 @@ class Grade(models.Model):
     """
 
     class Status(models.TextChoices):
-        GRADED = "graded", "Graded"
-        ABSENT = "absent", "Absent"
+        GRADED = "graded", _("Graded")
+        ABSENT = "absent", _("Absent")
 
     enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, related_name="grades")
     assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="grades")
@@ -407,9 +432,9 @@ class LOPOWeight(models.Model):
         )
 class GradeChange(models.Model):
     class Action(models.TextChoices):
-        CREATED = "created", "Created"
-        UPDATED = "updated", "Updated"
-        DELETED = "deleted", "Deleted"
+        CREATED = "created", _("Created")
+        UPDATED = "updated", _("Updated")
+        DELETED = "deleted", _("Deleted")
 
     grade_id = models.PositiveBigIntegerField(db_index=True)
     action = models.CharField(max_length=10, choices=Action.choices)

@@ -13,6 +13,7 @@ one does not hide another.
 
 import random
 from decimal import Decimal
+from itertools import pairwise
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -120,6 +121,9 @@ class _Scenarios:
         self.missing_finals()
         self.zero_instead_of_absent()
         self.typos()
+        # Last, so the scenarios above pick the same students as before.
+        self.retakes()
+        self.makeups()
         return self.report
 
     # People
@@ -403,3 +407,56 @@ class _Scenarios:
         Grade.objects.bulk_update(picked, ["score"])
         self.typo_lines = lines
         self.note("Typing mistakes", "; ".join(lines))
+
+    # Retakes and makeups (#104, #105)
+
+    def failing(self, offering):
+        """Enrollments of a finished offering whose grades average under 50%, worst first."""
+        totals = {}
+        for grade in Grade.objects.filter(assessment__offering=offering).select_related("assessment", "enrollment"):
+            got, out_of = totals.get(grade.enrollment, (D(0), D(0)))
+            totals[grade.enrollment] = (got + grade.score, out_of + grade.assessment.max_score)
+        low = [(got / out_of, e) for e, (got, out_of) in totals.items() if out_of and got / out_of < D("0.5")]
+        return [e for _, e in sorted(low, key=lambda pair: (pair[0], pair[1].pk))]
+
+    def retakes(self):
+        """Students who failed a course and took it again the next time it ran."""
+        lines = []
+        for code in ("CSE201", "CSE202", "CSE301", "CSE302"):
+            runs = list(CourseOffering.objects.filter(course__code=code).exclude(
+                term__year=CURRENT_TERM[0], term__season=CURRENT_TERM[1]).select_related("term", "course"))
+            runs.sort(key=lambda o: (o.term.year, {"spring": 1, "summer": 2, "fall": 3}[o.term.season]))
+            for first, second in pairwise(runs):
+                for enrollment in self.failing(first)[:2]:
+                    if Enrollment.objects.filter(student=enrollment.student, offering=second).exists():
+                        continue
+                    self.enroll(second, [enrollment.student], level=72, spread=4)
+                    lines.append(f"{enrollment.student.username} {code} {first.term} then {second.term}")
+        if lines:
+            self.note("Course retaken", f"{len(lines)} retakes, only the later attempt counts across courses, e.g. "
+                      + "; ".join(lines[:3]))
+
+    def makeups(self):
+        """A Makeup that replaces the Final, taken by the students who failed it."""
+        for code, year, season in (("CSE202", 2025, "fall"), ("CSE301", 2025, "spring")):
+            offering = CourseOffering.objects.get(course__code=code, term__year=year, term__season=season)
+            final = offering.assessments.get(name="Final")
+            makeup = Assessment.objects.create(offering=offering, name="Makeup", replaces=final)
+            AssessmentLOWeight.objects.bulk_create(
+                AssessmentLOWeight(assessment=makeup, learning_outcome_id=w.learning_outcome_id, weight=w.weight)
+                for w in final.lo_weights.all()
+            )
+            failed = [g for g in self.grades(offering, "Final") if g.score < final.max_score / 2]
+            r = self.rng("makeup", offering.pk)
+            grades = []
+            for i, grade in enumerate(failed):
+                if i % 5 == 4:
+                    status, score = Grade.Status.ABSENT, D(0)  # signed up, did not come: the Final stays
+                else:
+                    status, score = Grade.Status.GRADED, D(str(round(r.uniform(35, 80), 1)))
+                grades.append(Grade(enrollment=grade.enrollment, assessment=makeup, term_id=offering.term_id,
+                                    status=status, score=score))
+            Grade.objects.bulk_create(grades)
+            lower = [g for g, f in zip(grades, failed) if g.status == Grade.Status.GRADED and g.score < f.score]
+            self.note("Makeup exam", f"{offering}: {len(grades)} students took the Makeup, it replaces their Final"
+                      + (f"; {lower[0].enrollment.student.username} scored lower and that counts" if lower else ""))

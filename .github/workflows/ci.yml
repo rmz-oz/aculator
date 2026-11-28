@@ -25,6 +25,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements-dev.txt
+      # .mo files are gitignored (build artifacts); compile them from locale/*/LC_MESSAGES/*.po (#49).
+      - run: sudo apt-get install -y gettext
+      - run: python manage.py compilemessages
       - run: ruff check .
       - run: python manage.py makemigrations --check --dry-run
       - name: Run tests (fail if none ran)
@@ -53,6 +56,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt -r requirements-e2e.txt
+      # .mo files are gitignored (build artifacts); compile them from locale/*/LC_MESSAGES/*.po (#49).
+      - run: sudo apt-get install -y gettext
+      - run: python manage.py compilemessages
       # The system packages are mostly fonts from security.ubuntu.com, which
       # sometimes times out. Retry, then go on with what the runner has: if
       # Chromium really cannot start, the browser tests fail on their own.

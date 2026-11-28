@@ -1,16 +1,22 @@
+import hashlib
 import json
+import re
 from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.core import signing
-from django.db import OperationalError
+from django.db import OperationalError, transaction
 from django.db.models import Case, Count, IntegerField, Prefetch, Value, When
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.formats import number_format
+from django.utils.translation import get_language
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
+from . import bologna
 from .access import (
     HEAD,
     STUDENT,
@@ -20,6 +26,7 @@ from .access import (
     role_of,
     visible_enrollments,
 )
+from .bologna import CatalogueError
 from .demo import demo_user
 from .explain import explain_all, explain_po
 from .grade_history import grade_change_actor
@@ -30,9 +37,20 @@ from .grade_import import (
     serializable_transaction,
     validate_pasted_grades,
 )
-from .models import Assessment, Grade, Term
+from .models import (
+    Assessment,
+    CourseOffering,
+    Enrollment,
+    Grade,
+    LearningOutcome,
+    LOPOWeight,
+    ProgramOutcome,
+    Term,
+)
 from .services import (
     DEPARTMENT_MIN_STUDENTS,
+    attempt_order,
+    counting_enrollment_ids,
     department_po_scores,
     display,
     po_report,
@@ -217,6 +235,7 @@ def student_profile(request, student_id):
     return render(request, "grading/student_profile.html", {
         "student": student,
         "rows": rows,
+        "retakes": _retakes(student, enrollments),
         "target": display(target, "1"),
         "own_profile": own_profile,
         "all_courses": own_profile or role_of(request.user) == HEAD,
@@ -224,6 +243,38 @@ def student_profile(request, student_id):
         "from_report": from_report,
         "nav": "home" if own_profile else None,
     })
+
+
+def _retakes(student, enrollments):
+    """Courses the student took more than once, each attempt the viewer may see,
+    and whether it counts across courses (#104). Empty for most students."""
+    every = Enrollment.objects.filter(student=student)
+    repeated = (
+        every.values("offering__course_id").annotate(n=Count("id")).filter(n__gt=1)
+        .values_list("offering__course_id", flat=True)
+    )
+    if not repeated:
+        return []
+    visible = (enrollments if enrollments is not None else Enrollment.objects.all()).filter(
+        student=student, offering__course_id__in=list(repeated),
+    ).select_related("offering__course", "offering__term")
+    counting = counting_enrollment_ids(student)
+    counted_order = {
+        e.offering.course_id: attempt_order(e.offering)
+        for e in every.filter(pk__in=counting).select_related("offering__term")
+    }
+    courses = {}
+    for enrollment in sorted(visible, key=lambda e: attempt_order(e.offering)):
+        if enrollment.pk in counting:
+            status = "counts"
+        elif not enrollment.grades.exists():
+            status = "no grades"
+        elif attempt_order(enrollment.offering) < counted_order.get(enrollment.offering.course_id, (0,)):
+            status = "replaced"
+        else:
+            status = "no grades"
+        courses.setdefault(enrollment.offering.course, []).append({"enrollment": enrollment, "status": status})
+    return [{"course": course, "attempts": attempts} for course, attempts in courses.items()]
 
 
 def _from_report(request, student):
@@ -262,7 +313,8 @@ def _ring(explanation):
         courses.setdefault(part.course, []).append({
             "name": part.label,
             "value": float(part.contribution),
-            "label": f"{part.course} {part.label}: {display(part.contribution)}",
+            # An f-string would bypass the active language's number format (#49).
+            "label": f"{part.course} {part.label}: {number_format(display(part.contribution), 1)}",
         })
     data = [
         {"name": course, "children": children, "value": sum(c["value"] for c in children)}
@@ -292,10 +344,11 @@ def po_detail(request, student_id, po_code):
             links.append({"from": _grade_name(leaf, grades, multi_course), "to": _lo_name(lo, multi_course),
                           "weight": float(lo.share * weight)})
         links.append({"from": _lo_name(lo, multi_course), "to": po_code, "weight": float(lo.share)})
+    grades_column, los_column = _("Grades"), _("Learning outcomes")
     points = (
-        [{"column": "Grades", "name": _grade_name(p.key, grades, multi_course), "score": float(p.score)}
+        [{"column": grades_column, "name": _grade_name(p.key, grades, multi_course), "score": float(p.score)}
          for p in grades]
-        + [{"column": "Learning outcomes", "name": _lo_name(lo, multi_course), "score": float(lo.score)}
+        + [{"column": los_column, "name": _lo_name(lo, multi_course), "score": float(lo.score)}
            for lo in lo_by_key.values()]
         + [{"column": po_code, "name": po_code, "score": float(explanation.score)}]
     )
@@ -316,7 +369,16 @@ def po_detail(request, student_id, po_code):
              "weight": display(lo.share * 100)}
             for lo in explanation.los
         ],
-        "chart": {"points": points, "links": links, "po": po_code},
+        "chart": {
+            "points": points, "links": links, "po": po_code,
+            "columns": [grades_column, los_column, po_code],
+            # slope.js fills in the "%(…)s" tokens; the %% here is only so the
+            # translated string keeps a literal "%" once this % substitutes
+            # each token back onto itself, leaving the tokens for slope.js.
+            "link_title": _("%(from)s to %(to)s: %(percent)s%% of %(po)s") % {
+                "from": "%(from)s", "to": "%(to)s", "percent": "%(percent)s", "po": "%(po)s",
+            },
+        },
         "from_report": from_report,
         "nav": "home" if own_profile else None,
     })
@@ -365,7 +427,7 @@ def grade_import(request, assessment_id):
 
     if is_grid_request:
         return JsonResponse(
-            {"message": "Grades changed while you were saving. Reload the page and try again."},
+            {"message": _("Grades changed while you were saving. Reload the page and try again.")},
             status=409,
         )
     assessment = _gradable_assessment(request, assessment_id)
@@ -375,7 +437,7 @@ def grade_import(request, assessment_id):
     return _import_page(
         request,
         assessment,
-        errors=["Someone changed these grades at the same time, so nothing was saved. Choose the files again."],
+        errors=[_("Someone changed these grades at the same time, so nothing was saved. Choose the files again.")],
         status=409,
     )
 
@@ -404,7 +466,9 @@ def _gradable_assessment(request, assessment_id):
 def _import_page(request, assessment, status=200, **context):
     enrollments = assessment.offering.enrollments.select_related("student").order_by("student__username")
     current = {
-        grade.enrollment_id: "absent" if grade.status == Grade.Status.ABSENT else f"{grade.score.normalize():f}"
+        # number_format(), not an f-string: the grid shows this value, so it
+        # should read in the active language like every other number (#49).
+        grade.enrollment_id: _("absent") if grade.status == Grade.Status.ABSENT else number_format(grade.score.normalize())
         for grade in assessment.term_grades()
     }
     paste_rows = [
@@ -426,15 +490,41 @@ def _import_page(request, assessment, status=200, **context):
             "nav": "home",
             "paste_rows": paste_rows,
             "paste_students": paste_students,
+            "grid_strings": _grid_strings(),
             **context,
         },
         status=status,
     )
 
+
+def _grid_strings():
+    """Text for the paste-grades grid (grading/grade_paste.js), translated per request (#49).
+
+    "%(n)s" is a placeholder the grid fills in with the actual count; it is
+    not a Python % operation, so the literal text reaches the template.
+    """
+    return {
+        "could_not_load": _("The grade grid could not load."),
+        "student_number": _("Student number"),
+        "name": _("Name"),
+        "current": _("Current"),
+        "score": _("Score"),
+        "click_or_tab": _("Click or Tab to the cell where the paste should start."),
+        "paste_one_column": _("Paste one score column into a score cell."),
+        "paste_two_columns": _("Paste student numbers and scores into a student number cell."),
+        "does_not_fit": _("The pasted rows do not fit below the selected cell."),
+        "rows_pasted": _("%(n)s rows pasted. Check the student numbers before saving."),
+        "saving": _("Saving…"),
+        "grade_saved_one": _("%(n)s grade saved."),
+        "grade_saved_other": _("%(n)s grades saved."),
+        "nothing_saved": _("Nothing was saved. Fix the highlighted cells and try again."),
+        "save_unconfirmed": _("The save could not be confirmed. Check the grades before retrying."),
+    }
+
 def _upload(request, assessment):
     files = request.FILES.getlist("csv_file")
     if not files:
-        return _import_page(request, assessment, errors=["Choose at least one CSV file."])
+        return _import_page(request, assessment, errors=[_("Choose at least one CSV file.")])
 
     enrollments = {e.student.username: e for e in assessment.offering.enrollments.select_related("student")}
     parsed = parse_grade_files(files, assessment, enrollments)
@@ -451,7 +541,7 @@ def _save_pasted_grades(request, assessment):
     try:
         payload = json.loads(request.body)
     except (json.JSONDecodeError, UnicodeDecodeError):
-        return JsonResponse({"message": "Invalid grade grid data."}, status=400)
+        return JsonResponse({"message": _("Invalid grade grid data.")}, status=400)
 
     rows = payload.get("rows") if isinstance(payload, dict) else None
     if not isinstance(rows, list) or any(
@@ -460,7 +550,7 @@ def _save_pasted_grades(request, assessment):
         or not isinstance(row.get("score"), str)
         for row in rows
     ):
-        return JsonResponse({"message": "Invalid grade grid data."}, status=400)
+        return JsonResponse({"message": _("Invalid grade grid data.")}, status=400)
 
     enrollments = {
         enrollment.student.username: enrollment
@@ -471,7 +561,7 @@ def _save_pasted_grades(request, assessment):
     if errors:
         return JsonResponse({"errors": errors}, status=400)
     if not scores:
-        return JsonResponse({"message": "Enter at least one score."}, status=400)
+        return JsonResponse({"message": _("Enter at least one score.")}, status=400)
 
     _save_scores(assessment, scores)
     return JsonResponse({"saved_count": len(scores)})
@@ -482,8 +572,11 @@ def _preview(request, assessment, enrollments, parsed):
     for enrollment, score in parsed.rows:
         old = existing.get(enrollment.pk)
         if old is not None and (old.status, old.score) != (Grade.Status.GRADED, score):
-            shown = "absent" if old.status == Grade.Status.ABSENT else old.score
-            changes.append(f"{enrollment.student.username}: {shown} to {score}")
+            # number_format(), not %s: a Decimal's str() ignores the active language (#49).
+            shown = _("absent") if old.status == Grade.Status.ABSENT else number_format(old.score, 2)
+            changes.append(_("%(username)s: %(old)s to %(new)s") % {
+                "username": enrollment.student.username, "old": shown, "new": number_format(score, 2),
+            })
 
     missing = sorted(enrollments.keys() - parsed.locations.keys())
     # A student who already has a grade keeps it; only the rest can be marked absent.
@@ -517,15 +610,15 @@ def _confirm_preview(request, assessment):
         preview = None
 
     if preview is None or preview["assessment_id"] != assessment.pk or preview["user_id"] != request.user.pk:
-        error = "The preview is invalid or has expired. Preview the files again."
+        error = _("The preview is invalid or has expired. Preview the files again.")
     elif preview["max_score"] != str(assessment.max_score):
-        error = "The maximum score of this assessment changed. Preview the files again."
+        error = _("The maximum score of this assessment changed. Preview the files again.")
     elif preview["enrollment_ids"] != sorted(assessment.offering.enrollments.values_list("pk", flat=True)):
-        error = "Enrollments in this course changed. Preview the files again."
+        error = _("Enrollments in this course changed. Preview the files again.")
     elif preview["grades"] != grades_fingerprint(assessment):
-        error = "Grades for this assessment changed after the preview, or it was already saved. Preview again."
+        error = _("Grades for this assessment changed after the preview, or it was already saved. Preview again.")
     elif not set(request.POST.getlist("absent_students")) <= preview["absent_candidates"].keys():
-        error = "Only students suggested in the preview can be marked absent."
+        error = _("Only students suggested in the preview can be marked absent.")
     else:
         error = None
     if error:
@@ -574,3 +667,167 @@ def demo_switch(request, role):
         raise Http404
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     return redirect("home")
+
+
+# Learning outcomes and LO-PO levels from the Bologna catalogue (#85, #86, #87)
+
+SYLLABUS_SALT = "grading.syllabus_import"
+MAX_LOS = 20
+
+
+def _outcome_fingerprint(offering):
+    """What the offering's LOs and levels are now: a preview confirmed after a change elsewhere is refused."""
+    rows = sorted(
+        (lo.code, lo.description, tuple(sorted((w.component_id, w.weight) for w in lo.po_weights.all())))
+        for lo in offering.learning_outcomes.prefetch_related("po_weights")
+    )
+    return hashlib.sha256(repr(rows).encode()).hexdigest()
+
+
+def _po_number(code):
+    digits = re.search(r"\d+", code)
+    return int(digits.group()) if digits else None
+
+
+def _program_outcomes():
+    pos = [po for po in ProgramOutcome.objects.prefetch_related("components") if _po_number(po.code) is not None]
+    return sorted(pos, key=lambda po: _po_number(po.code))
+
+
+@login_required
+def syllabus_import(request, offering_id):
+    """Set an offering's LOs and LO-PO levels from its Bologna catalogue page.
+
+    Reading the catalogue (or an uploaded copy of the page) saves nothing: the
+    instructor sees every LO and level, fixes them, and only "Save" writes, in
+    one transaction. LOs are matched by code (LO1, LO2, ...): their text and
+    levels are replaced, other LOs and every assessment weight stay. A level
+    for a PO goes to each of its components. Only the offering's instructors
+    get past the 404.
+    """
+    offering = get_object_or_404(
+        CourseOffering.objects.select_related("course", "term"),
+        pk=offering_id,
+        pk__in=grade_entry_offerings(request.user).values("pk"),
+    )
+    pos = _program_outcomes()
+    if request.method != "POST":
+        return _syllabus_page(request, offering, pos)
+
+    action = request.POST.get("action")
+    if action == "save":
+        return _save_syllabus(request, offering, pos)
+    try:
+        if action == "upload":
+            uploaded = request.FILES.get("page")
+            if uploaded is None:
+                raise CatalogueError(_("Choose the saved course page first."))
+            if uploaded.size > bologna.MAX_PAGE_SIZE:
+                raise CatalogueError(_("The file is larger than 10 MB."))
+            syllabus = bologna.parse_course_page(bologna.decode_page(uploaded.read()))
+        else:
+            syllabus = bologna.fetch_course(offering.course.code, get_language() or "en")
+    except CatalogueError as error:
+        return _syllabus_page(request, offering, pos, errors=[str(error)], status=400)
+    if len(syllabus.los) > MAX_LOS:
+        syllabus.problems.append(_("Only the first %(n)s learning outcomes are shown.") % {"n": MAX_LOS})
+        syllabus.los = syllabus.los[:MAX_LOS]
+
+    numbers = {_po_number(po.code) for po in pos}
+    for po in pos:
+        if not po.components.all():
+            syllabus.problems.append(
+                _("%(po)s has no components yet, so its levels cannot be saved. Add them in the admin.") % {"po": po.code}
+            )
+    for missing in sorted(set(syllabus.pos) - numbers):
+        syllabus.problems.append(
+            _("The catalogue has P%(n)s, which is not a program outcome here; its levels are left out.") % {"n": missing}
+        )
+    if syllabus.code and syllabus.code.replace(" ", "").upper() != offering.course.code.replace(" ", "").upper():
+        syllabus.problems.append(
+            _("This page is for %(page)s, not %(course)s. Check it is the right course before saving.")
+            % {"page": syllabus.code, "course": offering.course.code}
+        )
+    elif syllabus.title and syllabus.title.casefold() != offering.course.name.casefold() and syllabus.english:
+        syllabus.problems.append(
+            _("The catalogue calls this course %(page)s, here it is %(course)s. Check it is the same course before saving.")
+            % {"page": syllabus.title, "course": offering.course.name}
+        )
+    current = {lo.code: lo.description for lo in offering.learning_outcomes.all()}
+    rows = []
+    for index, text in enumerate(syllabus.los):
+        code = f"LO{index + 1}"
+        rows.append({
+            "index": index,
+            "code": code,
+            "text": text,
+            "current": current.get(code),
+            "levels": [(po, syllabus.levels.get((index, _po_number(po.code)))) for po in pos],
+        })
+    kept = sorted(set(current) - {row["code"] for row in rows})
+    token = signing.dumps(
+        {"offering": offering.pk, "user": request.user.pk, "fingerprint": _outcome_fingerprint(offering)},
+        salt=SYLLABUS_SALT,
+    )
+    return _syllabus_page(request, offering, pos, syllabus=syllabus, rows=rows, kept=kept, token=token)
+
+
+def _syllabus_page(request, offering, pos, status=200, **context):
+    return render(request, "grading/syllabus_import.html", {
+        "offering": offering,
+        "pos": pos,
+        "levels": range(1, 6),
+        "current_los": offering.learning_outcomes.prefetch_related("po_weights__component__program_outcome"),
+        **context,
+    }, status=status)
+
+
+def _save_syllabus(request, offering, pos):
+    try:
+        token = signing.loads(request.POST.get("token", ""), salt=SYLLABUS_SALT, max_age=60 * 60)
+    except signing.BadSignature:
+        token = None
+    if not token or token.get("offering") != offering.pk or token.get("user") != request.user.pk:
+        return _syllabus_page(request, offering, pos, errors=[_("The preview is invalid or has expired. Read the catalogue again.")], status=400)
+
+    texts = request.POST.getlist("lo_text")[:MAX_LOS]
+    errors = []
+    levels = {}
+    for index, text in enumerate(texts):
+        if not text.strip():
+            errors.append(_("LO%(n)s has no text.") % {"n": index + 1})
+        for po in pos:
+            raw = request.POST.get(f"level_{index}_{po.pk}", "")
+            if raw == "":
+                continue
+            if raw not in {"1", "2", "3", "4", "5"}:
+                errors.append(_("LO%(n)s, %(po)s: the level must be 1 to 5.") % {"n": index + 1, "po": po.code})
+                continue
+            levels[(index, po.pk)] = int(raw)
+    if not texts:
+        errors.append(_("There is no learning outcome to save."))
+    if errors:
+        return _syllabus_page(request, offering, pos, errors=errors, status=400)
+
+    components = {po.pk: list(po.components.all()) for po in pos}
+    with transaction.atomic():
+        CourseOffering.objects.select_for_update().get(pk=offering.pk)
+        if _outcome_fingerprint(offering) != token.get("fingerprint"):
+            return _syllabus_page(request, offering, pos, errors=[
+                _("The learning outcomes of this course changed after the preview. Read the catalogue again.")
+            ], status=409)
+        saved_levels = 0
+        for index, text in enumerate(texts):
+            lo, _created = LearningOutcome.objects.update_or_create(
+                offering=offering, code=f"LO{index + 1}", defaults={"description": text.strip()},
+            )
+            # Only the POs on the form; a level for any other PO stays.
+            lo.po_weights.filter(component__program_outcome__in=pos).delete()
+            for po in pos:
+                level = levels.get((index, po.pk))
+                if level is None or not components[po.pk]:
+                    continue
+                saved_levels += 1
+                for component in components[po.pk]:
+                    LOPOWeight.objects.create(learning_outcome=lo, component=component, weight=level)
+    return _syllabus_page(request, offering, pos, saved=len(texts), saved_levels=saved_levels)

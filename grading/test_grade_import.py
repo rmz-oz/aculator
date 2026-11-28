@@ -1,5 +1,6 @@
 import re
 from decimal import Decimal
+from pathlib import Path
 from unittest.mock import patch
 
 import psycopg
@@ -41,6 +42,76 @@ class GradeImportTests(TransactionTestCase):
             for i in range(1, 4)
         ]
         self.client.force_login(self.instructor)
+    def test_import_errors_explain_how_to_fix_the_file(self):
+        Enrollment.objects.create(
+            offering=self.offering,
+            student=self.make_user("020230004", STUDENT),
+        )
+        demo_files = Path(__file__).resolve().parents[1] / "docs" / "demo_files"
+        cases = [
+            (
+                "04_excel_trailing_columns.csv",
+                (demo_files / "04_excel_trailing_columns.csv").read_bytes(),
+                "The header has trailing empty columns.",
+                "Delete the empty columns on the right",
+            ),
+            (
+                "trailing-row.csv",
+                HEADER + b"20230001,10,,\n",
+                "line 2: This row has trailing empty columns.",
+                "Remove the extra separators",
+            ),
+            (
+                "turkish-header.csv",
+                "Öğrenci No;Not\n20230001;10\n".encode(),
+                "The file uses Turkish column names.",
+                "and keep only those two columns.",
+            ),
+            (
+                "05_optical_reader.csv",
+                (demo_files / "05_optical_reader.csv").read_bytes(),
+                "This file is tab-separated.",
+                "name them student_number and score",
+            ),
+            (
+                "07_xlsx_renamed.csv",
+                (demo_files / "07_xlsx_renamed.csv").read_bytes(),
+                "This file is an Excel workbook.",
+                "use Save As to export it",
+            ),
+            (
+                "08_decimal_comma_in_comma_file.csv",
+                (demo_files / "08_decimal_comma_in_comma_file.csv").read_bytes(),
+                "Score 51,4 uses a decimal comma in a comma-separated CSV.",
+                "Use a decimal point (51.4)",
+            ),
+            (
+                "scientific.csv",
+                HEADER + b"2.02E+07,10\n",
+                "Student number 2.02E+07 is in scientific notation.",
+                "enter the original student number from the class list",
+            ),
+            (
+                "leading-zero.csv",
+                HEADER + b"20230004,10\n",
+                "Student number 20230004 is missing one or more leading zeros.",
+                "Restore them from the class list",
+            ),
+            (
+                "extra-leading-zero.csv",
+                HEADER + b"0020230004,10\n",
+                "0020230004 is not enrolled in this course.",
+                "line 2",
+            ),
+    ]
+
+        for name, content, cause, fix in cases:
+            with self.subTest(name=name):
+                response = self.upload(csv_file(content, name))
+                self.assertContains(response, name)
+                self.assertContains(response, cause)
+                self.assertContains(response, fix)
+                self.assertFalse(Grade.objects.exists())
 
     def test_paste_grid_shows_current_grade_for_each_student(self):
         Grade.objects.create(assessment=self.assessment, enrollment=self.enrollments[0], score=D("12.5"))
@@ -305,7 +376,9 @@ class GradeImportTests(TransactionTestCase):
             other = self.upload(csv_file(HEADER + b"20230001,41\n"))
 
         self.assertContains(same, "These grades were already saved")
-        self.assertNotContains(same, "Nothing was saved")
+        # Not a text search: the grid's own JS strings (#49) include this
+        # phrase too, for an unrelated client-side message.
+        self.assertNotContains(same, 'id="problems-title"')
         self.assertContains(other, "Choose the files again.", status_code=409)
 
     def test_failed_view_refresh_after_commit_still_reports_the_save(self):
@@ -375,3 +448,27 @@ class GradeImportTests(TransactionTestCase):
         self.assertEqual(change.changed_by, admin_user.username)
         self.assertEqual(D(str(change.before["score"])), D("10.00"))
         self.assertIsNone(change.after)
+
+
+class TurkishImportMessageTests(TransactionTestCase):
+    """The import's error messages follow the interface language (#49, #106)."""
+
+    setUp = GradeImportTests.setUp
+    make_user = GradeImportTests.make_user
+
+    def post_tr(self, content, name="grades.csv"):
+        self.client.force_login(self.instructor)
+        return self.client.post(
+            self.url, {"action": "preview", "csv_file": csv_file(content, name)}, HTTP_ACCEPT_LANGUAGE="tr",
+        )
+
+    def test_row_errors_are_in_turkish(self):
+        response = self.post_tr(HEADER + b"20230001,60\n20239999,10\n")
+        self.assertContains(response, "grades.csv, satır 2: Puan 0 ile 50,00 arasında olmalı.")
+        self.assertContains(response, "grades.csv, satır 3: 20239999 bu derse kayıtlı değil.")
+
+    def test_file_errors_are_in_turkish(self):
+        response = self.post_tr(b"student_number;score;;\n20230001;40;;\n")
+        self.assertContains(response, "Başlık satırının sonunda boş sütunlar var.")
+        response = self.post_tr(b"student_number,score\n20230001,\"40,5\"\n")
+        self.assertContains(response, "ondalık virgül kullanılmış")

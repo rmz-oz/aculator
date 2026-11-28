@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.translation import gettext_lazy as _
 
 from . import models as m
 from .access import HEAD, role_of
@@ -12,6 +13,7 @@ class LearningOutcomeInline(admin.TabularInline):
 class AssessmentInline(admin.TabularInline):
     model = m.Assessment
     extra = 0
+    autocomplete_fields = ("replaces",)
 
 
 class EnrollmentInline(admin.TabularInline):
@@ -96,7 +98,7 @@ class AssessmentAdmin(admin.ModelAdmin):
     list_filter = ("offering__term",)
     list_select_related = ("offering__course", "offering__term")
     search_fields = ("name", "offering__course__code")
-    autocomplete_fields = ("offering",)
+    autocomplete_fields = ("offering", "replaces")
     inlines = (AssessmentLOWeightInline,)
 
 
@@ -138,7 +140,7 @@ class GradeChangeAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-    @admin.display(description="Score")
+    @admin.display(description=_("Score"))
     def score_change(self, obj):
         def score(row):
             if not row:

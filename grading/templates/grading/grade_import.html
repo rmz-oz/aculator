@@ -1,49 +1,50 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}Import grades{% if assessment %}, {{ assessment.offering.course.code }} {{ assessment.name }}{% endif %}{% endblock %}
+{% load i18n static %}
+{% block title %}{% trans "Import grades" %}{% if assessment %}, {{ assessment.offering.course.code }} {{ assessment.name }}{% endif %}{% endblock %}
 {% block content %}
 {% if assessment %}<p class="eyebrow"><a href="{% url 'course_report' assessment.offering.pk %}">{{ assessment.offering.course.code }} {{ assessment.offering.course.name }}</a>, {{ assessment.offering.term }}</p>{% endif %}
-<h1>Import {% if assessment %}{{ assessment.name }} {% endif %}grades</h1>
-{% if assessment %}<p class="lede">Scores out of {{ assessment.max_score|floatformat:"-2" }}. Preview first to see what changes and to mark students who missed the assessment; nothing is saved until you confirm.</p>{% endif %}
+<h1>{% if assessment %}{% blocktrans with name=assessment.name %}Import {{ name }} grades{% endblocktrans %}{% else %}{% trans "Import grades" %}{% endif %}</h1>
+{% if assessment %}<p class="lede">{% blocktrans with max_score=assessment.max_score|floatformat:"-2" %}Scores out of {{ max_score }}. Preview first to see what changes and to mark students who missed the assessment; nothing is saved until you confirm.{% endblocktrans %}</p>{% endif %}
 <section aria-labelledby="paste-grades-title">
-  <h2 id="paste-grades-title">Paste grades from Excel</h2>
+  <h2 id="paste-grades-title">{% trans "Paste grades from Excel" %}</h2>
   <p id="paste-grades-help">
-    For one column, check that Excel follows the student order shown here; the name and current grade help you check.
+    {% blocktrans %}For one column, check that Excel follows the student order shown here; the name and current grade help you check.
     Click the first score cell and paste. For two columns, paste student
     numbers and scores into the first student number cell. Leave a score
-    blank to keep that student's grade unchanged.
+    blank to keep that student's grade unchanged.{% endblocktrans %}
   </p>
 
   <form id="paste-grades" method="post">
     {% csrf_token %}
     <div id="grade-grid" tabindex="0" aria-describedby="paste-grades-help"></div>
     <p id="paste-grades-status" aria-live="polite"></p>
-    <button class="action" type="submit" disabled>Save pasted grades</button>
+    <button class="action" type="submit" disabled>{% trans "Save pasted grades" %}</button>
   </form>
 
   {{ paste_rows|json_script:"grade-grid-data" }}
   {{ paste_students|json_script:"grade-grid-students" }}
+  {{ grid_strings|json_script:"grade-grid-strings" }}
 </section>
 {% if errors %}
 <section class="problems" role="alert" aria-labelledby="problems-title">
-  <h2 id="problems-title">Nothing was saved</h2>
+  <h2 id="problems-title">{% trans "Nothing was saved" %}</h2>
   <ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
 </section>
 {% endif %}
 
 {% if saved_count or absent_count %}
-<p class="notice done" role="status">{{ saved_count }} grade{{ saved_count|pluralize }} saved{% if absent_count %}, {{ absent_count }} student{{ absent_count|pluralize }} marked absent{% endif %}.
-  {% if assessment %}<a href="{% url 'course_report' assessment.offering.pk %}">Open the class report</a>.{% endif %}</p>
+<p class="notice done" role="status">{% blocktrans count counter=saved_count %}{{ counter }} grade saved{% plural %}{{ counter }} grades saved{% endblocktrans %}{% if absent_count %}, {% blocktrans count counter=absent_count %}{{ counter }} student marked absent{% plural %}{{ counter }} students marked absent{% endblocktrans %}{% endif %}.
+  {% if assessment %}<a href="{% url 'course_report' assessment.offering.pk %}">{% trans "Open the class report" %}</a>.{% endif %}</p>
 {% endif %}
 
 {% if already_saved %}
-<p class="notice done" role="status">These grades were already saved, most likely by a first click. Nothing changed.
-  <a href="{% url 'course_report' assessment.offering.pk %}">Open the class report</a>.</p>
+<p class="notice done" role="status">{% trans "These grades were already saved, most likely by a first click. Nothing changed." %}
+  <a href="{% url 'course_report' assessment.offering.pk %}">{% trans "Open the class report" %}</a>.</p>
 {% endif %}
 
 {% if preview_token %}
-<h2>Preview</h2>
-<p class="notice">{{ preview_count }} grade{{ preview_count|pluralize }} will be saved{% if changes %}, {{ changes|length }} of them replacing an existing grade{% endif %}.</p>
+<h2>{% trans "Preview" %}</h2>
+<p class="notice">{% blocktrans count counter=preview_count %}{{ counter }} grade will be saved{% plural %}{{ counter }} grades will be saved{% endblocktrans %}{% if changes %}, {% blocktrans count counter=changes|length %}{{ counter }} of them replacing an existing grade{% plural %}{{ counter }} of them replacing an existing grade{% endblocktrans %}{% endif %}.</p>
 <form method="post">
   {% csrf_token %}
   <input type="hidden" name="action" value="confirm">
@@ -51,44 +52,44 @@
   <div class="split">
     {% if changes %}
     <div>
-      <h3>Replaced grades</h3>
+      <h3>{% trans "Replaced grades" %}</h3>
       <ul>{% for change in changes %}<li>{{ change }}</li>{% endfor %}</ul>
     </div>
     {% endif %}
     {% if absent_candidates %}
     <div>
-      <h3>In no file</h3>
-      <p class="muted">Tick the students who missed the assessment. They count as 0. Leave the rest without a grade.</p>
+      <h3>{% trans "In no file" %}</h3>
+      <p class="muted">{% trans "Tick the students who missed the assessment. They count as 0. Leave the rest without a grade." %}</p>
       {% for number in absent_candidates %}
-        <label class="check"><input type="checkbox" name="absent_students" value="{{ number }}"> {{ number }} was absent</label>
+        <label class="check"><input type="checkbox" name="absent_students" value="{{ number }}"> {% blocktrans %}{{ number }} was absent{% endblocktrans %}</label>
       {% endfor %}
     </div>
     {% endif %}
     {% if kept %}
     <div>
-      <h3>Kept as they are</h3>
-      <p class="muted">In no file, but already graded.</p>
+      <h3>{% trans "Kept as they are" %}</h3>
+      <p class="muted">{% trans "In no file, but already graded." %}</p>
       <ul>{% for number in kept %}<li>{{ number }}</li>{% endfor %}</ul>
     </div>
     {% endif %}
   </div>
-  <div class="actions"><button class="action large" type="submit">Confirm and save</button></div>
+  <div class="actions"><button class="action large" type="submit">{% trans "Confirm and save" %}</button></div>
 </form>
 {% endif %}
 
 {% if assessment %}
-<h2>{% if preview_token %}Different files{% else %}Files{% endif %}</h2>
+<h2>{% if preview_token %}{% trans "Different files" %}{% else %}{% trans "Files" %}{% endif %}</h2>
 <form method="post" enctype="multipart/form-data" id="upload">
   {% csrf_token %}
   <div class="drop" id="drop">
-    <input id="csv_file" name="csv_file" type="file" accept=".csv,text/csv" multiple required aria-label="CSV files" aria-describedby="csv-format">
-    <p class="prompt">Drop CSV files here or <strong>choose files</strong></p>
-    <p class="format" id="csv-format">A header row <span class="num">student_number,score</span>, then one row per student. Semicolons and a decimal comma also work. A student may appear only once across all files.</p>
+    <input id="csv_file" name="csv_file" type="file" accept=".csv,text/csv" multiple required aria-label="{% trans "CSV files" %}" aria-describedby="csv-format">
+    <p class="prompt">{% blocktrans %}Drop CSV files here or <strong>choose files</strong>{% endblocktrans %}</p>
+    <p class="format" id="csv-format">{% blocktrans %}A header row <span class="num">student_number,score</span>, then one row per student. Semicolons and a decimal comma also work. A student may appear only once across all files.{% endblocktrans %}</p>
     <ul class="chosen" id="chosen" aria-live="polite"></ul>
   </div>
   <div class="actions">
-    <button class="action large" type="submit" name="action" value="preview">Preview</button>
-    <button class="action quiet" type="submit" name="action" value="import">Import without preview</button>
+    <button class="action large" type="submit" name="action" value="preview">{% trans "Preview" %}</button>
+    <button class="action quiet" type="submit" name="action" value="import">{% trans "Import without preview" %}</button>
   </div>
 </form>
 {% endif %}
