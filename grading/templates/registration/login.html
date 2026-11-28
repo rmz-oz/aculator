@@ -1,30 +1,30 @@
 {% extends "base.html" %}
-{% block title %}Sign in, aculator{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Sign in" %}, aculator{% endblock %}
 {% block content %}
 <div class="signin">
   <div>
-    <h1>Program outcomes, from every grade.</h1>
-    <p class="lede">Instructors import assessment grades. Every learning outcome and program outcome score follows
-      from them, with no rounding until the number is shown.</p>
+    <h1>{% trans "Program outcomes, from every grade." %}</h1>
+    <p class="lede">{% trans "Instructors import assessment grades. Every learning outcome and program outcome score follows from them, with no rounding until the number is shown." %}</p>
   </div>
   <form method="post" action="{% url 'login' %}" novalidate>
     {% csrf_token %}
     {% if form.errors %}
-      <p class="problems" role="alert">Wrong username or password.</p>
+      <p class="problems" role="alert">{% trans "Wrong username or password." %}</p>
     {% endif %}
     <div class="field">
-      <label for="{{ form.username.id_for_label }}">Username</label>
+      <label for="{{ form.username.id_for_label }}">{% trans "Username" %}</label>
       <input type="text" name="{{ form.username.html_name }}" id="{{ form.username.id_for_label }}"
              value="{{ form.username.value|default:'' }}" autocomplete="username" autocapitalize="none" autofocus required>
     </div>
     <div class="field">
-      <label for="{{ form.password.id_for_label }}">Password</label>
+      <label for="{{ form.password.id_for_label }}">{% trans "Password" %}</label>
       <input type="password" name="{{ form.password.html_name }}" id="{{ form.password.id_for_label }}"
              autocomplete="current-password" required>
     </div>
     <input type="hidden" name="next" value="{{ next }}">
-    <div class="actions"><button class="action large" type="submit">Sign in</button></div>
+    <div class="actions"><button class="action large" type="submit">{% trans "Sign in" %}</button></div>
   </form>
-  {% if demo_roles %}{% include "grading/demo_switch.html" with label="Demo, sign in as" %}{% endif %}
+  {% if demo_roles %}{% trans "Demo, sign in as" as demo_label %}{% include "grading/demo_switch.html" with label=demo_label %}{% endif %}
 </div>
 {% endblock %}

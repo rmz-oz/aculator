@@ -376,7 +376,9 @@ class GradeImportTests(TransactionTestCase):
             other = self.upload(csv_file(HEADER + b"20230001,41\n"))
 
         self.assertContains(same, "These grades were already saved")
-        self.assertNotContains(same, "Nothing was saved")
+        # Not a text search: the grid's own JS strings (#49) include this
+        # phrase too, for an unrelated client-side message.
+        self.assertNotContains(same, 'id="problems-title"')
         self.assertContains(other, "Choose the files again.", status_code=409)
 
     def test_failed_view_refresh_after_commit_still_reports_the_save(self):
@@ -446,3 +448,27 @@ class GradeImportTests(TransactionTestCase):
         self.assertEqual(change.changed_by, admin_user.username)
         self.assertEqual(D(str(change.before["score"])), D("10.00"))
         self.assertIsNone(change.after)
+
+
+class TurkishImportMessageTests(TransactionTestCase):
+    """The import's error messages follow the interface language (#49, #106)."""
+
+    setUp = GradeImportTests.setUp
+    make_user = GradeImportTests.make_user
+
+    def post_tr(self, content, name="grades.csv"):
+        self.client.force_login(self.instructor)
+        return self.client.post(
+            self.url, {"action": "preview", "csv_file": csv_file(content, name)}, HTTP_ACCEPT_LANGUAGE="tr",
+        )
+
+    def test_row_errors_are_in_turkish(self):
+        response = self.post_tr(HEADER + b"20230001,60\n20239999,10\n")
+        self.assertContains(response, "grades.csv, satır 2: Puan 0 ile 50,00 arasında olmalı.")
+        self.assertContains(response, "grades.csv, satır 3: 20239999 bu derse kayıtlı değil.")
+
+    def test_file_errors_are_in_turkish(self):
+        response = self.post_tr(b"student_number;score;;\n20230001;40;;\n")
+        self.assertContains(response, "Başlık satırının sonunda boş sütunlar var.")
+        response = self.post_tr(b"student_number,score\n20230001,\"40,5\"\n")
+        self.assertContains(response, "ondalık virgül kullanılmış")

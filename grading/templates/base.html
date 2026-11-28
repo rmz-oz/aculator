@@ -1,5 +1,5 @@
-{% load static %}<!doctype html>
-<html lang="en">
+{% load i18n static %}<!doctype html>
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,17 +10,22 @@
   <link rel="stylesheet" href="{% static 'grading/aculator.css' %}">
 </head>
 <body>
-<a class="skip" href="#content">Skip to content</a>
+<a class="skip" href="#content">{% trans "Skip to content" %}</a>
 <header class="masthead">
   <a class="wordmark" href="{% if user.is_authenticated %}{% url 'home' %}{% else %}{% url 'login' %}{% endif %}">aculator</a>
   {% if user.is_authenticated %}
-  <nav class="nav" aria-label="Main">
-    <a href="{% url 'home' %}"{% if nav == 'home' %} aria-current="page"{% endif %}>{% if role == 'Student' %}My outcomes{% else %}Courses{% endif %}</a>
+  <nav class="nav" aria-label="{% trans "Main" %}">
+    <a href="{% url 'home' %}"{% if nav == 'home' %} aria-current="page"{% endif %}>{% if role == 'Student' %}{% trans "My outcomes" %}{% else %}{% trans "Courses" %}{% endif %}</a>
   </nav>
   <div class="who">
-    {% if demo_roles %}{% include "grading/demo_switch.html" with label="View as" %}{% endif %}
-    <span>{{ user.get_full_name|default:user.username }}{% if role %}, {{ role|lower }}{% endif %}</span>
-    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="action quiet" type="submit">Sign out</button></form>
+    {% if demo_roles %}{% trans "View as" as view_as_label %}{% include "grading/demo_switch.html" with label=view_as_label %}{% endif %}
+    {% include "grading/language_switch.html" %}
+    <span>{{ user.get_full_name|default:user.username }}{% if role %}, {% if role == 'Student' %}{% trans "student" %}{% elif role == 'Instructor' %}{% trans "instructor" %}{% else %}{% trans "head of department" %}{% endif %}{% endif %}</span>
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="action quiet" type="submit">{% trans "Sign out" %}</button></form>
+  </div>
+  {% else %}
+  <div class="who">
+    {% include "grading/language_switch.html" %}
   </div>
   {% endif %}
 </header>

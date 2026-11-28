@@ -1,11 +1,15 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}{{ student.get_full_name|default:student.username }}, program outcomes{% endblock %}
+{% load i18n static %}
+{% block title %}{{ student.get_full_name|default:student.username }}, {% trans "program outcomes" %}{% endblock %}
 {% block content %}
-<p class="eyebrow">{% if from_report %}<a href="{% url 'course_report' from_report.pk %}">{{ from_report.course.code }}, {{ from_report.term }} class report</a>{% elif own_profile %}Your program outcomes{% else %}Program outcomes{% endif %}</p>
+<p class="eyebrow">{% if from_report %}<a href="{% url 'course_report' from_report.pk %}">{% blocktrans with code=from_report.course.code term=from_report.term %}{{ code }}, {{ term }} class report{% endblocktrans %}</a>{% elif own_profile %}{% trans "Your program outcomes" %}{% else %}{% trans "Program outcomes" %}{% endif %}</p>
 <h1>{{ student.get_full_name|default:student.username }}</h1>
-<p class="lede">Each score is weighted by ECTS across {% if own_profile %}every course you have taken{% elif all_courses %}every course the student has taken{% else %}the courses you teach this student; their other courses are not included{% endif %}.
-  A PO is met when each of its components reaches {{ target }}. The department figure is the mean of all students, shown once at least {{ min_students }} have a score, so no one else's score can be worked out.</p>
+<p class="lede">{% if own_profile %}{% blocktrans with target=target min_students=min_students %}Each score is weighted by ECTS across every course you have taken.
+  A PO is met when each of its components reaches {{ target }}. The department figure is the mean of all students, shown once at least {{ min_students }} have a score, so no one else's score can be worked out.{% endblocktrans %}
+  {% elif all_courses %}{% blocktrans with target=target min_students=min_students %}Each score is weighted by ECTS across every course the student has taken.
+  A PO is met when each of its components reaches {{ target }}. The department figure is the mean of all students, shown once at least {{ min_students }} have a score, so no one else's score can be worked out.{% endblocktrans %}
+  {% else %}{% blocktrans with target=target min_students=min_students %}Each score is weighted by ECTS across the courses you teach this student; their other courses are not included.
+  A PO is met when each of its components reaches {{ target }}. The department figure is the mean of all students, shown once at least {{ min_students }} have a score, so no one else's score can be worked out.{% endblocktrans %}{% endif %}</p>
 
 {% if rows %}
 <div class="outcomes">
@@ -14,53 +18,53 @@
     <p class="code">{{ row.code }}</p>
     <div class="outcome-main">
       {% if row.thin %}
-        <a class="score thin" href="{% url 'po_detail' student.pk row.code %}{% if from_report %}?from={{ from_report.pk }}{% endif %}" aria-label="{{ row.code }}, one graded assessment so far, see it">1 grade</a>
+        <a class="score thin" href="{% url 'po_detail' student.pk row.code %}{% if from_report %}?from={{ from_report.pk }}{% endif %}" aria-label="{% blocktrans with code=row.code %}{{ code }}, one graded assessment so far, see it{% endblocktrans %}">{% trans "1 grade" %}</a>
       {% elif row.own is not None %}
-        <a class="score {% if row.below_target %}below-target{% elif row.below_average %}below-mean{% endif %}" href="{% url 'po_detail' student.pk row.code %}{% if from_report %}?from={{ from_report.pk }}{% endif %}" aria-label="{{ row.code }} {{ row.own }}, how it was computed">{{ row.own }}</a>
+        <a class="score {% if row.below_target %}below-target{% elif row.below_average %}below-mean{% endif %}" href="{% url 'po_detail' student.pk row.code %}{% if from_report %}?from={{ from_report.pk }}{% endif %}" aria-label="{% blocktrans with code=row.code own=row.own %}{{ code }} {{ own }}, how it was computed{% endblocktrans %}">{{ row.own }}</a>
         {% if row.ring %}{% with "ring-"|add:row.code as ring_id %}<div class="ring" data-ring="{{ ring_id }}" aria-hidden="true"></div>{{ row.ring|json_script:ring_id }}{% endwith %}{% endif %}
       {% else %}
-        <p class="score"><span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span></p>
+        <p class="score"><span class="missing" title="{% trans "Not enough evidence" %}"><span class="sr-only">{% trans "no evidence" %}</span></span></p>
       {% endif %}
     </div>
     <p class="versus">
-      {% if row.thin %}one assessment so far, too thin for a score<br>{% endif %}
-      {% if row.components_below %}<span class="red">{{ row.components_below|join:", " }} below {{ target }}</span><br>{% endif %}
-      {% if row.components_missing %}{{ row.components_missing|join:", " }} no evidence yet<br>{% endif %}
-      {% if row.department is not None %}department {{ row.department }}{% else %}no department figure, too few students{% endif %}
-      {% if row.own is None %}<br>not enough graded evidence{% endif %}
+      {% if row.thin %}{% trans "one assessment so far, too thin for a score" %}<br>{% endif %}
+      {% if row.components_below %}<span class="red">{% blocktrans with components=row.components_below|join:", " target=target %}{{ components }} below {{ target }}{% endblocktrans %}</span><br>{% endif %}
+      {% if row.components_missing %}{% blocktrans with components=row.components_missing|join:", " %}{{ components }} no evidence yet{% endblocktrans %}<br>{% endif %}
+      {% if row.department is not None %}{% blocktrans with department=row.department %}department {{ department }}{% endblocktrans %}{% else %}{% trans "no department figure, too few students" %}{% endif %}
+      {% if row.own is None %}<br>{% trans "not enough graded evidence" %}{% endif %}
     </p>
   </section>
   {% endfor %}
 </div>
 
 <div class="legend">
-  <span><span class="blue">Blue</span> target met, at or above the department mean</span>
-  <span><span class="ink">Black</span> target met, below the department mean</span>
-  <span><span class="red">Red</span> a component below {{ target }}</span>
-  <span><span class="thin">1 grade</span> a single assessment so far</span>
-  <span><span class="missing" aria-hidden="true"></span> no graded evidence yet</span>
+  <span><span class="blue">{% trans "Blue" %}</span> {% trans "target met, at or above the department mean" %}</span>
+  <span><span class="ink">{% trans "Black" %}</span> {% trans "target met, below the department mean" %}</span>
+  <span><span class="red">{% trans "Red" %}</span> {% blocktrans with target=target %}a component below {{ target }}{% endblocktrans %}</span>
+  <span><span class="thin">{% trans "1 grade" %}</span> {% trans "a single assessment so far" %}</span>
+  <span><span class="missing" aria-hidden="true"></span> {% trans "no graded evidence yet" %}</span>
 </div>
-<p class="muted">Select a score to see what each grade contributed.</p>
+<p class="muted">{% trans "Select a score to see what each grade contributed." %}</p>
 
-<h2 id="table-title">As a table</h2>
+<h2 id="table-title">{% trans "As a table" %}</h2>
 <div class="table-wrap" data-label="table-title">
 <table>
-  <caption>The same scores for screen readers and printing.</caption>
-  <thead><tr><th scope="col">PO</th><th scope="col">{% if own_profile %}You{% else %}Student{% endif %}</th><th scope="col">Department</th><th scope="col">Target {{ target }}</th></tr></thead>
+  <caption>{% trans "The same scores for screen readers and printing." %}</caption>
+  <thead><tr><th scope="col">{% trans "PO" %}</th><th scope="col">{% if own_profile %}{% trans "You" %}{% else %}{% trans "Student" %}{% endif %}</th><th scope="col">{% trans "Department" %}</th><th scope="col">{% blocktrans with target=target %}Target {{ target }}{% endblocktrans %}</th></tr></thead>
   <tbody>
   {% for row in rows %}
     <tr>
       <th scope="row">{% if row.own is not None %}<a href="{% url 'po_detail' student.pk row.code %}{% if from_report %}?from={{ from_report.pk }}{% endif %}">{{ row.code }}</a>{% else %}{{ row.code }}{% endif %}</th>
-      <td class="{% if row.below_target %}below{% elif row.below_average or row.thin %}{% else %}po{% endif %}">{% if row.thin %}<span class="thin">1 grade</span>{% elif row.own is not None %}{{ row.own }}{% else %}<span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
-      <td>{% if row.department is not None %}{{ row.department }}{% else %}<span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
-      <td>{% if row.own is None %}<span class="missing"><span class="sr-only">no evidence</span></span>{% elif row.thin %}not yet{% elif row.below_target %}<span class="below">not met</span>{% elif row.components_missing %}not yet{% else %}met{% endif %}</td>
+      <td class="{% if row.below_target %}below{% elif row.below_average or row.thin %}{% else %}po{% endif %}">{% if row.thin %}<span class="thin">{% trans "1 grade" %}</span>{% elif row.own is not None %}{{ row.own }}{% else %}<span class="missing" title="{% trans "Not enough evidence" %}"><span class="sr-only">{% trans "no evidence" %}</span></span>{% endif %}</td>
+      <td>{% if row.department is not None %}{{ row.department }}{% else %}<span class="missing" title="{% trans "Not enough evidence" %}"><span class="sr-only">{% trans "no evidence" %}</span></span>{% endif %}</td>
+      <td>{% if row.own is None %}<span class="missing"><span class="sr-only">{% trans "no evidence" %}</span></span>{% elif row.thin %}{% trans "not yet" %}{% elif row.below_target %}<span class="below">{% trans "not met" %}</span>{% elif row.components_missing %}{% trans "not yet" %}{% else %}{% trans "met" %}{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
 {% else %}
-<p class="empty">No graded work yet, so there is nothing to show.</p>
+<p class="empty">{% trans "No graded work yet, so there is nothing to show." %}</p>
 {% endif %}
 {% endblock %}
 

@@ -4,13 +4,17 @@
 
   const grid = document.getElementById("grade-grid");
   const status = document.getElementById("paste-grades-status");
+  // Same as the server renders "Current": the page language's decimal mark.
+  const currentFormat = new Intl.NumberFormat(document.documentElement.lang, { maximumFractionDigits: 2 });
   const button = form.querySelector('button[type="submit"]');
   const csrfToken = form.querySelector('[name="csrfmiddlewaretoken"]').value;
   const roster = JSON.parse(document.getElementById("grade-grid-data").textContent);
   const students = JSON.parse(document.getElementById("grade-grid-students").textContent);
+  // Translated per request (#49); "%(n)s" is filled in below, not a Python format.
+  const t = JSON.parse(document.getElementById("grade-grid-strings").textContent);
 
   if (!window.Tabulator) {
-    status.textContent = "The grade grid could not load.";
+    status.textContent = t.could_not_load;
     return;
   }
 
@@ -58,7 +62,7 @@
 
   // Read only, looked up from the student number in the same row.
   const lookup = (key) => ({
-    title: key === "name" ? "Name" : "Current",
+    title: key === "name" ? t.name : t.current,
     field: `_${key}`,
     headerSort: false,
     formatter: (cell) => students[cell.getRow().getData().student_number?.trim()]?.[key] ?? "",
@@ -70,10 +74,10 @@
     layout: "fitColumns",
     editTriggerEvent: "dblclick",
     columns: [
-      column("Student number", "student_number"),
+      column(t.student_number, "student_number"),
       lookup("name"),
       lookup("current"),
-      column("Score", "score"),
+      column(t.score, "score"),
     ],
   });
 
@@ -123,13 +127,14 @@
   });
 
   const redrawRows = () => table.getRows().forEach((row) => row.reformat());
+  const withN = (template, n) => template.replace("%(n)s", n);
 
   grid.addEventListener("paste", async (event) => {
     if (saving || event.target instanceof HTMLInputElement) return;
 
     event.preventDefault();
     if (!anchor) {
-      status.textContent = "Click or Tab to the cell where the paste should start.";
+      status.textContent = t.click_or_tab;
       return;
     }
 
@@ -142,16 +147,14 @@
     const width = anchor.getField() === "score" ? 1 : 2;
 
     if (pasted.some((cells) => cells.length !== width)) {
-      status.textContent = width === 1
-        ? "Paste one score column into a score cell."
-        : "Paste student numbers and scores into a student number cell.";
+      status.textContent = width === 1 ? t.paste_one_column : t.paste_two_columns;
       return;
     }
 
     const rows = table.getRows();
     const start = rows.findIndex((row) => row.getIndex() === anchor.getRow().getIndex());
     if (start < 0 || start + pasted.length > rows.length) {
-      status.textContent = "The pasted rows do not fit below the selected cell.";
+      status.textContent = t.does_not_fit;
       return;
     }
 
@@ -174,7 +177,7 @@
       anchor = table.getRows().find((row) => row.getIndex() === id).getCell(field);
       anchor.getElement().focus();
     }));
-    status.textContent = `${updates.length} rows pasted. Check the student numbers before saving.`;
+    status.textContent = withN(t.rows_pasted, updates.length);
   });
 
   form.addEventListener("submit", async (event) => {
@@ -185,7 +188,7 @@
     button.disabled = true;
     cellErrors.clear();
     redrawRows();
-    status.textContent = "Saving…";
+    status.textContent = t.saving;
 
     const data = table.getData();
 
@@ -205,10 +208,13 @@
       if (response.ok) {
         for (const {student_number, score} of data) {
           const student = students[student_number.trim()];
-          if (student && score.trim()) student.current = score.trim().replace(",", ".");
+          if (student && score.trim()) student.current = currentFormat.format(Number(score.trim().replace(",", ".")));
         }
         redrawRows();
-        status.textContent = `${result.saved_count} grade${result.saved_count === 1 ? "" : "s"} saved.`;
+        status.textContent = withN(
+          result.saved_count === 1 ? t.grade_saved_one : t.grade_saved_other,
+          result.saved_count,
+        );
         return;
       }
 
@@ -216,10 +222,9 @@
         cellErrors.set(errorKey(data[row].id, field), message);
       }
       redrawRows();
-      status.textContent = result.message
-        ?? "Nothing was saved. Fix the highlighted cells and try again.";
+      status.textContent = result.message ?? t.nothing_saved;
     } catch {
-      status.textContent = "The save could not be confirmed. Check the grades before retrying.";
+      status.textContent = t.save_unconfirmed;
     } finally {
       saving = false;
       button.disabled = false;
