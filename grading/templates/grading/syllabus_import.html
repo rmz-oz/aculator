@@ -15,7 +15,7 @@
 
 {% if saved %}
 <p class="notice done" role="status">{% blocktrans count counter=saved %}{{ counter }} learning outcome saved{% plural %}{{ counter }} learning outcomes saved{% endblocktrans %}, {% blocktrans count counter=saved_levels %}{{ counter }} level{% plural %}{{ counter }} levels{% endblocktrans %}.
-  <a href="{% url 'course_report' offering.pk %}">{% trans "Open the class report" %}</a>.</p>
+  <a href="{% url 'assessment_weights' offering.pk %}">{% trans "Next: which assessment measures which LO" %}</a>.</p>
 {% endif %}
 
 {% if rows %}

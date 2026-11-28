@@ -12,10 +12,16 @@
 <div class="actions">
   {% for a in assessments %}<a class="action" href="{% url 'grade_import' a.pk %}">{% blocktrans with name=a.name %}Import {{ name }} grades{% endblocktrans %}</a>{% endfor %}
 </div>
+{% for a in makeup_for %}
+<form method="post" action="{% url 'add_makeup' a.pk %}" class="actions">{% csrf_token %}
+  <button class="action quiet" type="submit">{% blocktrans with name=a.name %}Add a makeup exam for the {{ name }}{% endblocktrans %}</button>
+</form>
+{% endfor %}
 {% endif %}
 
 {% if can_import %}
-<div class="actions"><a class="action quiet" href="{% url 'syllabus_import' offering.pk %}">{% if los %}{% trans "Learning outcomes from the catalogue" %}{% else %}{% trans "Set up learning outcomes from the catalogue" %}{% endif %}</a></div>
+<div class="actions"><a class="action quiet" href="{% url 'syllabus_import' offering.pk %}">{% if los %}{% trans "Learning outcomes from the catalogue" %}{% else %}{% trans "Set up learning outcomes from the catalogue" %}{% endif %}</a>{% if los %}
+  <a class="action quiet" href="{% url 'assessment_weights' offering.pk %}">{% trans "Which assessment measures which LO" %}</a>{% endif %}</div>
 {% endif %}
 
 {% if rows and not los %}

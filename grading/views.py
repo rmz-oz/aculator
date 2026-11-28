@@ -1,14 +1,14 @@
 import hashlib
 import json
 import re
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.core import signing
 from django.db import OperationalError, transaction
-from django.db.models import Case, Count, IntegerField, Prefetch, Value, When
+from django.db.models import Case, Count, Exists, IntegerField, OuterRef, Prefetch, Value, When
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.formats import number_format
@@ -39,6 +39,7 @@ from .grade_import import (
 )
 from .models import (
     Assessment,
+    AssessmentLOWeight,
     CourseOffering,
     Enrollment,
     Grade,
@@ -173,6 +174,11 @@ def course_report(request, offering_id):
         for code in po_codes
     ]
 
+    can_import = grade_entry_offerings(request.user).filter(pk=offering.pk).exists()
+    # Only an instructor of the course gets the import and makeup buttons.
+    assessments = list(offering.assessments.annotate(
+        has_makeup=Exists(Assessment.objects.filter(replaces=OuterRef("pk"))),
+    ).order_by("name")) if can_import else []
     return render(request, "grading/course_report.html", {
         "offering": offering,
         "los": los,
@@ -180,8 +186,12 @@ def course_report(request, offering_id):
         "rows": rows,
         "lo_class_avg": lo_class_avg,
         "po_class_avg": po_class_avg,
-        "can_import": grade_entry_offerings(request.user).filter(pk=offering.pk).exists(),
-        "assessments": offering.assessments.order_by("name"),
+        "can_import": can_import,
+        "assessments": assessments,
+        # A makeup replaces the final (regulation art. 32/9): offered for a final without one.
+        "makeup_for": [
+            a for a in assessments if a.replaces_id is None and not a.has_makeup and "final" in a.name.casefold()
+        ],
         "nav": "home",
     })
 
@@ -363,6 +373,10 @@ def po_detail(request, student_id, po_code):
             {"part": p, "name": _grade_name(p.key, grades, multi_course), "percent": display(p.score),
              "weight": display(p.share * 100), "contribution": display(p.contribution)}
             for p in grades
+        ],
+        "replaced": [
+            {"course": course, "name": name, "percent": display(score), "makeup": makeup, "makeup_percent": display(makeup_score)}
+            for course, name, score, makeup, makeup_score in explanation.replaced
         ],
         "los": [
             {"part": lo, "name": _lo_name(lo, multi_course), "score": display(lo.score),
@@ -831,3 +845,121 @@ def _save_syllabus(request, offering, pos):
                 for component in components[po.pk]:
                     LOPOWeight.objects.create(learning_outcome=lo, component=component, weight=level)
     return _syllabus_page(request, offering, pos, saved=len(texts), saved_levels=saved_levels)
+
+
+@login_required
+@require_POST
+def add_makeup(request, assessment_id):
+    """Add a makeup (bütünleme) for an assessment and go to its import page (#105, decision 0011).
+
+    The makeup has the same maximum and LO weights as the assessment it
+    replaces, so a student's makeup grade counts exactly where the final did.
+    The weights can be changed afterwards. Only the offering's instructors.
+    """
+    replaced = _gradable_assessment(request, assessment_id)
+    existing = Assessment.objects.filter(replaces=replaced).first()
+    if existing is None:
+        if replaced.replaces_id is not None:
+            raise Http404
+        names = set(replaced.offering.assessments.values_list("name", flat=True))
+        name = "Makeup" if "Makeup" not in names else f"Makeup ({replaced.name})"
+        with transaction.atomic():
+            existing = Assessment.objects.create(
+                offering=replaced.offering, name=name, max_score=replaced.max_score, replaces=replaced,
+            )
+            for weight in replaced.lo_weights.all():
+                AssessmentLOWeight.objects.create(
+                    assessment=existing, learning_outcome_id=weight.learning_outcome_id, weight=weight.weight,
+                )
+    return redirect("grade_import", existing.pk)
+
+
+def _percent(weight):
+    """0.3 as "30", 0.3333 as "33.33" (with the language's decimal mark)."""
+    value = (weight * 100).quantize(Decimal("0.01"))
+    return number_format(value.to_integral() if value == value.to_integral() else value.normalize())
+
+
+def _weights_fingerprint(offering):
+    rows = sorted(
+        AssessmentLOWeight.objects.filter(assessment__offering=offering).values_list(
+            "assessment_id", "learning_outcome_id", "weight",
+        )
+    )
+    return hashlib.sha256(repr(rows).encode()).hexdigest()
+
+
+@login_required
+def assessment_weights(request, offering_id):
+    """Which assessment measures which LO, and how much: the grid behind every LO score.
+
+    Rows are the offering's assessments, columns its LOs, each cell a weight
+    from 0 to 100. Within an LO the weights are relative (services.weighted_mean),
+    so 30 and 70 count like 0.3 and 0.7. An empty cell or 0 means the
+    assessment does not feed that LO. Only the offering's instructors.
+    """
+    offering = get_object_or_404(
+        CourseOffering.objects.select_related("course", "term"),
+        pk=offering_id,
+        pk__in=grade_entry_offerings(request.user).values("pk"),
+    )
+    assessments = list(offering.assessments.order_by("name"))
+    los = list(offering.learning_outcomes.order_by("code"))
+    stored = {
+        (w.assessment_id, w.learning_outcome_id): w
+        for w in AssessmentLOWeight.objects.filter(assessment__offering=offering)
+    }
+    errors, saved = [], None
+    if request.method == "POST":
+        values = {}
+        for a in assessments:
+            for lo in los:
+                raw = request.POST.get(f"w_{a.pk}_{lo.pk}", "").strip().replace(",", ".")
+                if raw == "":
+                    values[(a.pk, lo.pk)] = None
+                    continue
+                try:
+                    number = Decimal(raw)
+                except InvalidOperation:
+                    number = None
+                if number is None or not number.is_finite() or not 0 <= number <= 100:
+                    errors.append(_("%(assessment)s, %(lo)s: enter a weight from 0 to 100.") % {"assessment": a.name, "lo": lo.code})
+                    continue
+                values[(a.pk, lo.pk)] = (number / 100).quantize(Decimal("0.0001")) or None
+        if request.POST.get("fingerprint") != _weights_fingerprint(offering):
+            errors.append(_("The weights changed since this page was opened. Open it again."))
+        if not errors:
+            with transaction.atomic():
+                for key, weight in values.items():
+                    current = stored.get(key)
+                    if weight is None and current is not None:
+                        current.delete()
+                    elif weight is not None and current is None:
+                        AssessmentLOWeight.objects.create(assessment_id=key[0], learning_outcome_id=key[1], weight=weight)
+                    elif weight is not None and current.weight != weight:
+                        current.weight = weight
+                        current.save(update_fields=["weight"])
+            saved = True
+            stored = {
+                (w.assessment_id, w.learning_outcome_id): w
+                for w in AssessmentLOWeight.objects.filter(assessment__offering=offering)
+            }
+    rows = [
+        {"assessment": a, "cells": [
+            {"name": f"w_{a.pk}_{lo.pk}", "lo": lo,
+             "value": request.POST.get(f"w_{a.pk}_{lo.pk}") if errors else (
+                 _percent(stored[(a.pk, lo.pk)].weight) if (a.pk, lo.pk) in stored else "")}
+            for lo in los
+        ]}
+        for a in assessments
+    ]
+    unmeasured = [lo.code for lo in los if not any((a.pk, lo.pk) in stored for a in assessments)]
+    return render(request, "grading/assessment_weights.html", {
+        "offering": offering,
+        "los": los,
+        "rows": rows,
+        "unmeasured": unmeasured,
+        "errors": errors,
+        "saved": saved,
+        "fingerprint": _weights_fingerprint(offering),
+    }, status=400 if errors else 200)

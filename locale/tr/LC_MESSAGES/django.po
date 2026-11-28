@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: aculator\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-28 15:42+0300\n"
+"POT-Creation-Date: 2026-11-28 16:01+0300\n"
 "PO-Revision-Date: 2026-11-28 08:48+0300\n"
 "Last-Translator: \n"
 "Language-Team: Turkish\n"
@@ -322,6 +322,51 @@ msgid "No assessments yet. Add them in the admin."
 msgstr "Henüz değerlendirme yok. Yönetim panelinden ekleyin."
 
 #, python-format
+msgid "%(code)s assessment weights"
+msgstr "%(code)s değerlendirme ağırlıkları"
+
+msgid "Which assessment measures which learning outcome"
+msgstr "Hangi değerlendirme hangi öğrenme çıktısını ölçüyor"
+
+msgid ""
+"Each LO score is the weighted mean of the assessments that measure it. "
+"Weights are relative within an LO: 30 and 70 count the same as 3 and 7. "
+"Leave a cell empty when the assessment does not measure that LO."
+msgstr "Her ÖÇ puanı, onu ölçen değerlendirmelerin ağırlıklı ortalamasıdır. Ağırlıklar bir ÖÇ içinde görelidir: 30 ve 70, 3 ve 7 ile aynı sayılır. Değerlendirme o ÖÇ'yü ölçmüyorsa hücreyi boş bırakın."
+
+msgid "Nothing was saved"
+msgstr "Hiçbir şey kaydedilmedi"
+
+msgid "Weights saved."
+msgstr "Ağırlıklar kaydedildi."
+
+msgid "Open the class report"
+msgstr "Ders raporunu aç"
+
+msgid "This course has no learning outcomes yet."
+msgstr "Bu dersin henüz öğrenme çıktısı yok."
+
+msgid "Set them up from the catalogue"
+msgstr "Katalogdan kurun"
+
+msgid "This course has no assessments yet. They are added in the admin."
+msgstr "Bu dersin henüz değerlendirmesi yok. Yönetim panelinden eklenir."
+
+#, python-format
+msgid "No assessment measures %(codes)s yet, so those LOs have no score."
+msgstr "%(codes)s için henüz ölçen bir değerlendirme yok, bu yüzden bu ÖÇ'lerin puanı yok."
+
+msgid "Assessment"
+msgstr "Değerlendirme"
+
+#, python-format
+msgid "replaces %(name)s"
+msgstr "%(name)s yerine"
+
+msgid "Save weights"
+msgstr "Ağırlıkları kaydet"
+
+#, python-format
 msgid "%(code)s class report"
 msgstr "%(code)s ders raporu"
 
@@ -355,11 +400,18 @@ msgstr ""
 msgid "Import %(name)s grades"
 msgstr "%(name)s notlarını içe aktar"
 
+#, python-format
+msgid "Add a makeup exam for the %(name)s"
+msgstr "%(name)s için bütünleme sınavı ekle"
+
 msgid "Learning outcomes from the catalogue"
 msgstr "Katalogdan öğrenme çıktıları"
 
 msgid "Set up learning outcomes from the catalogue"
 msgstr "Öğrenme çıktılarını katalogdan kur"
+
+msgid "Which assessment measures which LO"
+msgstr "Hangi değerlendirme hangi ÖÇ'yü ölçüyor"
 
 #, python-format
 msgid ""
@@ -428,6 +480,13 @@ msgstr ""
 "girmeyen öğrencileri işaretlemek için önce önizleyin; siz onaylayana kadar "
 "hiçbir şey kaydedilmez."
 
+#, python-format
+msgid ""
+"A grade here replaces the student's %(name)s in every score, even when it is "
+"lower. Students without a grade here keep their %(name)s; a student marked "
+"absent here keeps it too."
+msgstr "Buraya girilen not, daha düşük olsa bile öğrencinin %(name)s notunun yerine her puanda geçer. Burada notu olmayan öğrencinin %(name)s notu kalır; burada girmedi olarak işaretlenen öğrencinin de kalır."
+
 msgid "Paste grades from Excel"
 msgstr "Excel'den not yapıştırın"
 
@@ -447,9 +506,6 @@ msgstr ""
 msgid "Save pasted grades"
 msgstr "Yapıştırılan notları kaydet"
 
-msgid "Nothing was saved"
-msgstr "Hiçbir şey kaydedilmedi"
-
 #, python-format
 msgid "%(counter)s grade saved"
 msgid_plural "%(counter)s grades saved"
@@ -461,9 +517,6 @@ msgid "%(counter)s student marked absent"
 msgid_plural "%(counter)s students marked absent"
 msgstr[0] "%(counter)s öğrenci devamsız işaretlendi"
 msgstr[1] "%(counter)s öğrenci devamsız işaretlendi"
-
-msgid "Open the class report"
-msgstr "Ders raporunu aç"
 
 msgid ""
 "These grades were already saved, most likely by a first click. Nothing "
@@ -633,6 +686,12 @@ msgstr "%(po)s içindeki ağırlık"
 
 msgid "Contribution"
 msgstr "Katkı"
+
+#, python-format
+msgid ""
+"%(course)s %(name)s %(percent)s is not counted: the %(makeup)s "
+"(%(makeup_percent)s) replaces it, as the regulation says (article 32/9)."
+msgstr "%(course)s %(name)s %(percent)s sayılmıyor: yönetmelik gereği (madde 32/9) yerine %(makeup)s (%(makeup_percent)s) geçiyor."
 
 msgid "Learning outcomes"
 msgstr "Öğrenme çıktıları"
@@ -846,6 +905,9 @@ msgid "%(counter)s level"
 msgid_plural "%(counter)s levels"
 msgstr[0] "%(counter)s düzey"
 msgstr[1] "%(counter)s düzey"
+
+msgid "Next: which assessment measures which LO"
+msgstr "Sıradaki adım: hangi değerlendirme hangi ÖÇ'yü ölçüyor"
 
 msgid "Check before saving"
 msgstr "Kaydetmeden önce kontrol edin"
@@ -1077,3 +1139,10 @@ msgid ""
 msgstr ""
 "Bu dersin öğrenme çıktıları önizlemeden sonra değişti. Kataloğu tekrar "
 "okuyun."
+
+#, python-format
+msgid "%(assessment)s, %(lo)s: enter a weight from 0 to 100."
+msgstr "%(assessment)s, %(lo)s: 0 ile 100 arasında bir ağırlık girin."
+
+msgid "The weights changed since this page was opened. Open it again."
+msgstr "Bu sayfa açıldıktan sonra ağırlıklar değişti. Sayfayı yeniden açın."
