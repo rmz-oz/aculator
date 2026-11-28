@@ -13,6 +13,7 @@ class LearningOutcomeInline(admin.TabularInline):
 class AssessmentInline(admin.TabularInline):
     model = m.Assessment
     extra = 0
+    autocomplete_fields = ("replaces",)
 
 
 class EnrollmentInline(admin.TabularInline):
@@ -97,7 +98,7 @@ class AssessmentAdmin(admin.ModelAdmin):
     list_filter = ("offering__term",)
     list_select_related = ("offering__course", "offering__term")
     search_fields = ("name", "offering__course__code")
-    autocomplete_fields = ("offering",)
+    autocomplete_fields = ("offering", "replaces")
     inlines = (AssessmentLOWeightInline,)
 
 
