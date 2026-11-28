@@ -21,7 +21,9 @@ from django.contrib.auth import views as auth_views
 from django.db import connection
 from django.http import JsonResponse
 from django.urls import path
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from grading import api as grading_api
 from grading import views as grading_views
 
 
@@ -62,4 +64,30 @@ urlpatterns = [
         grading_views.po_detail,
         name="po_detail",
     ),
+
+    path("api/v1/courses/", grading_api.CourseList.as_view(), name="api-courses"),
+    path("api/v1/offerings/", grading_api.OfferingList.as_view(), name="api-offerings"),
+    path(
+        "api/v1/learning-outcomes/",
+        grading_api.LearningOutcomeList.as_view(),
+        name="api-learning-outcomes",
+    ),
+    path(
+        "api/v1/program-outcomes/",
+        grading_api.ProgramOutcomeList.as_view(),
+        name="api-program-outcomes",
+    ),
+    path("api/v1/scores/", grading_api.GradeList.as_view(), name="api-scores"),
+    path(
+        "api/v1/outcome-scores/",
+        grading_api.OutcomeScoreList.as_view(),
+        name="api-outcome-scores",
+    ),
+    path("api/schema/", SpectacularAPIView.as_view(), name="api-schema"),
+    path(
+        "api/docs/",
+        SpectacularSwaggerView.as_view(url_name="api-schema"),
+        name="api-docs",
+    ),
+
 ]
