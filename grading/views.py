@@ -253,6 +253,8 @@ def _retakes(student, enrollments):
     for enrollment in sorted(visible, key=lambda e: attempt_order(e.offering)):
         if enrollment.pk in counting:
             status = "counts"
+        elif not enrollment.grades.exists():
+            status = "no grades"
         elif attempt_order(enrollment.offering) < counted_order.get(enrollment.offering.course_id, (0,)):
             status = "replaced"
         else:

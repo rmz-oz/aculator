@@ -197,6 +197,11 @@ class Assessment(models.Model):
 
     def clean(self):
         refuse_moving_graded(self, "offering_id", lambda: self.grades.all())
+        # Moving a replaced assessment would leave its makeup in another offering.
+        if self.pk and self.offering_id and Assessment.objects.filter(
+            replaces_id=self.pk
+        ).exclude(offering_id=self.offering_id).exists():
+            raise ValidationError({"offering": "A makeup replaces this assessment; move or unlink the makeup first."})
         if self.replaces_id is not None:
             replaced = self.replaces
             if replaced.pk == self.pk:

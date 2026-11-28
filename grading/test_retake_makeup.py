@@ -14,7 +14,7 @@ from django.db import connection, transaction
 from django.test import TestCase
 from django.urls import reverse
 
-from .access import STUDENT
+from .access import INSTRUCTOR, STUDENT
 from .explain import explain_all, explain_po
 from .materialized_views import refresh_materialized_views
 from .models import (
@@ -256,3 +256,54 @@ class RetakeAndMakeupTests(TestCase):
         page = self.client.get(reverse("student_profile", args=[self.student.pk])).content.decode()
         self.assertIn("program outcomes", page)
         self.assertNotIn("Repeated courses", page)
+
+    # Changes after the first save, each refreshed on its own
+
+    def test_unlinking_and_deleting_the_makeup(self):
+        def setup():
+            self.offering_ = self.offering(self.course, 2026, "spring")
+            self.makeup_ = self.makeup(self.offering_)
+            self.grade(self.offering_, "Final", 30)
+            self.grade(self.offering_, "Makeup", 60)
+        self.run_commits(setup)
+        self.assertLess(abs(self.po1() - 60), TOL)
+        def unlink():
+            self.makeup_.replaces = None
+            self.makeup_.save()
+        self.run_commits(unlink)
+        self.assertLess(abs(self.po1() - 45), TOL)  # now an ordinary assessment, averaged
+        self.run_commits(lambda: self.makeup_.delete())
+        self.assertLess(abs(self.po1() - 30), TOL)
+
+    def test_deleting_the_makeup_grade_brings_back_the_final(self):
+        def setup():
+            self.offering_ = self.offering(self.course, 2026, "spring")
+            self.makeup(self.offering_)
+            self.grade(self.offering_, "Final", 30)
+            self.grade(self.offering_, "Makeup", 60)
+        self.run_commits(setup)
+        self.run_commits(lambda: Grade.objects.filter(assessment__name="Makeup").delete())
+        self.assertLess(abs(self.po1() - 30), TOL)
+
+    def test_moving_the_replaced_assessment_is_refused(self):
+        first = self.offering(self.course, 2025, "fall")
+        second = self.offering(self.course, 2026, "spring")
+        self.makeup(first)
+        final = first.assessments.get(name="Final")
+        final.offering = second
+        with self.assertRaises(ValidationError):
+            final.full_clean()
+
+    def test_instructor_profile_of_the_failed_attempt(self):
+        def setup():
+            self.first = self.offering(self.course, 2025, "fall")
+            self.grade(self.first, "Final", 40)
+            self.grade(self.offering(self.course, 2026, "spring"), "Final", 75)
+        self.run_commits(setup)
+        teacher = get_user_model().objects.create_user("t1")
+        teacher.groups.add(Group.objects.get_or_create(name=INSTRUCTOR)[0])
+        self.first.instructors.add(teacher)
+        self.client.force_login(teacher)
+        page = self.client.get(reverse("student_profile", args=[self.student.pk])).content.decode()
+        self.assertIn("replaced by a later attempt", page)
+        self.assertNotIn("<th scope=\"row\">PO1</th>", page)

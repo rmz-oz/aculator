@@ -52,7 +52,7 @@ BEGIN
              SELECT 1 FROM grading_assessment r
              JOIN grading_grade rg ON rg.assessment_id = r.id AND rg.enrollment_id = e.id
                   AND rg.term_id = ANY(v_terms) AND rg.status = 'graded'
-             WHERE r.replaces_id = a.id
+             WHERE r.replaces_id = a.id AND r.offering_id = a.offering_id
          )
     JOIN grading_assessmentloweight alw ON alw.assessment_id = a.id
     JOIN grading_learningoutcome lo ON lo.id = alw.learning_outcome_id
@@ -172,6 +172,8 @@ BEGIN
 END $$;
 
 DROP FUNCTION term_season_order(text);
+
+SELECT refresh_all_scores();
 """
 
 
