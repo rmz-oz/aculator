@@ -305,7 +305,9 @@ class GradeImportTests(TransactionTestCase):
             other = self.upload(csv_file(HEADER + b"20230001,41\n"))
 
         self.assertContains(same, "These grades were already saved")
-        self.assertNotContains(same, "Nothing was saved")
+        # Not a text search: the grid's own JS strings (#49) include this
+        # phrase too, for an unrelated client-side message.
+        self.assertNotContains(same, 'id="problems-title"')
         self.assertContains(other, "Choose the files again.", status_code=409)
 
     def test_failed_view_refresh_after_commit_still_reports_the_save(self):

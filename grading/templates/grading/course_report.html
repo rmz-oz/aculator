@@ -1,30 +1,31 @@
 {% extends "base.html" %}
-{% block title %}{{ offering.course.code }} class report, aculator{% endblock %}
+{% load i18n %}
+{% block title %}{% blocktrans with code=offering.course.code %}{{ code }} class report{% endblocktrans %}, aculator{% endblock %}
 {% block content %}
-<p class="eyebrow">{{ offering.term }}, class report</p>
+<p class="eyebrow">{% blocktrans with term=offering.term %}{{ term }}, class report{% endblocktrans %}</p>
 <h1>{{ offering.course.code }} {{ offering.course.name }}</h1>
-<p class="lede">{{ rows|length }} student{{ rows|length|pluralize }}.
-  Learning outcomes come from the weighted assessments, program outcomes (blue) from the learning outcomes.
-  Hatched cells have no graded evidence yet; "1 grade" means a single assessment so far, too thin to show as a score or to count in the class average.</p>
+<p class="lede">{% blocktrans count counter=rows|length %}{{ counter }} student.{% plural %}{{ counter }} students.{% endblocktrans %}
+  {% trans "Learning outcomes come from the weighted assessments, program outcomes (blue) from the learning outcomes." %}
+  {% trans 'Hatched cells have no graded evidence yet; "1 grade" means a single assessment so far, too thin to show as a score or to count in the class average.' %}</p>
 
 {% if can_import and assessments %}
 <div class="actions">
-  {% for a in assessments %}<a class="action" href="{% url 'grade_import' a.pk %}">Import {{ a.name }} grades</a>{% endfor %}
+  {% for a in assessments %}<a class="action" href="{% url 'grade_import' a.pk %}">{% blocktrans with name=a.name %}Import {{ name }} grades{% endblocktrans %}</a>{% endfor %}
 </div>
 {% endif %}
 
 {% if rows and not los %}
-<p class="notice">No learning outcomes are defined for this course in {{ offering.term }} yet, so its grades give no LO or PO score. They can be added in the admin.</p>
+<p class="notice">{% blocktrans with term=offering.term %}No learning outcomes are defined for this course in {{ term }} yet, so its grades give no LO or PO score. They can be added in the admin.{% endblocktrans %}</p>
 {% endif %}
 
 {% if rows %}
-<h2 id="students-title">Students</h2>
+<h2 id="students-title">{% trans "Students" %}</h2>
 <div class="table-wrap" data-label="students-title">
 <table>
-  <caption class="sr-only">Learning outcome and program outcome scores for every student in {{ offering.course.code }}, {{ offering.term }}.</caption>
+  <caption class="sr-only">{% blocktrans with code=offering.course.code term=offering.term %}Learning outcome and program outcome scores for every student in {{ code }}, {{ term }}.{% endblocktrans %}</caption>
   <thead>
     <tr>
-      <th scope="col">Student</th>
+      <th scope="col">{% trans "Student" %}</th>
       {% for lo in los %}<th scope="col">{{ lo.code }}</th>{% endfor %}
       {% for code in po_codes %}<th scope="col" class="po">{{ code }}</th>{% endfor %}
     </tr>
@@ -34,28 +35,28 @@
     <tr>
       <th scope="row"><a href="{% url 'student_profile' row.student.pk %}?from={{ offering.pk }}">{{ row.student.get_full_name|default:row.student.username }}</a></th>
       {% for cell in row.lo_cells %}
-        <td>{% if cell.state == "score" %}{{ cell.value }}{% elif cell.state == "low_evidence" %}<span class="thin" title="Only {{ cell.count }} graded assessment so far">1 grade</span>{% else %}<span class="missing" title="No graded evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
+        <td>{% if cell.state == "score" %}{{ cell.value }}{% elif cell.state == "low_evidence" %}<span class="thin" title="{% blocktrans count counter=cell.count %}Only {{ counter }} graded assessment so far{% plural %}Only {{ counter }} graded assessments so far{% endblocktrans %}">{% trans "1 grade" %}</span>{% else %}<span class="missing" title="{% trans "No graded evidence" %}"><span class="sr-only">{% trans "no evidence" %}</span></span>{% endif %}</td>
       {% endfor %}
       {% for cell in row.po_cells %}
-        <td class="po">{% if cell.state == "score" %}{{ cell.value }}{% elif cell.state == "low_evidence" %}<span class="thin" title="Only {{ cell.count }} graded assessment so far">1 grade</span>{% else %}<span class="missing" title="No graded evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
+        <td class="po">{% if cell.state == "score" %}{{ cell.value }}{% elif cell.state == "low_evidence" %}<span class="thin" title="{% blocktrans count counter=cell.count %}Only {{ counter }} graded assessment so far{% plural %}Only {{ counter }} graded assessments so far{% endblocktrans %}">{% trans "1 grade" %}</span>{% else %}<span class="missing" title="{% trans "No graded evidence" %}"><span class="sr-only">{% trans "no evidence" %}</span></span>{% endif %}</td>
       {% endfor %}
     </tr>
     {% endfor %}
   </tbody>
   <tfoot>
     <tr>
-      <td>Class average</td>
+      <td>{% trans "Class average" %}</td>
       {% for cell in lo_class_avg %}
-        <td>{% if cell is not None %}{{ cell }}{% else %}<span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
+        <td>{% if cell is not None %}{{ cell }}{% else %}<span class="missing" title="{% trans "Not enough evidence" %}"><span class="sr-only">{% trans "no evidence" %}</span></span>{% endif %}</td>
       {% endfor %}
       {% for cell in po_class_avg %}
-        <td class="po">{% if cell is not None %}{{ cell }}{% else %}<span class="missing" title="Not enough evidence"><span class="sr-only">no evidence</span></span>{% endif %}</td>
+        <td class="po">{% if cell is not None %}{{ cell }}{% else %}<span class="missing" title="{% trans "Not enough evidence" %}"><span class="sr-only">{% trans "no evidence" %}</span></span>{% endif %}</td>
       {% endfor %}
     </tr>
   </tfoot>
 </table>
 </div>
 {% else %}
-<p class="empty">No students enrolled yet.</p>
+<p class="empty">{% trans "No students enrolled yet." %}</p>
 {% endif %}
 {% endblock %}

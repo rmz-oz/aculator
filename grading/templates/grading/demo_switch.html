@@ -1,7 +1,8 @@
+{% load i18n %}
 {# Role switcher, only with DEMO=1 (#46). One form per role: POST with CSRF. #}
 <div class="demo" role="group" aria-label="{{ label }}">
   <span>{{ label }}</span>
   {% for slug, name in demo_roles %}
-  <form method="post" action="{% url 'demo_switch' slug %}">{% csrf_token %}<button class="action{% if role != name %} quiet{% endif %}" type="submit"{% if role == name %} aria-current="true"{% endif %}>{{ name }}</button></form>
+  <form method="post" action="{% url 'demo_switch' slug %}">{% csrf_token %}<button class="action{% if role != name %} quiet{% endif %}" type="submit"{% if role == name %} aria-current="true"{% endif %}>{% if name == "Student" %}{% trans "Student" %}{% elif name == "Instructor" %}{% trans "Instructor" %}{% else %}{% trans "Head of department" %}{% endif %}</button></form>
   {% endfor %}
 </div>

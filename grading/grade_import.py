@@ -14,6 +14,7 @@ from decimal import Decimal, InvalidOperation
 from io import StringIO
 
 from django.db import OperationalError, connection, transaction
+from django.utils.translation import gettext as _
 
 COLUMNS = {"student_number", "score"}
 MAX_FILE_SIZE = 1024 * 1024
@@ -36,23 +37,27 @@ def parse_grade_files(files, assessment, enrollments):
     parsed = ParsedFiles()
     for uploaded in files:
         if uploaded.size > MAX_FILE_SIZE:
-            parsed.errors.append(f"{uploaded.name}: File is larger than 1 MB.")
+            parsed.errors.append(_("%(name)s: File is larger than 1 MB.") % {"name": uploaded.name})
             continue
         try:
             text = uploaded.read().decode("utf-8-sig")
         except UnicodeDecodeError:
-            parsed.errors.append(f'{uploaded.name}: File is not UTF-8. Save it as "CSV UTF-8" and try again.')
+            parsed.errors.append(
+                _('%(name)s: File is not UTF-8. Save it as "CSV UTF-8" and try again.') % {"name": uploaded.name}
+            )
             continue
         try:
             _parse_file(uploaded.name, text, assessment, enrollments, parsed)
         except csv.Error as error:
-            parsed.errors.append(f"{uploaded.name}: File could not be read ({error}).")
+            parsed.errors.append(_("%(name)s: File could not be read (%(error)s).") % {
+                "name": uploaded.name, "error": error,
+            })
     return parsed
 
 
 def _parse_file(name, text, assessment, enrollments, parsed):
     if not text.strip():
-        parsed.errors.append(f"{name}: File is empty.")
+        parsed.errors.append(_("%(name)s: File is empty.") % {"name": name})
         return
 
     first_line = text.splitlines()[0]
@@ -60,7 +65,7 @@ def _parse_file(name, text, assessment, enrollments, parsed):
     reader = csv.reader(StringIO(text), delimiter=delimiter, strict=True)
     header = [column.strip().lower() for column in next(reader)]
     if len(header) != len(COLUMNS) or set(header) != COLUMNS:
-        parsed.errors.append(f"{name}: The first row must be student_number,score.")
+        parsed.errors.append(_("%(name)s: The first row must be student_number,score.") % {"name": name})
         return
     number_at = header.index("student_number")
     score_at = header.index("score")
@@ -72,17 +77,23 @@ def _parse_file(name, text, assessment, enrollments, parsed):
         has_rows = True
         location = f"{name}, line {reader.line_num}"
         if len(values) != len(header):
-            parsed.errors.append(f"{location}: Expected 2 columns, found {len(values)}.")
+            parsed.errors.append(_("%(location)s: Expected 2 columns, found %(n)s.") % {
+                "location": location, "n": len(values),
+            })
             continue
 
         number = values[number_at].strip()
         enrollment = enrollments.get(number)
         if not number:
-            parsed.errors.append(f"{location}: Student number is empty.")
+            parsed.errors.append(_("%(location)s: Student number is empty.") % {"location": location})
         elif enrollment is None:
-            parsed.errors.append(f"{location}: {number} is not enrolled in this course.")
+            parsed.errors.append(_("%(location)s: %(number)s is not enrolled in this course.") % {
+                "location": location, "number": number,
+            })
         if number in parsed.locations:
-            parsed.errors.append(f"{location}: {number} appears again, first at {parsed.locations[number]}.")
+            parsed.errors.append(_("%(location)s: %(number)s appears again, first at %(first)s.") % {
+                "location": location, "number": number, "first": parsed.locations[number],
+            })
             enrollment = None
         elif number:
             parsed.locations[number] = location
@@ -97,18 +108,18 @@ def _parse_file(name, text, assessment, enrollments, parsed):
             parsed.rows.append((enrollment, score))
 
     if not has_rows:
-        parsed.errors.append(f"{name}: File has no grade rows.")
+        parsed.errors.append(_("%(name)s: File has no grade rows.") % {"name": name})
 
 
 def validate_score(raw, max_score):
     try:
         score = Decimal(raw)
     except InvalidOperation:
-        return None, "Score must be a number."
+        return None, _("Score must be a number.")
     if not score.is_finite() or not 0 <= score <= max_score:
-        return None, f"Score must be between 0 and {max_score}."
+        return None, _("Score must be between 0 and %(max)s.") % {"max": max_score}
     if score != score.quantize(CENT):
-        return None, "Score can have at most two decimal places."
+        return None, _("Score can have at most two decimal places.")
     return score.quantize(CENT), None
 
 def validate_pasted_grades(rows, assessment, enrollments):
@@ -128,11 +139,11 @@ def validate_pasted_grades(rows, assessment, enrollments):
         number_error = None
 
         if not number:
-            number_error = "Student number is empty."
+            number_error = _("Student number is empty.")
         elif enrollment is None:
-            number_error = "Student is not enrolled in this course."
+            number_error = _("Student is not enrolled in this course.")
         elif number in seen:
-            number_error = "Student appears more than once."
+            number_error = _("Student appears more than once.")
 
         if number:
             seen.add(number)

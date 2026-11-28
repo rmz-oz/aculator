@@ -4,15 +4,16 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class Term(models.Model):
     """An academic term, e.g. 2026 Fall."""
 
     class Season(models.TextChoices):
-        FALL = "fall", "Fall"
-        SPRING = "spring", "Spring"
-        SUMMER = "summer", "Summer"
+        FALL = "fall", _("Fall")
+        SPRING = "spring", _("Spring")
+        SUMMER = "summer", _("Summer")
 
     year = models.PositiveSmallIntegerField()
     season = models.CharField(max_length=10, choices=Season.choices)
@@ -234,8 +235,8 @@ class Grade(models.Model):
     """
 
     class Status(models.TextChoices):
-        GRADED = "graded", "Graded"
-        ABSENT = "absent", "Absent"
+        GRADED = "graded", _("Graded")
+        ABSENT = "absent", _("Absent")
 
     enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, related_name="grades")
     assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="grades")
@@ -407,9 +408,9 @@ class LOPOWeight(models.Model):
         )
 class GradeChange(models.Model):
     class Action(models.TextChoices):
-        CREATED = "created", "Created"
-        UPDATED = "updated", "Updated"
-        DELETED = "deleted", "Deleted"
+        CREATED = "created", _("Created")
+        UPDATED = "updated", _("Updated")
+        DELETED = "deleted", _("Deleted")
 
     grade_id = models.PositiveBigIntegerField(db_index=True)
     action = models.CharField(max_length=10, choices=Action.choices)

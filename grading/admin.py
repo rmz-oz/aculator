@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.translation import gettext_lazy as _
 
 from . import models as m
 from .access import HEAD, role_of
@@ -138,7 +139,7 @@ class GradeChangeAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-    @admin.display(description="Score")
+    @admin.display(description=_("Score"))
     def score_change(self, obj):
         def score(row):
             if not row:

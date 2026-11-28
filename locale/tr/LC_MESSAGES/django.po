@@ -1,0 +1,750 @@
+# Turkish translation catalog for aculator (#49).
+# MÜDEK terminology: öğrenme çıktısı (LO), program çıktısı (PO).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: aculator\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-28 08:48+0300\n"
+"PO-Revision-Date: 2026-11-28 08:48+0300\n"
+"Last-Translator: \n"
+"Language-Team: Turkish\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Score"
+msgstr "Puan"
+
+#, python-format
+msgid "%(name)s: File is larger than 1 MB."
+msgstr "%(name)s: Dosya 1 MB'tan büyük."
+
+#, python-format
+msgid "%(name)s: File is not UTF-8. Save it as \"CSV UTF-8\" and try again."
+msgstr "%(name)s: Dosya UTF-8 değil. \"CSV UTF-8\" olarak kaydedip tekrar deneyin."
+
+#, python-format
+msgid "%(name)s: File could not be read (%(error)s)."
+msgstr "%(name)s: Dosya okunamadı (%(error)s)."
+
+#, python-format
+msgid "%(name)s: File is empty."
+msgstr "%(name)s: Dosya boş."
+
+#, python-format
+msgid "%(name)s: The first row must be student_number,score."
+msgstr "%(name)s: İlk satır student_number,score olmalı."
+
+#, python-format
+msgid "%(location)s: Expected 2 columns, found %(n)s."
+msgstr "%(location)s: 2 sütun bekleniyordu, %(n)s bulundu."
+
+#, python-format
+msgid "%(location)s: Student number is empty."
+msgstr "%(location)s: Öğrenci numarası boş."
+
+#, python-format
+msgid "%(location)s: %(number)s is not enrolled in this course."
+msgstr "%(location)s: %(number)s bu derse kayıtlı değil."
+
+#, python-format
+msgid "%(location)s: %(number)s appears again, first at %(first)s."
+msgstr "%(location)s: %(number)s tekrar görünüyor, ilk olarak %(first)s içinde."
+
+#, python-format
+msgid "%(name)s: File has no grade rows."
+msgstr "%(name)s: Dosyada not satırı yok."
+
+msgid "Score must be a number."
+msgstr "Puan bir sayı olmalı."
+
+#, python-format
+msgid "Score must be between 0 and %(max)s."
+msgstr "Puan 0 ile %(max)s arasında olmalı."
+
+msgid "Score can have at most two decimal places."
+msgstr "Puan en fazla iki ondalık basamak içerebilir."
+
+msgid "Student number is empty."
+msgstr "Öğrenci numarası boş."
+
+msgid "Student is not enrolled in this course."
+msgstr "Öğrenci bu derse kayıtlı değil."
+
+msgid "Student appears more than once."
+msgstr "Öğrenci birden fazla kez görünüyor."
+
+msgid "Fall"
+msgstr "Güz"
+
+msgid "Spring"
+msgstr "Bahar"
+
+msgid "Summer"
+msgstr "Yaz"
+
+msgid "Graded"
+msgstr "Notlandırıldı"
+
+msgid "Absent"
+msgstr "Devamsız"
+
+msgid "Created"
+msgstr "Oluşturuldu"
+
+msgid "Updated"
+msgstr "Güncellendi"
+
+msgid "Deleted"
+msgstr "Silindi"
+
+msgid "Not found"
+msgstr "Bulunamadı"
+
+msgid "Page not found"
+msgstr "Sayfa bulunamadı"
+
+msgid "This page does not exist, or your account cannot open it."
+msgstr "Bu sayfa yok, ya da hesabınız bu sayfayı açamaz."
+
+msgid "Back to your start page"
+msgstr "Başlangıç sayfanıza dön"
+
+msgid "Skip to content"
+msgstr "İçeriğe geç"
+
+msgid "Main"
+msgstr "Ana"
+
+msgid "My outcomes"
+msgstr "Çıktılarım"
+
+msgid "Courses"
+msgstr "Dersler"
+
+msgid "View as"
+msgstr "Şu şekilde görüntüle"
+
+msgid "student"
+msgstr "öğrenci"
+
+msgid "instructor"
+msgstr "öğretim üyesi"
+
+msgid "head of department"
+msgstr "bölüm başkanı"
+
+msgid "Sign out"
+msgstr "Çıkış yap"
+
+#, python-format
+msgid "%(counter)s student"
+msgid_plural "%(counter)s students"
+msgstr[0] "%(counter)s öğrenci"
+msgstr[1] "%(counter)s öğrenci"
+
+#, python-format
+msgid "Class report, %(code)s %(term)s"
+msgstr "Ders raporu, %(code)s %(term)s"
+
+msgid "Class report"
+msgstr "Ders raporu"
+
+msgid "LO and PO scores"
+msgstr "ÖÇ ve PÇ puanları"
+
+#, python-format
+msgid "out of %(max_score)s"
+msgstr "%(max_score)s üzerinden"
+
+#, python-format
+msgid "%(graded)s of %(students)s graded"
+msgstr "%(students)s öğrenciden %(graded)s notlandırıldı"
+
+#, python-format
+msgid "Import grades for %(code)s %(name)s"
+msgstr "%(code)s %(name)s notlarını içe aktar"
+
+msgid "Import grades"
+msgstr "Notları içe aktar"
+
+msgid "No assessments yet. Add them in the admin."
+msgstr "Henüz değerlendirme yok. Yönetim panelinden ekleyin."
+
+#, python-format
+msgid "%(code)s class report"
+msgstr "%(code)s ders raporu"
+
+#, python-format
+msgid "%(term)s, class report"
+msgstr "%(term)s, ders raporu"
+
+#, python-format
+msgid "%(counter)s student."
+msgid_plural "%(counter)s students."
+msgstr[0] "%(counter)s öğrenci."
+msgstr[1] "%(counter)s öğrenci."
+
+msgid ""
+"Learning outcomes come from the weighted assessments, program outcomes "
+"(blue) from the learning outcomes."
+msgstr ""
+"Öğrenme çıktıları ağırlıklı değerlendirmelerden, program çıktıları (mavi) "
+"öğrenme çıktılarından gelir."
+
+msgid ""
+"Hatched cells have no graded evidence yet; \"1 grade\" means a single "
+"assessment so far, too thin to show as a score or to count in the class "
+"average."
+msgstr ""
+"Taralı hücrelerde henüz notlandırılmış kanıt yok; \"1 not\" tek bir "
+"değerlendirme olduğu, bir puan olarak gösterilemeyecek veya sınıf "
+"ortalamasına katılamayacak kadar az olduğu anlamına gelir."
+
+#, python-format
+msgid "Import %(name)s grades"
+msgstr "%(name)s notlarını içe aktar"
+
+#, python-format
+msgid ""
+"No learning outcomes are defined for this course in %(term)s yet, so its "
+"grades give no LO or PO score. They can be added in the admin."
+msgstr ""
+"Bu ders için %(term)s döneminde henüz öğrenme çıktısı tanımlanmamış, bu "
+"yüzden notları bir ÖÇ veya PÇ puanı üretmiyor. Yönetim panelinden "
+"eklenebilir."
+
+msgid "Students"
+msgstr "Öğrenciler"
+
+#, python-format
+msgid ""
+"Learning outcome and program outcome scores for every student in %(code)s, "
+"%(term)s."
+msgstr ""
+"%(code)s, %(term)s dersindeki her öğrenci için öğrenme çıktısı ve program "
+"çıktısı puanları."
+
+msgid "Student"
+msgstr "Öğrenci"
+
+#, python-format
+msgid "Only %(counter)s graded assessment so far"
+msgid_plural "Only %(counter)s graded assessments so far"
+msgstr[0] "Şimdiye kadar sadece %(counter)s notlandırılmış değerlendirme"
+msgstr[1] "Şimdiye kadar sadece %(counter)s notlandırılmış değerlendirme"
+
+msgid "1 grade"
+msgstr "1 not"
+
+msgid "No graded evidence"
+msgstr "Notlandırılmış kanıt yok"
+
+msgid "no evidence"
+msgstr "kanıt yok"
+
+msgid "Class average"
+msgstr "Sınıf ortalaması"
+
+msgid "Not enough evidence"
+msgstr "Yeterli kanıt yok"
+
+msgid "No students enrolled yet."
+msgstr "Henüz kayıtlı öğrenci yok."
+
+msgid "Instructor"
+msgstr "Öğretim Üyesi"
+
+msgid "Head of department"
+msgstr "Bölüm Başkanı"
+
+#, python-format
+msgid ""
+"Scores out of %(max_score)s. Preview first to see what changes and to mark "
+"students who missed the assessment; nothing is saved until you confirm."
+msgstr ""
+"Puanlar %(max_score)s üzerinden. Neyin değiştiğini görmek ve "
+"değerlendirmeye girmeyen öğrencileri işaretlemek için önce önizleyin; siz "
+"onaylayana kadar hiçbir şey kaydedilmez."
+
+msgid "Paste grades from Excel"
+msgstr "Excel'den not yapıştırın"
+
+msgid ""
+"For one column, check that Excel follows the student order shown here; the "
+"name and current grade help you check.\n"
+"    Click the first score cell and paste. For two columns, paste student\n"
+"    numbers and scores into the first student number cell. Leave a score\n"
+"    blank to keep that student's grade unchanged."
+msgstr ""
+"Tek sütun için, Excel'in burada gösterilen öğrenci sırasını izlediğinden "
+"emin olun; ad ve mevcut not kontrol etmenize yardımcı olur.\n"
+"    İlk puan hücresine tıklayıp yapıştırın. İki sütun için, öğrenci\n"
+"    numaralarını ve puanları ilk öğrenci numarası hücresine yapıştırın. Bir "
+"öğrencinin notunu değiştirmeden bırakmak için puanı boş bırakın."
+
+msgid "Save pasted grades"
+msgstr "Yapıştırılan notları kaydet"
+
+msgid "Nothing was saved"
+msgstr "Hiçbir şey kaydedilmedi"
+
+#, python-format
+msgid "%(counter)s grade saved"
+msgid_plural "%(counter)s grades saved"
+msgstr[0] "%(counter)s not kaydedildi"
+msgstr[1] "%(counter)s not kaydedildi"
+
+#, python-format
+msgid "%(counter)s student marked absent"
+msgid_plural "%(counter)s students marked absent"
+msgstr[0] "%(counter)s öğrenci devamsız işaretlendi"
+msgstr[1] "%(counter)s öğrenci devamsız işaretlendi"
+
+msgid "Open the class report"
+msgstr "Ders raporunu aç"
+
+msgid ""
+"These grades were already saved, most likely by a first click. Nothing "
+"changed."
+msgstr ""
+"Bu notlar muhtemelen ilk tıklamayla zaten kaydedildi. Hiçbir şey değişmedi."
+
+msgid "Preview"
+msgstr "Önizleme"
+
+#, python-format
+msgid "%(counter)s grade will be saved"
+msgid_plural "%(counter)s grades will be saved"
+msgstr[0] "%(counter)s not kaydedilecek"
+msgstr[1] "%(counter)s not kaydedilecek"
+
+#, python-format
+msgid "%(counter)s of them replacing an existing grade"
+msgid_plural "%(counter)s of them replacing an existing grade"
+msgstr[0] "bunlardan %(counter)s tanesi mevcut bir notun yerini alıyor"
+msgstr[1] "bunlardan %(counter)s tanesi mevcut bir notun yerini alıyor"
+
+msgid "Replaced grades"
+msgstr "Yerine geçen notlar"
+
+msgid "In no file"
+msgstr "Hiçbir dosyada yok"
+
+msgid ""
+"Tick the students who missed the assessment. They count as 0. Leave the rest "
+"without a grade."
+msgstr ""
+"Değerlendirmeye girmeyen öğrencileri işaretleyin. Onlar 0 olarak sayılır. "
+"Gerisini notsuz bırakın."
+
+#, python-format
+msgid "%(number)s was absent"
+msgstr "%(number)s devamsızdı"
+
+msgid "Kept as they are"
+msgstr "Oldukları gibi bırakıldı"
+
+msgid "In no file, but already graded."
+msgstr "Hiçbir dosyada yok, ama zaten notlandırılmış."
+
+msgid "Confirm and save"
+msgstr "Onayla ve kaydet"
+
+msgid "Different files"
+msgstr "Farklı dosyalar"
+
+msgid "Files"
+msgstr "Dosyalar"
+
+msgid "CSV files"
+msgstr "CSV dosyaları"
+
+msgid "Drop CSV files here or <strong>choose files</strong>"
+msgstr "CSV dosyalarını buraya bırakın ya da <strong>dosya seçin</strong>"
+
+msgid ""
+"A header row <span class=\"num\">student_number,score</span>, then one row "
+"per student. Semicolons and a decimal comma also work. A student may appear "
+"only once across all files."
+msgstr ""
+"Bir başlık satırı <span class=\"num\">student_number,score</span>, sonra "
+"öğrenci başına bir satır. Noktalı virgül ve ondalık virgül de çalışır. Bir "
+"öğrenci tüm dosyalar genelinde yalnızca bir kez görünebilir."
+
+msgid "Import without preview"
+msgstr "Önizlemeden içe aktar"
+
+msgid "Every course in the department"
+msgstr "Bölümdeki her ders"
+
+msgid "Your courses"
+msgstr "Dersleriniz"
+
+msgid ""
+"Open a class report to see learning and program outcome scores for every "
+"student."
+msgstr ""
+"Her öğrenci için öğrenme çıktısı ve program çıktısı puanlarını görmek üzere "
+"bir ders raporu açın."
+
+msgid ""
+"Import an assessment's grades from CSV, then read the class report. Scores "
+"update as soon as grades are saved."
+msgstr ""
+"Bir değerlendirmenin notlarını CSV'den içe aktarın, sonra ders raporunu "
+"okuyun. Notlar kaydedilir kaydedilmez puanlar güncellenir."
+
+#, python-format
+msgid "%(counter)s course"
+msgid_plural "%(counter)s courses"
+msgstr[0] "%(counter)s ders"
+msgstr[1] "%(counter)s ders"
+
+msgid "No course offerings yet. Add them in the admin."
+msgstr "Henüz ders açılışı yok. Yönetim panelinden ekleyin."
+
+msgid "You are not listed as an instructor of any course yet."
+msgstr "Henüz hiçbir dersin öğretim üyesi olarak listelenmiyorsunuz."
+
+msgid ""
+"Your account has no role yet. Ask the department to add you as an instructor "
+"or student."
+msgstr ""
+"Hesabınızın henüz bir rolü yok. Bölümden sizi öğretim üyesi veya öğrenci "
+"olarak eklemesini isteyin."
+
+msgid "Language"
+msgstr "Dil"
+
+msgid "how the score was computed"
+msgstr "puanın nasıl hesaplandığı"
+
+msgid ""
+"Only one assessment so far. The profile shows this as thin evidence, not as "
+"a score, until a second one is graded."
+msgstr ""
+"Şimdiye kadar yalnızca bir değerlendirme var. İkincisi notlandırılana kadar "
+"profil bunu bir puan olarak değil, zayıf kanıt olarak gösterir."
+
+msgid ""
+"Each grade, as a percentage of its maximum, counts with the weight it "
+"reaches the PO with: through the learning outcomes it feeds, the PO "
+"components, and the ECTS of its course. Rounded here for reading; the sum is "
+"exact before rounding."
+msgstr ""
+"Her not, maksimumunun yüzdesi olarak, PÇ'ye ulaştığı ağırlıkla sayılır: "
+"beslediği öğrenme çıktıları, PÇ bileşenleri ve dersinin ECTS'i üzerinden. "
+"Burada okunması için yuvarlanmıştır; toplam yuvarlamadan önce tamdır."
+
+#, python-format
+msgid "From grades to %(po)s"
+msgstr "Notlardan %(po)s'ye"
+
+msgid "The chart needs a wider screen. The tables below show the same numbers."
+msgstr "Grafik daha geniş bir ekran gerektirir. Aşağıdaki tablolar aynı sayıları gösterir."
+
+#, python-format
+msgid ""
+"Left, every grade that counts; middle, the learning outcomes; right, %(po)s. "
+"Height is the score, line width the weight that flows along it."
+msgstr ""
+"Solda, sayılan her not; ortada, öğrenme çıktıları; sağda, %(po)s. Yükseklik "
+"puanı, çizgi kalınlığı o çizgi boyunca akan ağırlığı gösterir."
+
+msgid "What each grade contributed"
+msgstr "Her notun katkısı"
+
+#, python-format
+msgid ""
+"Grades that feed %(po)s, with their weight in the PO and their contribution."
+msgstr "%(po)s'yi besleyen notlar, PÇ'deki ağırlıkları ve katkılarıyla."
+
+msgid "Grade"
+msgstr "Not"
+
+#, python-format
+msgid "Weight in %(po)s"
+msgstr "%(po)s'deki ağırlık"
+
+msgid "Contribution"
+msgstr "Katkı"
+
+msgid "Learning outcomes"
+msgstr "Öğrenme çıktıları"
+
+#, python-format
+msgid "Learning outcomes that feed %(po)s."
+msgstr "%(po)s'yi besleyen öğrenme çıktıları."
+
+msgid "Learning outcome"
+msgstr "Öğrenme çıktısı"
+
+msgid "program outcomes"
+msgstr "program çıktıları"
+
+#, python-format
+msgid "%(code)s, %(term)s class report"
+msgstr "%(code)s, %(term)s ders raporu"
+
+msgid "Your program outcomes"
+msgstr "Program çıktılarınız"
+
+msgid "Program outcomes"
+msgstr "Program çıktıları"
+
+#, python-format
+msgid ""
+"Each score is weighted by ECTS across every course you have taken.\n"
+"  A PO is met when each of its components reaches %(target)s. The department "
+"figure is the mean of all students, shown once at least %(min_students)s "
+"have a score, so no one else's score can be worked out."
+msgstr ""
+"Her puan, aldığınız tüm dersler genelinde ECTS ile ağırlıklandırılır.\n"
+"  Bir PÇ, her bileşeni %(target)s'e ulaştığında karşılanmış sayılır. Bölüm "
+"değeri, başka hiç kimsenin puanı çıkarılamayacak şekilde, en az "
+"%(min_students)s öğrencinin puanı olduğunda gösterilen tüm öğrencilerin "
+"ortalamasıdır."
+
+#, python-format
+msgid ""
+"Each score is weighted by ECTS across every course the student has taken.\n"
+"  A PO is met when each of its components reaches %(target)s. The department "
+"figure is the mean of all students, shown once at least %(min_students)s "
+"have a score, so no one else's score can be worked out."
+msgstr ""
+"Her puan, öğrencinin aldığı tüm dersler genelinde ECTS ile "
+"ağırlıklandırılır.\n"
+"  Bir PÇ, her bileşeni %(target)s'e ulaştığında karşılanmış sayılır. Bölüm "
+"değeri, başka hiç kimsenin puanı çıkarılamayacak şekilde, en az "
+"%(min_students)s öğrencinin puanı olduğunda gösterilen tüm öğrencilerin "
+"ortalamasıdır."
+
+#, python-format
+msgid ""
+"Each score is weighted by ECTS across the courses you teach this student; "
+"their other courses are not included.\n"
+"  A PO is met when each of its components reaches %(target)s. The department "
+"figure is the mean of all students, shown once at least %(min_students)s "
+"have a score, so no one else's score can be worked out."
+msgstr ""
+"Her puan, bu öğrenciye verdiğiniz dersler genelinde ECTS ile "
+"ağırlıklandırılır; öğrencinin diğer dersleri dahil değildir.\n"
+"  Bir PÇ, her bileşeni %(target)s'e ulaştığında karşılanmış sayılır. Bölüm "
+"değeri, başka hiç kimsenin puanı çıkarılamayacak şekilde, en az "
+"%(min_students)s öğrencinin puanı olduğunda gösterilen tüm öğrencilerin "
+"ortalamasıdır."
+
+#, python-format
+msgid "%(code)s, one graded assessment so far, see it"
+msgstr "%(code)s, şimdiye kadar bir notlandırılmış değerlendirme, görüntüle"
+
+#, python-format
+msgid "%(code)s %(own)s, how it was computed"
+msgstr "%(code)s %(own)s, nasıl hesaplandığı"
+
+msgid "one assessment so far, too thin for a score"
+msgstr "şimdiye kadar bir değerlendirme, bir puan için çok az"
+
+#, python-format
+msgid "%(components)s below %(target)s"
+msgstr "%(components)s, %(target)s altında"
+
+#, python-format
+msgid "%(components)s no evidence yet"
+msgstr "%(components)s henüz kanıt yok"
+
+#, python-format
+msgid "department %(department)s"
+msgstr "bölüm %(department)s"
+
+msgid "no department figure, too few students"
+msgstr "bölüm değeri yok, çok az öğrenci"
+
+msgid "not enough graded evidence"
+msgstr "yeterli notlandırılmış kanıt yok"
+
+msgid "Blue"
+msgstr "Mavi"
+
+msgid "target met, at or above the department mean"
+msgstr "hedef karşılandı, bölüm ortalamasında veya üzerinde"
+
+msgid "Black"
+msgstr "Siyah"
+
+msgid "target met, below the department mean"
+msgstr "hedef karşılandı, bölüm ortalamasının altında"
+
+msgid "Red"
+msgstr "Kırmızı"
+
+#, python-format
+msgid "a component below %(target)s"
+msgstr "%(target)s altında bir bileşen"
+
+msgid "a single assessment so far"
+msgstr "şimdiye kadar tek bir değerlendirme"
+
+msgid "no graded evidence yet"
+msgstr "henüz notlandırılmış kanıt yok"
+
+msgid "Select a score to see what each grade contributed."
+msgstr "Her notun katkısını görmek için bir puan seçin."
+
+msgid "As a table"
+msgstr "Tablo olarak"
+
+msgid "The same scores for screen readers and printing."
+msgstr "Ekran okuyucular ve yazdırma için aynı puanlar."
+
+msgid "PO"
+msgstr "PÇ"
+
+msgid "You"
+msgstr "Siz"
+
+msgid "Department"
+msgstr "Bölüm"
+
+#, python-format
+msgid "Target %(target)s"
+msgstr "Hedef %(target)s"
+
+msgid "not yet"
+msgstr "henüz değil"
+
+msgid "not met"
+msgstr "karşılanmadı"
+
+msgid "met"
+msgstr "karşılandı"
+
+msgid "No graded work yet, so there is nothing to show."
+msgstr "Henüz notlandırılmış bir çalışma yok, bu yüzden gösterilecek bir şey yok."
+
+msgid "Sign in"
+msgstr "Giriş yap"
+
+msgid "Program outcomes, from every grade."
+msgstr "Her nottan, program çıktılarına."
+
+msgid ""
+"Instructors import assessment grades. Every learning outcome and program "
+"outcome score follows from them, with no rounding until the number is shown."
+msgstr ""
+"Öğretim üyeleri değerlendirme notlarını içe aktarır. Her öğrenme çıktısı ve "
+"program çıktısı puanı bunlardan türer, sayı gösterilene kadar hiç "
+"yuvarlama yapılmaz."
+
+msgid "Wrong username or password."
+msgstr "Kullanıcı adı veya şifre yanlış."
+
+msgid "Username"
+msgstr "Kullanıcı adı"
+
+msgid "Password"
+msgstr "Şifre"
+
+msgid "Demo, sign in as"
+msgstr "Demo, şu rolle giriş yap"
+
+msgid "Grades"
+msgstr "Notlar"
+
+#, python-format
+msgid "%(from)s to %(to)s: %(percent)s%% of %(po)s"
+msgstr "%(from)s'dan %(to)s'ye: %(po)s'nin %%%(percent)s'i"
+
+msgid "Grades changed while you were saving. Reload the page and try again."
+msgstr "Siz kaydederken notlar değişti. Sayfayı yenileyip tekrar deneyin."
+
+msgid ""
+"Someone changed these grades at the same time, so nothing was saved. Choose "
+"the files again."
+msgstr ""
+"Biri bu notları aynı anda değiştirdi, bu yüzden hiçbir şey kaydedilmedi. "
+"Dosyaları tekrar seçin."
+
+msgid "absent"
+msgstr "devamsız"
+
+msgid "The grade grid could not load."
+msgstr "Not tablosu yüklenemedi."
+
+msgid "Student number"
+msgstr "Öğrenci numarası"
+
+msgid "Name"
+msgstr "Ad"
+
+msgid "Current"
+msgstr "Mevcut"
+
+msgid "Click or Tab to the cell where the paste should start."
+msgstr "Yapıştırmanın başlayacağı hücreye tıklayın veya Tab ile gidin."
+
+msgid "Paste one score column into a score cell."
+msgstr "Tek bir puan sütununu bir puan hücresine yapıştırın."
+
+msgid "Paste student numbers and scores into a student number cell."
+msgstr "Öğrenci numaralarını ve puanları bir öğrenci numarası hücresine yapıştırın."
+
+msgid "The pasted rows do not fit below the selected cell."
+msgstr "Yapıştırılan satırlar seçilen hücrenin altına sığmıyor."
+
+#, python-format
+msgid "%(n)s rows pasted. Check the student numbers before saving."
+msgstr "%(n)s satır yapıştırıldı. Kaydetmeden önce öğrenci numaralarını kontrol edin."
+
+msgid "Saving…"
+msgstr "Kaydediliyor…"
+
+#, python-format
+msgid "%(n)s grade saved."
+msgstr "%(n)s not kaydedildi."
+
+#, python-format
+msgid "%(n)s grades saved."
+msgstr "%(n)s not kaydedildi."
+
+msgid "Nothing was saved. Fix the highlighted cells and try again."
+msgstr "Hiçbir şey kaydedilmedi. Vurgulanan hücreleri düzeltip tekrar deneyin."
+
+msgid "The save could not be confirmed. Check the grades before retrying."
+msgstr "Kayıt onaylanamadı. Tekrar denemeden önce notları kontrol edin."
+
+msgid "Choose at least one CSV file."
+msgstr "En az bir CSV dosyası seçin."
+
+msgid "Invalid grade grid data."
+msgstr "Geçersiz not tablosu verisi."
+
+msgid "Enter at least one score."
+msgstr "En az bir puan girin."
+
+#, python-format
+msgid "%(username)s: %(old)s to %(new)s"
+msgstr "%(username)s: %(old)s yerine %(new)s"
+
+msgid "The preview is invalid or has expired. Preview the files again."
+msgstr "Önizleme geçersiz veya süresi dolmuş. Dosyaları tekrar önizleyin."
+
+msgid "The maximum score of this assessment changed. Preview the files again."
+msgstr "Bu değerlendirmenin maksimum puanı değişti. Dosyaları tekrar önizleyin."
+
+msgid "Enrollments in this course changed. Preview the files again."
+msgstr "Bu dersteki kayıtlar değişti. Dosyaları tekrar önizleyin."
+
+msgid ""
+"Grades for this assessment changed after the preview, or it was already "
+"saved. Preview again."
+msgstr ""
+"Bu değerlendirmenin notları önizlemeden sonra değişti, ya da zaten "
+"kaydedildi. Tekrar önizleyin."
+
+msgid "Only students suggested in the preview can be marked absent."
+msgstr "Yalnızca önizlemede önerilen öğrenciler devamsız işaretlenebilir."
