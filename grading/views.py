@@ -37,9 +37,20 @@ from .grade_import import (
     serializable_transaction,
     validate_pasted_grades,
 )
-from .models import Assessment, CourseOffering, Grade, LearningOutcome, LOPOWeight, ProgramOutcome, Term
+from .models import (
+    Assessment,
+    CourseOffering,
+    Enrollment,
+    Grade,
+    LearningOutcome,
+    LOPOWeight,
+    ProgramOutcome,
+    Term,
+)
 from .services import (
     DEPARTMENT_MIN_STUDENTS,
+    attempt_order,
+    counting_enrollment_ids,
     department_po_scores,
     display,
     po_report,
@@ -224,6 +235,7 @@ def student_profile(request, student_id):
     return render(request, "grading/student_profile.html", {
         "student": student,
         "rows": rows,
+        "retakes": _retakes(student, enrollments),
         "target": display(target, "1"),
         "own_profile": own_profile,
         "all_courses": own_profile or role_of(request.user) == HEAD,
@@ -231,6 +243,38 @@ def student_profile(request, student_id):
         "from_report": from_report,
         "nav": "home" if own_profile else None,
     })
+
+
+def _retakes(student, enrollments):
+    """Courses the student took more than once, each attempt the viewer may see,
+    and whether it counts across courses (#104). Empty for most students."""
+    every = Enrollment.objects.filter(student=student)
+    repeated = (
+        every.values("offering__course_id").annotate(n=Count("id")).filter(n__gt=1)
+        .values_list("offering__course_id", flat=True)
+    )
+    if not repeated:
+        return []
+    visible = (enrollments if enrollments is not None else Enrollment.objects.all()).filter(
+        student=student, offering__course_id__in=list(repeated),
+    ).select_related("offering__course", "offering__term")
+    counting = counting_enrollment_ids(student)
+    counted_order = {
+        e.offering.course_id: attempt_order(e.offering)
+        for e in every.filter(pk__in=counting).select_related("offering__term")
+    }
+    courses = {}
+    for enrollment in sorted(visible, key=lambda e: attempt_order(e.offering)):
+        if enrollment.pk in counting:
+            status = "counts"
+        elif not enrollment.grades.exists():
+            status = "no grades"
+        elif attempt_order(enrollment.offering) < counted_order.get(enrollment.offering.course_id, (0,)):
+            status = "replaced"
+        else:
+            status = "no grades"
+        courses.setdefault(enrollment.offering.course, []).append({"enrollment": enrollment, "status": status})
+    return [{"course": course, "attempts": attempts} for course, attempts in courses.items()]
 
 
 def _from_report(request, student):

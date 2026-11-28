@@ -64,7 +64,26 @@
 </table>
 </div>
 {% else %}
-<p class="empty">{% trans "No graded work yet, so there is nothing to show." %}</p>
+<p class="empty">{% if retakes %}{% trans "No attempt shown here counts in the scores." %}{% else %}{% trans "No graded work yet, so there is nothing to show." %}{% endif %}</p>
+{% endif %}
+
+{% if retakes %}
+<h2 id="retakes-title">{% trans "Repeated courses" %}</h2>
+<p class="muted">{% trans "A course taken more than once counts once in these scores: its latest attempt with grades, as the regulation counts the last grade." %}</p>
+<div class="table-wrap" data-label="retakes-title">
+<table>
+  <thead><tr><th scope="col">{% trans "Course" %}</th><th scope="col">{% trans "Term" %}</th><th scope="col">{% trans "In the scores" %}</th></tr></thead>
+  <tbody>
+  {% for course in retakes %}{% for attempt in course.attempts %}
+    <tr>
+      <th scope="row">{{ course.course.code }}</th>
+      <td>{{ attempt.enrollment.offering.term }}</td>
+      <td>{% if attempt.status == "counts" %}{% trans "counts" %}{% elif attempt.status == "replaced" %}<span class="muted">{% trans "replaced by a later attempt" %}</span>{% else %}<span class="muted">{% trans "no grades yet" %}</span>{% endif %}</td>
+    </tr>
+  {% endfor %}{% endfor %}
+  </tbody>
+</table>
+</div>
 {% endif %}
 {% endblock %}
 

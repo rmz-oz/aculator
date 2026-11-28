@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: aculator\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-28 15:16+0300\n"
+"POT-Creation-Date: 2026-11-28 15:42+0300\n"
 "PO-Revision-Date: 2026-11-28 08:48+0300\n"
 "Last-Translator: \n"
 "Language-Team: Turkish\n"
@@ -34,7 +34,8 @@ msgstr "Katalogda bu dersin ÖÇ-PÇ tablosu yok."
 msgid ""
 "The LO-PO table has no PO numbers in its header, so its levels could not be "
 "read."
-msgstr "ÖÇ-PÇ tablosunun başlığında PÇ numarası yok, bu yüzden düzeyleri okunamadı."
+msgstr ""
+"ÖÇ-PÇ tablosunun başlığında PÇ numarası yok, bu yüzden düzeyleri okunamadı."
 
 #, python-format
 msgid "P%(n)s appears twice in the LO-PO table; the later column is used."
@@ -50,7 +51,9 @@ msgstr ""
 msgid ""
 "The LO-PO table has rows for learning outcomes the course does not list "
 "(%(rows)s); they are left out."
-msgstr "ÖÇ-PÇ tablosunda derste listelenmeyen öğrenme çıktıları için satırlar var (%(rows)s); bunlar alınmadı."
+msgstr ""
+"ÖÇ-PÇ tablosunda derste listelenmeyen öğrenme çıktıları için satırlar var "
+"(%(rows)s); bunlar alınmadı."
 
 msgid ""
 "The catalogue gives the levels for the whole course only, so every LO starts "
@@ -781,9 +784,40 @@ msgstr "karşılanmadı"
 msgid "met"
 msgstr "karşılandı"
 
+msgid "No attempt shown here counts in the scores."
+msgstr "Burada görünen denemelerin hiçbiri puanlara girmiyor."
+
 msgid "No graded work yet, so there is nothing to show."
 msgstr ""
 "Henüz notlandırılmış bir çalışma yok, bu yüzden gösterilecek bir şey yok."
+
+msgid "Repeated courses"
+msgstr "Tekrar alınan dersler"
+
+msgid ""
+"A course taken more than once counts once in these scores: its latest "
+"attempt with grades, as the regulation counts the last grade."
+msgstr ""
+"Birden fazla alınan bir ders bu puanlarda bir kez sayılır: notu olan son "
+"denemesi, çünkü yönetmelik son notu esas alır."
+
+msgid "Course"
+msgstr "Ders"
+
+msgid "Term"
+msgstr "Dönem"
+
+msgid "In the scores"
+msgstr "Puanlarda"
+
+msgid "counts"
+msgstr "sayılıyor"
+
+msgid "replaced by a later attempt"
+msgstr "yerini sonraki deneme aldı"
+
+msgid "no grades yet"
+msgstr "henüz not yok"
 
 #, python-format
 msgid "%(code)s learning outcomes"
@@ -995,7 +1029,9 @@ msgstr "Yalnız ilk %(n)s öğrenme çıktısı gösteriliyor."
 msgid ""
 "%(po)s has no components yet, so its levels cannot be saved. Add them in the "
 "admin."
-msgstr "%(po)s için henüz bileşen yok, bu yüzden düzeyleri kaydedilemez. Yönetim panelinden ekleyin."
+msgstr ""
+"%(po)s için henüz bileşen yok, bu yüzden düzeyleri kaydedilemez. Yönetim "
+"panelinden ekleyin."
 
 #, python-format
 msgid ""

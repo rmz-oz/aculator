@@ -19,6 +19,7 @@ from decimal import Decimal
 from django.db.models import F
 
 from .models import AssessmentLOWeight, Enrollment, Grade, LOPOWeight
+from .services import counting_enrollment_ids, counting_enrollments, replaced_grades
 
 ZERO = Decimal(0)
 ONE = Decimal(1)
@@ -79,7 +80,8 @@ def explain_po(student, po_code, enrollments=None):
 
 def explain_all(student, enrollments=None, only=None):
     """{PO code: Explanation} for every PO the student has a score in, from one set of queries."""
-    if enrollments is None:
+    every_course = enrollments is None
+    if every_course:
         enrollments = Enrollment.objects.all()
     enrollments = list(
         enrollments.filter(student=student).select_related("offering__course", "offering__term")
@@ -95,10 +97,14 @@ def explain_all(student, enrollments=None, only=None):
         enrollment_id__in=offering_of,
         assessment__offering_id=F("enrollment__offering_id"),
     ).select_related("assessment")
+    grades = list(grades)
     for grade in grades:
         leaf = ("grade", grade.enrollment_id, grade.assessment_id)
         percent[leaf] = grade.score / grade.assessment.max_score * HUNDRED
         grade_label[leaf] = grade.assessment.name
+    # A graded makeup replaces the assessment it names (#105), as in services.
+    for enrollment_id, assessment_id in replaced_grades(grades):
+        percent.pop(("grade", enrollment_id, assessment_id), None)
 
     lo_inputs = defaultdict(list)
     for offering_id, assessment_id, lo_id, lo_code, weight in AssessmentLOWeight.objects.filter(
@@ -122,15 +128,24 @@ def explain_all(student, enrollments=None, only=None):
     inputs_by_po = defaultdict(lambda: defaultdict(list))
     lo_key_by_id = {(k[1], k[2]): k for k in lo_forms}
     weights = LOPOWeight.objects.filter(learning_outcome__offering_id__in=offering_of.values())
-    if only is not None:
-        weights = weights.filter(component__program_outcome__code=only)
+    rows = []
     for offering_id, lo_id, po, component_code, level in weights.values_list(
         "learning_outcome__offering_id", "learning_outcome_id", "component__program_outcome__code",
         "component__code", "weight",
     ):
         enrollment = enrollment_by_offering[offering_id]
         lo_key = lo_key_by_id.get((enrollment.pk, lo_id))
-        if lo_key is not None:
+        if lo_key is not None and level > 0:
+            rows.append((enrollment, po, component_code, lo_key, level))
+    # A retaken course counts once, its latest attempt with scores (#104),
+    # decided over all the student's courses as in services.
+    if every_course:
+        with_scores = {enrollment.pk for enrollment, *_ in rows}
+        counting = counting_enrollments(enrollments, lambda e: e.pk in with_scores)
+    else:
+        counting = counting_enrollment_ids(student)
+    for enrollment, po, component_code, lo_key, level in rows:
+        if enrollment.pk in counting and (only is None or po == only):
             inputs_by_po[po][component_code].append((enrollment, lo_key, Decimal(level)))
 
     course_of = {e.pk: e.offering.course.code for e in enrollments}
