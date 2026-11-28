@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: aculator\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-28 14:56+0300\n"
+"POT-Creation-Date: 2026-11-28 15:42+0300\n"
 "PO-Revision-Date: 2026-11-28 08:48+0300\n"
 "Last-Translator: \n"
 "Language-Team: Turkish\n"
@@ -17,6 +17,70 @@ msgstr ""
 
 msgid "Score"
 msgstr "Puan"
+
+msgid ""
+"This page has no learning outcomes table. Is it a course page of the Bologna "
+"catalogue?"
+msgstr ""
+"Bu sayfada öğrenme çıktıları tablosu yok. Bologna kataloğundaki bir ders "
+"sayfası mı?"
+
+msgid "The catalogue lists no learning outcomes for this course."
+msgstr "Katalogda bu dersin öğrenme çıktıları yok."
+
+msgid "The catalogue has no LO-PO table for this course."
+msgstr "Katalogda bu dersin ÖÇ-PÇ tablosu yok."
+
+msgid ""
+"The LO-PO table has no PO numbers in its header, so its levels could not be "
+"read."
+msgstr ""
+"ÖÇ-PÇ tablosunun başlığında PÇ numarası yok, bu yüzden düzeyleri okunamadı."
+
+#, python-format
+msgid "P%(n)s appears twice in the LO-PO table; the later column is used."
+msgstr "P%(n)s ÖÇ-PÇ tablosunda iki kez geçiyor; sonraki sütun alındı."
+
+#, python-format
+msgid "%(row)s, P%(po)s: \"%(raw)s\" is not a level from 1 to 5, left empty."
+msgstr ""
+"%(row)s, P%(po)s: \"%(raw)s\" 1 ile 5 arasında bir düzey değil, boş "
+"bırakıldı."
+
+#, python-format
+msgid ""
+"The LO-PO table has rows for learning outcomes the course does not list "
+"(%(rows)s); they are left out."
+msgstr ""
+"ÖÇ-PÇ tablosunda derste listelenmeyen öğrenme çıktıları için satırlar var "
+"(%(rows)s); bunlar alınmadı."
+
+msgid ""
+"The catalogue gives the levels for the whole course only, so every LO starts "
+"with the same levels. Adjust them per LO."
+msgstr ""
+"Katalog düzeyleri yalnız dersin tamamı için veriyor, bu yüzden her ÖÇ aynı "
+"düzeylerle başlıyor. Her ÖÇ için ayrı ayrı düzeltin."
+
+msgid "The LO-PO table in the catalogue is empty. Enter the levels below."
+msgstr "Katalogdaki ÖÇ-PÇ tablosu boş. Düzeyleri aşağıya girin."
+
+msgid ""
+"Every LO has the same row in the catalogue, which is usually copied, not "
+"measured. Check the levels."
+msgstr ""
+"Katalogda her ÖÇ'nin satırı aynı; bu çoğunlukla ölçülmüş değil kopyalanmış "
+"demektir. Düzeyleri kontrol edin."
+
+msgid "The course catalogue did not answer. Try again later."
+msgstr "Ders kataloğu yanıt vermedi. Daha sonra tekrar deneyin."
+
+msgid "The course catalogue did not list any course. Try again later."
+msgstr "Ders kataloğu hiçbir ders listelemedi. Daha sonra tekrar deneyin."
+
+#, python-format
+msgid "%(code)s is not in the course catalogue of this program."
+msgstr "%(code)s bu programın ders kataloğunda yok."
 
 #, python-format
 msgid "%(name)s: File is larger than 1 MB."
@@ -291,14 +355,25 @@ msgstr ""
 msgid "Import %(name)s grades"
 msgstr "%(name)s notlarını içe aktar"
 
+msgid "Learning outcomes from the catalogue"
+msgstr "Katalogdan öğrenme çıktıları"
+
+msgid "Set up learning outcomes from the catalogue"
+msgstr "Öğrenme çıktılarını katalogdan kur"
+
 #, python-format
 msgid ""
 "No learning outcomes are defined for this course in %(term)s yet, so its "
-"grades give no LO or PO score. They can be added in the admin."
+"grades give no LO or PO score."
 msgstr ""
 "Bu ders için %(term)s döneminde henüz öğrenme çıktısı tanımlanmamış, bu "
-"yüzden notları bir ÖÇ veya PÇ puanı üretmiyor. Yönetim panelinden "
-"eklenebilir."
+"yüzden notları bir ÖÇ veya PÇ puanı üretmiyor."
+
+msgid "Set them up from the course catalogue above."
+msgstr "Yukarıdaki düğmeyle ders kataloğundan kurabilirsiniz."
+
+msgid "They can be added in the admin."
+msgstr "Yönetim panelinden eklenebilirler."
 
 msgid "Students"
 msgstr "Öğrenciler"
@@ -722,7 +797,9 @@ msgstr "Tekrar alınan dersler"
 msgid ""
 "A course taken more than once counts once in these scores: its latest "
 "attempt with grades, as the regulation counts the last grade."
-msgstr "Birden fazla alınan bir ders bu puanlarda bir kez sayılır: notu olan son denemesi, çünkü yönetmelik son notu esas alır."
+msgstr ""
+"Birden fazla alınan bir ders bu puanlarda bir kez sayılır: notu olan son "
+"denemesi, çünkü yönetmelik son notu esas alır."
 
 msgid "Course"
 msgstr "Ders"
@@ -741,6 +818,76 @@ msgstr "yerini sonraki deneme aldı"
 
 msgid "no grades yet"
 msgstr "henüz not yok"
+
+#, python-format
+msgid "%(code)s learning outcomes"
+msgstr "%(code)s öğrenme çıktıları"
+
+msgid "Learning outcomes from the course catalogue"
+msgstr "Ders kataloğundan öğrenme çıktıları"
+
+msgid ""
+"The learning outcomes and their contribution to each program outcome are "
+"read from the university's Bologna catalogue. Nothing is saved until you "
+"check them and select Save."
+msgstr ""
+"Öğrenme çıktıları ve her birinin program çıktılarına katkısı üniversitenin "
+"Bologna kataloğundan okunur. Siz kontrol edip Kaydet'i seçene kadar hiçbir "
+"şey kaydedilmez."
+
+#, python-format
+msgid "%(counter)s learning outcome saved"
+msgid_plural "%(counter)s learning outcomes saved"
+msgstr[0] "%(counter)s öğrenme çıktısı kaydedildi"
+msgstr[1] "%(counter)s öğrenme çıktısı kaydedildi"
+
+#, python-format
+msgid "%(counter)s level"
+msgid_plural "%(counter)s levels"
+msgstr[0] "%(counter)s düzey"
+msgstr[1] "%(counter)s düzey"
+
+msgid "Check before saving"
+msgstr "Kaydetmeden önce kontrol edin"
+
+#, python-format
+msgid "%(code)s in the catalogue"
+msgstr "Katalogda %(code)s"
+
+msgid ""
+"Level 1 is a very low contribution, 5 a very high one; empty means none. A "
+"level for a PO counts for each of its components."
+msgstr ""
+"1 çok düşük, 5 çok yüksek katkı demektir; boş, katkı yok demektir. Bir PÇ "
+"için girilen düzey o PÇ'nin her bileşenine sayılır."
+
+#, python-format
+msgid "Now: %(text)s"
+msgstr "Şu an: %(text)s"
+
+#, python-format
+msgid "%(codes)s stay as they are."
+msgstr "%(codes)s olduğu gibi kalıyor."
+
+msgid "Save learning outcomes and levels"
+msgstr "Öğrenme çıktılarını ve düzeyleri kaydet"
+
+#, python-format
+msgid "Read %(code)s from the catalogue"
+msgstr "%(code)s dersini katalogdan oku"
+
+msgid "Or upload the course's catalogue page, saved from the browser as HTML:"
+msgstr ""
+"Ya da dersin katalog sayfasını tarayıcıdan HTML olarak kaydedip yükleyin:"
+
+msgid "Read the saved page"
+msgstr "Kaydedilen sayfayı oku"
+
+msgid "Now"
+msgstr "Şu an"
+
+msgid "no PO levels"
+msgstr "PÇ düzeyi yok"
 
 msgid "Sign in"
 msgstr "Giriş yap"
@@ -867,3 +1014,66 @@ msgstr ""
 
 msgid "Only students suggested in the preview can be marked absent."
 msgstr "Yalnızca önizlemede önerilen öğrenciler devamsız işaretlenebilir."
+
+msgid "Choose the saved course page first."
+msgstr "Önce kaydedilen ders sayfasını seçin."
+
+msgid "The file is larger than 10 MB."
+msgstr "Dosya 10 MB'tan büyük."
+
+#, python-format
+msgid "Only the first %(n)s learning outcomes are shown."
+msgstr "Yalnız ilk %(n)s öğrenme çıktısı gösteriliyor."
+
+#, python-format
+msgid ""
+"%(po)s has no components yet, so its levels cannot be saved. Add them in the "
+"admin."
+msgstr ""
+"%(po)s için henüz bileşen yok, bu yüzden düzeyleri kaydedilemez. Yönetim "
+"panelinden ekleyin."
+
+#, python-format
+msgid ""
+"The catalogue has P%(n)s, which is not a program outcome here; its levels "
+"are left out."
+msgstr ""
+"Katalogda P%(n)s var ama burada böyle bir program çıktısı yok; düzeyleri "
+"alınmadı."
+
+#, python-format
+msgid ""
+"This page is for %(page)s, not %(course)s. Check it is the right course "
+"before saving."
+msgstr ""
+"Bu sayfa %(course)s için değil, %(page)s için. Kaydetmeden önce doğru ders "
+"olduğunu kontrol edin."
+
+#, python-format
+msgid ""
+"The catalogue calls this course %(page)s, here it is %(course)s. Check it is "
+"the same course before saving."
+msgstr ""
+"Katalogda bu dersin adı %(page)s, burada %(course)s. Kaydetmeden önce aynı "
+"ders olduğunu kontrol edin."
+
+msgid "The preview is invalid or has expired. Read the catalogue again."
+msgstr "Önizleme geçersiz veya süresi dolmuş. Kataloğu tekrar okuyun."
+
+#, python-format
+msgid "LO%(n)s has no text."
+msgstr "ÖÇ%(n)s boş."
+
+#, python-format
+msgid "LO%(n)s, %(po)s: the level must be 1 to 5."
+msgstr "ÖÇ%(n)s, %(po)s: düzey 1 ile 5 arasında olmalı."
+
+msgid "There is no learning outcome to save."
+msgstr "Kaydedilecek öğrenme çıktısı yok."
+
+msgid ""
+"The learning outcomes of this course changed after the preview. Read the "
+"catalogue again."
+msgstr ""
+"Bu dersin öğrenme çıktıları önizlemeden sonra değişti. Kataloğu tekrar "
+"okuyun."

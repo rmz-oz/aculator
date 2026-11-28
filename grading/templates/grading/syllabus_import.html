@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% blocktrans with code=offering.course.code %}{{ code }} learning outcomes{% endblocktrans %}, aculator{% endblock %}
+{% block content %}
+<p class="eyebrow"><a href="{% url 'course_report' offering.pk %}">{{ offering.course.code }} {{ offering.course.name }}</a>, {{ offering.term }}</p>
+<h1>{% trans "Learning outcomes from the course catalogue" %}</h1>
+<p class="lede">{% blocktrans %}The learning outcomes and their contribution to each program outcome are read from the university's Bologna catalogue. Nothing is saved until you check them and select Save.{% endblocktrans %}</p>
+
+{% if errors %}
+<section class="problems" role="alert" aria-labelledby="problems-title">
+  <h2 id="problems-title">{% trans "Nothing was saved" %}</h2>
+  <ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if saved %}
+<p class="notice done" role="status">{% blocktrans count counter=saved %}{{ counter }} learning outcome saved{% plural %}{{ counter }} learning outcomes saved{% endblocktrans %}, {% blocktrans count counter=saved_levels %}{{ counter }} level{% plural %}{{ counter }} levels{% endblocktrans %}.
+  <a href="{% url 'course_report' offering.pk %}">{% trans "Open the class report" %}</a>.</p>
+{% endif %}
+
+{% if rows %}
+{% if syllabus.problems %}
+<section class="problems" aria-labelledby="read-title">
+  <h2 id="read-title">{% trans "Check before saving" %}</h2>
+  <ul>{% for problem in syllabus.problems %}<li>{{ problem }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+<form method="post" class="outcome-form">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="save">
+  <input type="hidden" name="token" value="{{ token }}">
+  <h2 id="matrix-title">{% blocktrans with code=syllabus.code|default:offering.course.code %}{{ code }} in the catalogue{% endblocktrans %}</h2>
+  <p class="muted">{% trans "Level 1 is a very low contribution, 5 a very high one; empty means none. A level for a PO counts for each of its components." %}</p>
+  <div class="table-wrap" data-label="matrix-title">
+  <table class="outcome-matrix">
+    <thead><tr><th scope="col">{% trans "Learning outcome" %}</th>{% for po in pos %}<th scope="col" title="{{ po.description }}">{{ po.code }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <th scope="row">
+          <label for="lo_{{ row.index }}">{{ row.code }}</label>
+          <textarea id="lo_{{ row.index }}" name="lo_text" rows="2">{{ row.text }}</textarea>
+          {% if row.current and row.current != row.text %}<span class="muted">{% blocktrans with text=row.current %}Now: {{ text }}{% endblocktrans %}</span>{% endif %}
+        </th>
+        {% for po, level in row.levels %}
+        <td><select name="level_{{ row.index }}_{{ po.pk }}" aria-label="{{ row.code }}, {{ po.code }}">
+          <option value=""{% if not level %} selected{% endif %}></option>
+          {% for n in levels %}<option{% if level == n %} selected{% endif %}>{{ n }}</option>{% endfor %}
+        </select></td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if kept %}<p class="muted">{% blocktrans with codes=kept|join:", " %}{{ codes }} stay as they are.{% endblocktrans %}</p>{% endif %}
+  <div class="actions"><button class="action large" type="submit">{% trans "Save learning outcomes and levels" %}</button></div>
+</form>
+{% else %}
+<form method="post">
+  {% csrf_token %}
+  <div class="actions">
+    <button class="action large" type="submit" name="action" value="fetch">{% blocktrans with code=offering.course.code %}Read {{ code }} from the catalogue{% endblocktrans %}</button>
+  </div>
+</form>
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <p class="muted"><label for="page">{% trans "Or upload the course's catalogue page, saved from the browser as HTML:" %}</label></p>
+  <input id="page" name="page" type="file" accept=".html,.htm,text/html">
+  <div class="actions"><button class="action quiet" type="submit" name="action" value="upload">{% trans "Read the saved page" %}</button></div>
+</form>
+
+{% if current_los %}
+<h2 id="current-title">{% trans "Now" %}</h2>
+<div class="table-wrap" data-label="current-title">
+<table>
+  <tbody>
+  {% for lo in current_los %}
+    <tr><th scope="row">{{ lo.code }}</th><td>{{ lo.description|default:"" }}</td>
+      <td class="muted">{% for w in lo.po_weights.all %}{{ w.component.program_outcome.code }}.{{ w.component.code }} {{ w.weight }}{% if not forloop.last %}, {% endif %}{% empty %}{% trans "no PO levels" %}{% endfor %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

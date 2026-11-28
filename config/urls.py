@@ -49,6 +49,11 @@ urlpatterns = [
         name="course_report",
     ),
     path(
+        "offerings/<int:offering_id>/outcomes/",
+        grading_views.syllabus_import,
+        name="syllabus_import",
+    ),
+    path(
         "assessments/<int:assessment_id>/import/",
         grading_views.grade_import,
         name="grade_import",
