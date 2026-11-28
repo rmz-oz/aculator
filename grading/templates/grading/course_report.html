@@ -14,8 +14,12 @@
 </div>
 {% endif %}
 
+{% if can_import %}
+<div class="actions"><a class="action quiet" href="{% url 'syllabus_import' offering.pk %}">{% if los %}{% trans "Learning outcomes from the catalogue" %}{% else %}{% trans "Set up learning outcomes from the catalogue" %}{% endif %}</a></div>
+{% endif %}
+
 {% if rows and not los %}
-<p class="notice">{% blocktrans with term=offering.term %}No learning outcomes are defined for this course in {{ term }} yet, so its grades give no LO or PO score. They can be added in the admin.{% endblocktrans %}</p>
+<p class="notice">{% blocktrans with term=offering.term %}No learning outcomes are defined for this course in {{ term }} yet, so its grades give no LO or PO score.{% endblocktrans %}{% if can_import %} {% trans "Set them up from the course catalogue above." %}{% else %} {% trans "They can be added in the admin." %}{% endif %}</p>
 {% endif %}
 
 {% if rows %}

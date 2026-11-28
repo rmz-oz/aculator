@@ -42,6 +42,11 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # docs/decisions/0006). Red on the profile means below it.
 PO_TARGET = os.environ.get('PO_TARGET', '70')
 
+# The Bologna course catalogue LOs and LO-PO levels are read from (#85, #86):
+# Acıbadem's Proliz OIBS, Computer Engineering (English).
+BOLOGNA_URL = os.environ.get("BOLOGNA_URL", "https://obs.acibadem.edu.tr/oibs/bologna/")
+BOLOGNA_PROGRAM = os.environ.get("BOLOGNA_PROGRAM", "6166")
+
 # The demo deployment only (#46): one click to become a student, an instructor
 # or the head, as accounts that have no password. Never set it with real data.
 DEMO = os.environ.get('DEMO', '0') == '1'
