@@ -163,6 +163,13 @@ class Assessment(models.Model):
         max_digits=6, decimal_places=2, default=100,
         validators=[MinValueValidator(Decimal("0.01"))],
     )
+    # A makeup (bütünleme) replaces the final for the students who take it
+    # (#105, decision 0011): a graded score here leaves `replaces` out of
+    # that student's calculation. Same offering, and no chains.
+    replaces = models.OneToOneField(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="replaced_by",
+        help_text="For a makeup: the assessment it replaces for the students who take it.",
+    )
 
     class Meta:
         ordering = ("offering", "name")
@@ -175,6 +182,10 @@ class Assessment(models.Model):
                 condition=models.Q(max_score__gt=0),
                 name="assessment_max_score_positive",
             ),
+            models.CheckConstraint(
+                condition=~models.Q(replaces=models.F("pk")),
+                name="assessment_not_replacing_itself",
+            ),
         )
 
     def __str__(self):
@@ -186,6 +197,14 @@ class Assessment(models.Model):
 
     def clean(self):
         refuse_moving_graded(self, "offering_id", lambda: self.grades.all())
+        if self.replaces_id is not None:
+            replaced = self.replaces
+            if replaced.pk == self.pk:
+                raise ValidationError({"replaces": "An assessment cannot replace itself."})
+            if replaced.offering_id != self.offering_id:
+                raise ValidationError({"replaces": "A makeup can only replace an assessment of the same course offering."})
+            if replaced.replaces_id is not None or (self.pk and Assessment.objects.filter(replaces_id=self.pk).exists()):
+                raise ValidationError({"replaces": "A makeup cannot replace another makeup, and a replaced assessment cannot replace one."})
         # Lowering the maximum under a score already given would put that
         # student above 100% in every LO and PO it feeds (#101).
         if self.pk is None or self.max_score is None:

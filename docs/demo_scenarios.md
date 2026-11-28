@@ -31,6 +31,8 @@ What a department's database holds after a few years. "Today" is what aculator d
 | 3 student elective | CSE491 Selected Topics in Machine Learning, 2025 Spring | One student moves the class mean by a third; no warning |
 | 200 student first year course | CSE101 2025 Fall, 34 students plus 166 first years with only this course | First years have one course, most POs without evidence |
 | Summer school | CSE102 2024 Summer (6 students), CSE201 2025 Summer (8) | Shown like any term |
+| Course retaken | 41 students failed CSE201, CSE202, CSE301 or CSE302 and took it the next time it ran, e.g. Student389 CSE201 2023 Spring then 2023 Fall | Only the later attempt counts across courses; the profile lists both (#104, decision 11) |
+| Makeup exam | CSE202 2025 Fall (24 students), CSE301 2025 Spring (4) | The Makeup replaces the Final for those who took it, even when lower; absent from the Makeup keeps the Final (#105) |
 | Transfer students | Transfer567 to Transfer581, 1 to 3 courses each | Profile mostly without evidence |
 | Erasmus students | Erasmus582 to Erasmus586, CSE302 and CSE303 in 2025 Spring | Counted in the department means |
 | Instructors | Every course has one; CSE302 changes from Elif Şahin to Burak Çelik in 2025 | Both stay listed: the one who left still sees the grades (decision 7 has no dates) |

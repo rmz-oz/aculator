@@ -63,6 +63,24 @@
   </tbody>
 </table>
 </div>
+{% if retakes %}
+<h2 id="retakes-title">Repeated courses</h2>
+<p class="muted">A course taken more than once counts once in these scores: its latest attempt with grades, as the regulation counts the last grade.</p>
+<div class="table-wrap" data-label="retakes-title">
+<table>
+  <thead><tr><th scope="col">Course</th><th scope="col">Term</th><th scope="col">In the scores</th></tr></thead>
+  <tbody>
+  {% for course in retakes %}{% for attempt in course.attempts %}
+    <tr>
+      <th scope="row">{{ course.course.code }}</th>
+      <td>{{ attempt.enrollment.offering.term }}</td>
+      <td>{% if attempt.status == "counts" %}counts{% elif attempt.status == "replaced" %}<span class="muted">replaced by a later attempt</span>{% else %}<span class="muted">no grades yet</span>{% endif %}</td>
+    </tr>
+  {% endfor %}{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
 {% else %}
 <p class="empty">{% trans "No graded work yet, so there is nothing to show." %}</p>
 {% endif %}
