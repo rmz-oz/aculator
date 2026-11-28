@@ -12,6 +12,8 @@ Nothing here writes to the database. Only the three tables are read: the page
 also names the instructors, which is not kept anywhere (KVKK).
 """
 
+import http.client
+import logging
 import re
 import urllib.parse
 import urllib.request
@@ -24,8 +26,12 @@ from django.utils.translation import gettext as _
 
 LEVELS = range(1, 6)
 ALL_ROW = {"tüm", "all"}
-TIMEOUT = 20
+# Short: the fetch runs inside the request, and the server kills a worker after 30 s.
+TIMEOUT = 8
 MAX_PAGE_SIZE = 10 * 1024 * 1024
+
+
+logger = logging.getLogger(__name__)
 
 
 class CatalogueError(Exception):
@@ -98,7 +104,14 @@ def parse_course_page(html):
     outcomes = found.get("grdOgrenmeCiktilari")
     if outcomes is None:
         raise CatalogueError(_("This page has no learning outcomes table. Is it a course page of the Bologna catalogue?"))
-    syllabus.los = [row[1]["text"] for row in outcomes["rows"][1:] if len(row) > 1 and row[1]["text"]]
+    numbered = []
+    for row in outcomes["rows"][1:]:
+        if len(row) > 1 and row[1]["text"]:
+            number = re.search(r"\d+", row[0]["text"])
+            numbered.append((int(number.group()) if number else len(numbered) + 1, row[1]["text"]))
+    syllabus.los = [text for _number, text in numbered]
+    # The LO-PO rows are matched by their number (Ö3 is the LO numbered 3), not by position.
+    index_of = {number: index for index, (number, _text) in enumerate(numbered)}
     if not syllabus.los:
         syllabus.problems.append(_("The catalogue lists no learning outcomes for this course."))
 
@@ -112,6 +125,10 @@ def parse_course_page(html):
         number = re.fullmatch(r"[A-Za-zÇçPp]*\s*0*(\d+)", cell["text"])
         columns.append(int(number.group(1)) if number else None)
     syllabus.pos = [n for n in columns if n is not None]
+    if not syllabus.pos:
+        syllabus.problems.append(_("The LO-PO table has no PO numbers in its header, so its levels could not be read."))
+    for number in sorted({n for n in syllabus.pos if syllabus.pos.count(n) > 1}):
+        syllabus.problems.append(_("P%(n)s appears twice in the LO-PO table; the later column is used.") % {"n": number})
 
     whole_course = {}
     lo_rows = []
@@ -123,7 +140,7 @@ def parse_course_page(html):
             target = whole_course
         elif re.fullmatch(r"[^\d\s]{0,3}\s*0*\d+", label):
             target = {}
-            lo_rows.append((label, target))
+            lo_rows.append((label, int(re.search(r"\d+", label).group()), target))
         else:
             continue
         for po, cell in zip(columns, row[1:]):
@@ -138,14 +155,16 @@ def parse_course_page(html):
                     % {"row": label, "po": po, "raw": raw}
                 )
 
-    if len(lo_rows) > len(syllabus.los):
+    unmatched = [label for label, number, _levels in lo_rows if number not in index_of]
+    if unmatched:
         syllabus.problems.append(
-            _("The LO-PO table has %(rows)s rows but the course lists %(los)s learning outcomes; the extra rows are left out.")
-            % {"rows": len(lo_rows), "los": len(syllabus.los)}
+            _("The LO-PO table has rows for learning outcomes the course does not list (%(rows)s); they are left out.")
+            % {"rows": ", ".join(unmatched)}
         )
-    for index, (_label, levels) in enumerate(lo_rows[: len(syllabus.los)]):
-        for po, level in levels.items():
-            syllabus.levels[(index, po)] = level
+    for _label, number, levels in lo_rows:
+        if number in index_of:
+            for po, level in levels.items():
+                syllabus.levels[(index_of[number], po)] = level
 
     if not syllabus.levels and whole_course and syllabus.los:
         # Only the course as a whole is graded: the same levels for every LO.
@@ -157,7 +176,7 @@ def parse_course_page(html):
         )
     elif not syllabus.levels and syllabus.los:
         syllabus.problems.append(_("The LO-PO table in the catalogue is empty. Enter the levels below."))
-    elif syllabus.levels and len({tuple(sorted(levels.items())) for _label, levels in lo_rows}) == 1 and len(lo_rows) > 1:
+    elif syllabus.levels and len({tuple(sorted(levels.items())) for _label, _n, levels in lo_rows}) == 1 and len(lo_rows) > 1:
         syllabus.problems.append(
             _("Every LO has the same row in the catalogue, which is usually copied, not measured. Check the levels.")
         )
@@ -169,23 +188,42 @@ def _get(url):
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
             body = response.read(MAX_PAGE_SIZE + 1)
-            charset = response.headers.get_content_charset() or "utf-8"
-    except OSError as error:
-        raise CatalogueError(_("The course catalogue did not answer (%(error)s). Try again later.") % {"error": error}) from error
-    return body[:MAX_PAGE_SIZE].decode(charset, errors="replace")
+            charset = response.headers.get_content_charset()
+    except (OSError, http.client.HTTPException) as error:
+        logger.warning("Bologna catalogue: %s: %s", url, error)
+        raise CatalogueError(_("The course catalogue did not answer. Try again later.")) from error
+    return decode_page(body[:MAX_PAGE_SIZE], charset)
+
+
+def decode_page(body, charset=None):
+    """Bytes of a catalogue page as text: the declared charset, else UTF-8, else Windows-1254 (Turkish)."""
+    if charset is None:
+        declared = re.search(rb"<meta[^>]+charset=[\"']?([\w-]+)", body[:4096], re.IGNORECASE)
+        charset = declared.group(1).decode("ascii") if declared else None
+    for candidate in (charset, "utf-8"):
+        if not candidate:
+            continue
+        try:
+            return body.decode(candidate)
+        except (LookupError, UnicodeDecodeError):
+            continue
+    return body.decode("cp1254", errors="replace")
 
 
 def _course_ids(lang):
     """{course code without spaces: catalogue id} for the configured program, cached for a day."""
-    key = f"bologna-course-ids:{settings.BOLOGNA_PROGRAM}"
+    key = f"bologna-course-ids:{settings.BOLOGNA_URL}:{settings.BOLOGNA_PROGRAM}"
     ids = cache.get(key)
-    if ids is None:
+    if not ids:
         page = _get(f"{settings.BOLOGNA_URL}progCourses.aspx?lang={lang}&curSunit={settings.BOLOGNA_PROGRAM}")
         ids = {}
         for match in re.finditer(
             r'prolizOpenCourseDetails\((\d+)\);" id="grdBolognaDersler_btnDersKod_\d+"[^>]*>(?:<font[^>]*>)?([^<]+)<', page
         ):
             ids.setdefault(match.group(2).replace(" ", "").upper(), match.group(1))
+        if not ids:
+            # A maintenance page or a changed layout: say so, and do not remember it for a day.
+            raise CatalogueError(_("The course catalogue did not list any course. Try again later."))
         cache.set(key, ids, 24 * 60 * 60)
     return ids
 

@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: aculator\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-28 15:10+0300\n"
+"POT-Creation-Date: 2026-11-28 15:16+0300\n"
 "PO-Revision-Date: 2026-11-28 08:48+0300\n"
 "Last-Translator: \n"
 "Language-Team: Turkish\n"
@@ -31,6 +31,15 @@ msgstr "Katalogda bu dersin öğrenme çıktıları yok."
 msgid "The catalogue has no LO-PO table for this course."
 msgstr "Katalogda bu dersin ÖÇ-PÇ tablosu yok."
 
+msgid ""
+"The LO-PO table has no PO numbers in its header, so its levels could not be "
+"read."
+msgstr "ÖÇ-PÇ tablosunun başlığında PÇ numarası yok, bu yüzden düzeyleri okunamadı."
+
+#, python-format
+msgid "P%(n)s appears twice in the LO-PO table; the later column is used."
+msgstr "P%(n)s ÖÇ-PÇ tablosunda iki kez geçiyor; sonraki sütun alındı."
+
 #, python-format
 msgid "%(row)s, P%(po)s: \"%(raw)s\" is not a level from 1 to 5, left empty."
 msgstr ""
@@ -39,11 +48,9 @@ msgstr ""
 
 #, python-format
 msgid ""
-"The LO-PO table has %(rows)s rows but the course lists %(los)s learning "
-"outcomes; the extra rows are left out."
-msgstr ""
-"ÖÇ-PÇ tablosunda %(rows)s satır var ama derste %(los)s öğrenme çıktısı "
-"listeleniyor; fazla satırlar alınmadı."
+"The LO-PO table has rows for learning outcomes the course does not list "
+"(%(rows)s); they are left out."
+msgstr "ÖÇ-PÇ tablosunda derste listelenmeyen öğrenme çıktıları için satırlar var (%(rows)s); bunlar alınmadı."
 
 msgid ""
 "The catalogue gives the levels for the whole course only, so every LO starts "
@@ -62,9 +69,11 @@ msgstr ""
 "Katalogda her ÖÇ'nin satırı aynı; bu çoğunlukla ölçülmüş değil kopyalanmış "
 "demektir. Düzeyleri kontrol edin."
 
-#, python-format
-msgid "The course catalogue did not answer (%(error)s). Try again later."
-msgstr "Ders kataloğu yanıt vermedi (%(error)s). Daha sonra tekrar deneyin."
+msgid "The course catalogue did not answer. Try again later."
+msgstr "Ders kataloğu yanıt vermedi. Daha sonra tekrar deneyin."
+
+msgid "The course catalogue did not list any course. Try again later."
+msgstr "Ders kataloğu hiçbir ders listelemedi. Daha sonra tekrar deneyin."
 
 #, python-format
 msgid "%(code)s is not in the course catalogue of this program."
@@ -984,6 +993,12 @@ msgstr "Yalnız ilk %(n)s öğrenme çıktısı gösteriliyor."
 
 #, python-format
 msgid ""
+"%(po)s has no components yet, so its levels cannot be saved. Add them in the "
+"admin."
+msgstr "%(po)s için henüz bileşen yok, bu yüzden düzeyleri kaydedilemez. Yönetim panelinden ekleyin."
+
+#, python-format
+msgid ""
 "The catalogue has P%(n)s, which is not a program outcome here; its levels "
 "are left out."
 msgstr ""
@@ -1002,7 +1017,9 @@ msgstr ""
 msgid ""
 "The catalogue calls this course %(page)s, here it is %(course)s. Check it is "
 "the same course before saving."
-msgstr "Katalogda bu dersin adı %(page)s, burada %(course)s. Kaydetmeden önce aynı ders olduğunu kontrol edin."
+msgstr ""
+"Katalogda bu dersin adı %(page)s, burada %(course)s. Kaydetmeden önce aynı "
+"ders olduğunu kontrol edin."
 
 msgid "The preview is invalid or has expired. Read the catalogue again."
 msgstr "Önizleme geçersiz veya süresi dolmuş. Kataloğu tekrar okuyun."

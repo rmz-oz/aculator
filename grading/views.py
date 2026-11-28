@@ -680,7 +680,7 @@ def syllabus_import(request, offering_id):
                 raise CatalogueError(_("Choose the saved course page first."))
             if uploaded.size > bologna.MAX_PAGE_SIZE:
                 raise CatalogueError(_("The file is larger than 10 MB."))
-            syllabus = bologna.parse_course_page(uploaded.read().decode("utf-8", errors="replace"))
+            syllabus = bologna.parse_course_page(bologna.decode_page(uploaded.read()))
         else:
             syllabus = bologna.fetch_course(offering.course.code, get_language() or "en")
     except CatalogueError as error:
@@ -690,6 +690,11 @@ def syllabus_import(request, offering_id):
         syllabus.los = syllabus.los[:MAX_LOS]
 
     numbers = {_po_number(po.code) for po in pos}
+    for po in pos:
+        if not po.components.all():
+            syllabus.problems.append(
+                _("%(po)s has no components yet, so its levels cannot be saved. Add them in the admin.") % {"po": po.code}
+            )
     for missing in sorted(set(syllabus.pos) - numbers):
         syllabus.problems.append(
             _("The catalogue has P%(n)s, which is not a program outcome here; its levels are left out.") % {"n": missing}
@@ -772,11 +777,11 @@ def _save_syllabus(request, offering, pos):
             lo, _created = LearningOutcome.objects.update_or_create(
                 offering=offering, code=f"LO{index + 1}", defaults={"description": text.strip()},
             )
-            for weight in lo.po_weights.all():
-                weight.delete()
+            # Only the POs on the form; a level for any other PO stays.
+            lo.po_weights.filter(component__program_outcome__in=pos).delete()
             for po in pos:
                 level = levels.get((index, po.pk))
-                if level is None:
+                if level is None or not components[po.pk]:
                     continue
                 saved_levels += 1
                 for component in components[po.pk]:

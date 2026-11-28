@@ -11,6 +11,7 @@ from unittest import mock
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
 from django.test import TestCase
 from django.urls import reverse
 
@@ -100,7 +101,29 @@ class ParseTests(TestCase):
     def test_more_rows_than_los(self):
         syllabus = parse_course_page(synthetic([("Ö1", ["1", "", ""]), ("Ö2", ["", "2", ""]), ("Ö3", ["", "", "3"])]))
         self.assertEqual(syllabus.levels, {(0, 1): 1, (1, 2): 2})
-        self.assertIn("3 rows but the course lists 2", syllabus.problems[0])
+        self.assertIn("does not list (Ö3)", syllabus.problems[0])
+
+    def test_rows_are_matched_by_number_not_position(self):
+        html = synthetic([("Ö1", ["1", "", ""]), ("Ö3", ["", "", "3"])])
+        html = html.replace("<td>2</td><td>Second outcome</td>", "<td>3</td><td>Third outcome</td>")
+        syllabus = parse_course_page(html)
+        self.assertEqual(syllabus.los, ["First outcome", "Third outcome"])
+        self.assertEqual(syllabus.levels, {(0, 1): 1, (1, 3): 3})
+
+    def test_header_without_po_numbers_is_said(self):
+        html = synthetic([("Ö1", ["1", "", ""])]).replace("<th>P1</th><th>P2</th><th>P3</th>", "<th>a</th><th>b</th><th>c</th>")
+        self.assertIn("no PO numbers", parse_course_page(html).problems[0])
+
+    def test_a_turkish_page_saved_as_windows_1254(self):
+        body = page("cse220_tr").encode("cp1254", errors="replace")
+        self.assertEqual(parse_course_page(bologna.decode_page(body)).los[0], "Web uygulaması geliştirme pratiği kazanmak")
+
+    def test_an_empty_course_list_is_not_remembered(self):
+        with mock.patch.object(bologna, "_get", return_value="<html>Bakım çalışması</html>"), \
+                mock.patch.object(bologna.cache, "get", return_value=None), \
+                mock.patch.object(bologna.cache, "set") as remembered, self.assertRaises(CatalogueError):
+            bologna.fetch_course("CSE220")
+        remembered.assert_not_called()
 
     def test_not_a_course_page(self):
         with self.assertRaises(CatalogueError):
@@ -229,3 +252,26 @@ class SyllabusImportViewTests(TestCase):
         Course.objects.filter(pk=self.offering.course_id).update(name="Software Engineering")
         response = self.upload()
         self.assertContains(response, "The catalogue calls this course Web Programming, here it is Software Engineering.")
+
+    def test_po_without_components_is_said_and_not_counted(self):
+        self.pos[2].components.all().delete()
+        response = self.upload()
+        self.assertContains(response, "PO2 has no components yet")
+        response = self.client.post(self.url, self.form(response))
+        self.assertContains(response, "12 levels")  # 13 read, the PO2 one cannot be saved
+
+    def test_levels_of_other_pos_stay(self):
+        lo = LearningOutcome.objects.create(offering=self.offering, code="LO1", description="Old")
+        other = ProgramOutcome.objects.create(code="EXTRA")
+        component = POComponent.objects.create(program_outcome=other, code="a")
+        LOPOWeight.objects.create(learning_outcome=lo, component=component, weight=2)
+        self.client.post(self.url, self.form(self.upload()))
+        self.assertTrue(LOPOWeight.objects.filter(learning_outcome=lo, component=component).exists())
+
+    def test_saving_refreshes_the_scores(self):
+        data = self.form(self.upload())
+        # The test data's own changes queued a refresh already; start from none.
+        connection.run_on_commit.clear()
+        with self.captureOnCommitCallbacks() as callbacks:
+            self.client.post(self.url, data)
+        self.assertTrue(any(c.__qualname__.endswith("refresh_score_tables") for c in callbacks))
