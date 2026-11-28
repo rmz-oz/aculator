@@ -8,10 +8,10 @@ Nothing here writes to the database, the view does that in one transaction.
 
 import csv
 import hashlib
+import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
-import re
 from io import BytesIO, StringIO
 from zipfile import BadZipFile, ZipFile
 
