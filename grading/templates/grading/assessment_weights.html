@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% blocktrans with code=offering.course.code %}{{ code }} assessment weights{% endblocktrans %}, aculator{% endblock %}
+{% block content %}
+<p class="eyebrow"><a href="{% url 'course_report' offering.pk %}">{{ offering.course.code }} {{ offering.course.name }}</a>, {{ offering.term }}</p>
+<h1>{% trans "Which assessment measures which learning outcome" %}</h1>
+<p class="lede">{% blocktrans %}Each LO score is the weighted mean of the assessments that measure it. Weights are relative within an LO: 30 and 70 count the same as 3 and 7. Leave a cell empty when the assessment does not measure that LO.{% endblocktrans %}</p>
+
+{% if errors %}
+<section class="problems" role="alert" aria-labelledby="problems-title">
+  <h2 id="problems-title">{% trans "Nothing was saved" %}</h2>
+  <ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+{% if saved %}
+<p class="notice done" role="status">{% trans "Weights saved." %} <a href="{% url 'course_report' offering.pk %}">{% trans "Open the class report" %}</a>.</p>
+{% endif %}
+
+{% if not los %}
+<p class="empty">{% trans "This course has no learning outcomes yet." %} <a href="{% url 'syllabus_import' offering.pk %}">{% trans "Set them up from the catalogue" %}</a>.</p>
+{% elif not rows %}
+<p class="empty">{% trans "This course has no assessments yet. They are added in the admin." %}</p>
+{% else %}
+{% if unmeasured %}<p class="notice">{% blocktrans with codes=unmeasured|join:", " %}No assessment measures {{ codes }} yet, so those LOs have no score.{% endblocktrans %}</p>{% endif %}
+<form method="post" class="outcome-form">
+  {% csrf_token %}
+  <input type="hidden" name="fingerprint" value="{{ fingerprint }}">
+  <div class="table-wrap" data-label="weights-title">
+  <table class="outcome-matrix weights" id="weights-title">
+    <thead><tr><th scope="col">{% trans "Assessment" %}</th>{% for lo in los %}<th scope="col" title="{{ lo.description }}">{{ lo.code }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr><th scope="row">{{ row.assessment.name }}{% if row.assessment.replaces %} <span class="muted">{% blocktrans with name=row.assessment.replaces.name %}replaces {{ name }}{% endblocktrans %}</span>{% endif %}</th>
+        {% for cell in row.cells %}<td><input name="{{ cell.name }}" value="{{ cell.value }}" inputmode="decimal" size="4" aria-label="{{ row.assessment.name }}, {{ cell.lo.code }}"></td>{% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <div class="actions"><button class="action large" type="submit">{% trans "Save weights" %}</button></div>
+</form>
+{% endif %}
+{% endblock %}

@@ -56,6 +56,16 @@ urlpatterns = [
         name="syllabus_import",
     ),
     path(
+        "offerings/<int:offering_id>/weights/",
+        grading_views.assessment_weights,
+        name="assessment_weights",
+    ),
+    path(
+        "assessments/<int:assessment_id>/makeup/",
+        grading_views.add_makeup,
+        name="add_makeup",
+    ),
+    path(
         "assessments/<int:assessment_id>/import/",
         grading_views.grade_import,
         name="grade_import",

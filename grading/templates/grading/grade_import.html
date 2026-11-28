@@ -5,6 +5,7 @@
 {% if assessment %}<p class="eyebrow"><a href="{% url 'course_report' assessment.offering.pk %}">{{ assessment.offering.course.code }} {{ assessment.offering.course.name }}</a>, {{ assessment.offering.term }}</p>{% endif %}
 <h1>{% if assessment %}{% blocktrans with name=assessment.name %}Import {{ name }} grades{% endblocktrans %}{% else %}{% trans "Import grades" %}{% endif %}</h1>
 {% if assessment %}<p class="lede">{% blocktrans with max_score=assessment.max_score|floatformat:"-2" %}Scores out of {{ max_score }}. Preview first to see what changes and to mark students who missed the assessment; nothing is saved until you confirm.{% endblocktrans %}</p>{% endif %}
+{% if assessment.replaces %}<p class="notice">{% blocktrans with name=assessment.replaces.name %}A grade here replaces the student's {{ name }} in every score, even when it is lower. Students without a grade here keep their {{ name }}; a student marked absent here keeps it too.{% endblocktrans %}</p>{% endif %}
 <section aria-labelledby="paste-grades-title">
   <h2 id="paste-grades-title">{% trans "Paste grades from Excel" %}</h2>
   <p id="paste-grades-help">

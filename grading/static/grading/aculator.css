@@ -503,3 +503,4 @@ input[type="password"]:focus { outline: 2px solid var(--blue); outline-offset: 0
 .outcome-matrix textarea { width: 100%; font: inherit; resize: vertical; }
 .outcome-matrix select { font: inherit; min-width: 3em; }
 .outcome-matrix .muted { display: block; margin-top: 4px; font-size: 14px; }
+.weights input { font: inherit; width: 4.5em; text-align: right; }

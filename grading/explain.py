@@ -51,6 +51,9 @@ class Explanation:
     grades: list
     los: list
     components: list
+    # Grades left out because a makeup replaced them, from the courses above (#105):
+    # (course, replaced name, replaced %, makeup name, makeup %).
+    replaced: list = field(default_factory=list)
 
     def by_assessment(self):
         """Contributions per grade, largest first. They add up to `score`."""
@@ -103,8 +106,21 @@ def explain_all(student, enrollments=None, only=None):
         percent[leaf] = grade.score / grade.assessment.max_score * HUNDRED
         grade_label[leaf] = grade.assessment.name
     # A graded makeup replaces the assessment it names (#105), as in services.
+    # Kept aside so the page can say what was replaced and by what.
+    makeup_of = {
+        (grade.enrollment_id, grade.assessment.replaces_id): grade
+        for grade in grades
+        if grade.assessment.replaces_id is not None and grade.status == Grade.Status.GRADED
+    }
+    replaced_notes = defaultdict(list)
     for enrollment_id, assessment_id in replaced_grades(grades):
-        percent.pop(("grade", enrollment_id, assessment_id), None)
+        leaf = ("grade", enrollment_id, assessment_id)
+        makeup = makeup_of.get((enrollment_id, assessment_id))
+        if makeup is not None and leaf in percent:
+            replaced_notes[enrollment_id].append((
+                grade_label[leaf], percent[leaf], makeup.assessment.name, percent[("grade", enrollment_id, makeup.assessment_id)],
+            ))
+        percent.pop(leaf, None)
 
     lo_inputs = defaultdict(list)
     for offering_id, assessment_id, lo_id, lo_code, weight in AssessmentLOWeight.objects.filter(
@@ -153,6 +169,11 @@ def explain_all(student, enrollments=None, only=None):
     for po_code, component_inputs in inputs_by_po.items():
         explanation = _explain(po_code, component_inputs, lo_forms, percent, grade_label, course_of)
         if explanation is not None:
+            enrollments_in = {part.key[1] for part in explanation.grades}
+            explanation.replaced = [
+                (course_of[enrollment_id], *note)
+                for enrollment_id in sorted(enrollments_in) for note in replaced_notes.get(enrollment_id, ())
+            ]
             results[po_code] = explanation
     return results
 

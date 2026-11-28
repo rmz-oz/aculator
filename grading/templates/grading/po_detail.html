@@ -28,6 +28,9 @@
   <tfoot><tr><td>{{ po_code }}</td><td></td><td>{{ 100.0|floatformat:1 }}</td><td class="po">{{ score }}</td></tr></tfoot>
 </table>
 </div>
+{% for r in replaced %}
+<p class="muted">{% blocktrans with course=r.course name=r.name percent=r.percent makeup=r.makeup makeup_percent=r.makeup_percent %}{{ course }} {{ name }} {{ percent }} is not counted: the {{ makeup }} ({{ makeup_percent }}) replaces it, as the regulation says (article 32/9).{% endblocktrans %}</p>
+{% endfor %}
 
 <h2 id="los-title">{% trans "Learning outcomes" %}</h2>
 <div class="table-wrap" data-label="los-title">
