@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: aculator\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-28 08:48+0300\n"
+"POT-Creation-Date: 2026-11-28 14:48+0300\n"
 "PO-Revision-Date: 2026-11-28 08:48+0300\n"
 "Last-Translator: \n"
 "Language-Team: Turkish\n"
@@ -23,20 +23,74 @@ msgid "%(name)s: File is larger than 1 MB."
 msgstr "%(name)s: Dosya 1 MB'tan büyük."
 
 #, python-format
+msgid ""
+"%(name)s: This file is an Excel workbook. Open it in Excel and use Save As "
+"to export it as \"CSV UTF-8\"."
+msgstr "%(name)s: Bu dosya bir Excel çalışma kitabı. Excel'de açıp Farklı Kaydet ile \"CSV UTF-8\" olarak kaydedin."
+
+#, python-format
 msgid "%(name)s: File is not UTF-8. Save it as \"CSV UTF-8\" and try again."
-msgstr "%(name)s: Dosya UTF-8 değil. \"CSV UTF-8\" olarak kaydedip tekrar deneyin."
+msgstr ""
+"%(name)s: Dosya UTF-8 değil. \"CSV UTF-8\" olarak kaydedip tekrar deneyin."
 
 #, python-format
 msgid "%(name)s: File could not be read (%(error)s)."
 msgstr "%(name)s: Dosya okunamadı (%(error)s)."
+
+msgid ""
+"This file is tab-separated. Keep only the student number and score columns, "
+"name them student_number and score, and export as a comma- or semicolon-"
+"separated CSV UTF-8 file."
+msgstr "Bu dosya sekmeyle ayrılmış. Yalnız öğrenci numarası ve puan sütunlarını bırakın, adlarını student_number ve score yapın ve virgül ya da noktalı virgülle ayrılmış CSV UTF-8 olarak kaydedin."
+
+msgid ""
+"The file uses Turkish column names. Rename \"Öğrenci No\" to student_number "
+"and \"Not\" to score, and keep only those two columns."
+msgstr "Dosyada Türkçe sütun adları var. \"Öğrenci No\" sütununun adını student_number, \"Not\" sütununun adını score yapın ve yalnız bu iki sütunu bırakın."
+
+msgid ""
+"The header has trailing empty columns. Delete the empty columns on the right "
+"and export the file again with only student_number and score."
+msgstr "Başlık satırının sonunda boş sütunlar var. Sağdaki boş sütunları silin ve dosyayı yalnız student_number ve score sütunlarıyla yeniden kaydedin."
+
+msgid "The first row must be student_number,score."
+msgstr "İlk satır student_number,score olmalı."
+
+#, python-format
+msgid ""
+"Student number %(number)s is in scientific notation. Set the student number "
+"column to Text in Excel, enter the original student number from the class "
+"list, and export the CSV again."
+msgstr "%(number)s öğrenci numarası bilimsel gösterimde. Excel'de öğrenci numarası sütununu Metin yapın, numarayı sınıf listesinden yeniden girin ve CSV'yi tekrar kaydedin."
+
+#, python-format
+msgid ""
+"Student number %(number)s is missing one or more leading zeros. Restore them "
+"from the class list and keep the student number column formatted as Text "
+"when exporting the CSV."
+msgstr "%(number)s öğrenci numarasının başındaki sıfırlar düşmüş. Sınıf listesinden düzeltin ve CSV'yi kaydederken öğrenci numarası sütununu Metin biçiminde tutun."
+
+#, python-format
+msgid "%(number)s is not enrolled in this course."
+msgstr "%(number)s bu derse kayıtlı değil."
 
 #, python-format
 msgid "%(name)s: File is empty."
 msgstr "%(name)s: Dosya boş."
 
 #, python-format
-msgid "%(name)s: The first row must be student_number,score."
-msgstr "%(name)s: İlk satır student_number,score olmalı."
+msgid "%(name)s: %(error)s"
+msgstr "%(name)s: %(error)s"
+
+#, python-format
+msgid "%(name)s, line %(line)s"
+msgstr "%(name)s, satır %(line)s"
+
+#, python-format
+msgid ""
+"%(location)s: This row has trailing empty columns. Remove the extra "
+"separators at the end of the row."
+msgstr "%(location)s: Bu satırın sonunda boş sütunlar var. Satır sonundaki fazla ayırıcıları silin."
 
 #, python-format
 msgid "%(location)s: Expected 2 columns, found %(n)s."
@@ -47,12 +101,20 @@ msgid "%(location)s: Student number is empty."
 msgstr "%(location)s: Öğrenci numarası boş."
 
 #, python-format
-msgid "%(location)s: %(number)s is not enrolled in this course."
-msgstr "%(location)s: %(number)s bu derse kayıtlı değil."
+msgid "%(location)s: %(error)s"
+msgstr "%(location)s: %(error)s"
 
 #, python-format
 msgid "%(location)s: %(number)s appears again, first at %(first)s."
-msgstr "%(location)s: %(number)s tekrar görünüyor, ilk olarak %(first)s içinde."
+msgstr ""
+"%(location)s: %(number)s tekrar görünüyor, ilk olarak %(first)s içinde."
+
+#, python-format
+msgid ""
+"%(location)s: Score %(score)s uses a decimal comma in a comma-separated CSV. "
+"Use a decimal point (%(dot)s) or export the whole file with semicolon "
+"separators."
+msgstr "%(location)s: %(score)s puanında virgülle ayrılmış bir CSV içinde ondalık virgül kullanılmış. Ondalık nokta kullanın (%(dot)s) ya da dosyanın tamamını noktalı virgülle ayrılmış olarak kaydedin."
 
 #, python-format
 msgid "%(name)s: File has no grade rows."
@@ -111,13 +173,13 @@ msgid "This page does not exist, or your account cannot open it."
 msgstr "Bu sayfa yok, ya da hesabınız bu sayfayı açamaz."
 
 msgid "Back to your start page"
-msgstr "Başlangıç sayfanıza dön"
+msgstr "Başlangıç sayfanıza dönün"
 
 msgid "Skip to content"
 msgstr "İçeriğe geç"
 
 msgid "Main"
-msgstr "Ana"
+msgstr "Ana gezinme"
 
 msgid "My outcomes"
 msgstr "Çıktılarım"
@@ -126,7 +188,7 @@ msgid "Courses"
 msgstr "Dersler"
 
 msgid "View as"
-msgstr "Şu şekilde görüntüle"
+msgstr "Görünüm"
 
 msgid "student"
 msgstr "öğrenci"
@@ -266,9 +328,9 @@ msgid ""
 "Scores out of %(max_score)s. Preview first to see what changes and to mark "
 "students who missed the assessment; nothing is saved until you confirm."
 msgstr ""
-"Puanlar %(max_score)s üzerinden. Neyin değiştiğini görmek ve "
-"değerlendirmeye girmeyen öğrencileri işaretlemek için önce önizleyin; siz "
-"onaylayana kadar hiçbir şey kaydedilmez."
+"Puanlar %(max_score)s üzerinden. Neyin değiştiğini görmek ve değerlendirmeye "
+"girmeyen öğrencileri işaretlemek için önce önizleyin; siz onaylayana kadar "
+"hiçbir şey kaydedilmez."
 
 msgid "Paste grades from Excel"
 msgstr "Excel'den not yapıştırın"
@@ -437,15 +499,17 @@ msgid ""
 "exact before rounding."
 msgstr ""
 "Her not, maksimumunun yüzdesi olarak, PÇ'ye ulaştığı ağırlıkla sayılır: "
-"beslediği öğrenme çıktıları, PÇ bileşenleri ve dersinin ECTS'i üzerinden. "
+"beslediği öğrenme çıktıları, PÇ bileşenleri ve dersinin AKTS'si üzerinden. "
 "Burada okunması için yuvarlanmıştır; toplam yuvarlamadan önce tamdır."
 
 #, python-format
 msgid "From grades to %(po)s"
-msgstr "Notlardan %(po)s'ye"
+msgstr "Notlardan çıktıya: %(po)s"
 
 msgid "The chart needs a wider screen. The tables below show the same numbers."
-msgstr "Grafik daha geniş bir ekran gerektirir. Aşağıdaki tablolar aynı sayıları gösterir."
+msgstr ""
+"Grafik daha geniş bir ekran gerektirir. Aşağıdaki tablolar aynı sayıları "
+"gösterir."
 
 #, python-format
 msgid ""
@@ -461,14 +525,14 @@ msgstr "Her notun katkısı"
 #, python-format
 msgid ""
 "Grades that feed %(po)s, with their weight in the PO and their contribution."
-msgstr "%(po)s'yi besleyen notlar, PÇ'deki ağırlıkları ve katkılarıyla."
+msgstr "Bu çıktıyı (%(po)s) besleyen notlar, PÇ'deki ağırlıkları ve katkılarıyla."
 
 msgid "Grade"
 msgstr "Not"
 
 #, python-format
 msgid "Weight in %(po)s"
-msgstr "%(po)s'deki ağırlık"
+msgstr "%(po)s içindeki ağırlık"
 
 msgid "Contribution"
 msgstr "Katkı"
@@ -478,7 +542,7 @@ msgstr "Öğrenme çıktıları"
 
 #, python-format
 msgid "Learning outcomes that feed %(po)s."
-msgstr "%(po)s'yi besleyen öğrenme çıktıları."
+msgstr "Bu çıktıyı (%(po)s) besleyen öğrenme çıktıları."
 
 msgid "Learning outcome"
 msgstr "Öğrenme çıktısı"
@@ -503,8 +567,8 @@ msgid ""
 "figure is the mean of all students, shown once at least %(min_students)s "
 "have a score, so no one else's score can be worked out."
 msgstr ""
-"Her puan, aldığınız tüm dersler genelinde ECTS ile ağırlıklandırılır.\n"
-"  Bir PÇ, her bileşeni %(target)s'e ulaştığında karşılanmış sayılır. Bölüm "
+"Her puan, aldığınız tüm dersler genelinde AKTS ile ağırlıklandırılır.\n"
+"  Bir PÇ, her bileşeni %(target)s puana ulaştığında karşılanmış sayılır. Bölüm "
 "değeri, başka hiç kimsenin puanı çıkarılamayacak şekilde, en az "
 "%(min_students)s öğrencinin puanı olduğunda gösterilen tüm öğrencilerin "
 "ortalamasıdır."
@@ -516,9 +580,9 @@ msgid ""
 "figure is the mean of all students, shown once at least %(min_students)s "
 "have a score, so no one else's score can be worked out."
 msgstr ""
-"Her puan, öğrencinin aldığı tüm dersler genelinde ECTS ile "
+"Her puan, öğrencinin aldığı tüm dersler genelinde AKTS ile "
 "ağırlıklandırılır.\n"
-"  Bir PÇ, her bileşeni %(target)s'e ulaştığında karşılanmış sayılır. Bölüm "
+"  Bir PÇ, her bileşeni %(target)s puana ulaştığında karşılanmış sayılır. Bölüm "
 "değeri, başka hiç kimsenin puanı çıkarılamayacak şekilde, en az "
 "%(min_students)s öğrencinin puanı olduğunda gösterilen tüm öğrencilerin "
 "ortalamasıdır."
@@ -531,9 +595,9 @@ msgid ""
 "figure is the mean of all students, shown once at least %(min_students)s "
 "have a score, so no one else's score can be worked out."
 msgstr ""
-"Her puan, bu öğrenciye verdiğiniz dersler genelinde ECTS ile "
+"Her puan, bu öğrenciye verdiğiniz dersler genelinde AKTS ile "
 "ağırlıklandırılır; öğrencinin diğer dersleri dahil değildir.\n"
-"  Bir PÇ, her bileşeni %(target)s'e ulaştığında karşılanmış sayılır. Bölüm "
+"  Bir PÇ, her bileşeni %(target)s puana ulaştığında karşılanmış sayılır. Bölüm "
 "değeri, başka hiç kimsenin puanı çıkarılamayacak şekilde, en az "
 "%(min_students)s öğrencinin puanı olduğunda gösterilen tüm öğrencilerin "
 "ortalamasıdır."
@@ -624,7 +688,8 @@ msgid "met"
 msgstr "karşılandı"
 
 msgid "No graded work yet, so there is nothing to show."
-msgstr "Henüz notlandırılmış bir çalışma yok, bu yüzden gösterilecek bir şey yok."
+msgstr ""
+"Henüz notlandırılmış bir çalışma yok, bu yüzden gösterilecek bir şey yok."
 
 msgid "Sign in"
 msgstr "Giriş yap"
@@ -637,8 +702,8 @@ msgid ""
 "outcome score follows from them, with no rounding until the number is shown."
 msgstr ""
 "Öğretim üyeleri değerlendirme notlarını içe aktarır. Her öğrenme çıktısı ve "
-"program çıktısı puanı bunlardan türer, sayı gösterilene kadar hiç "
-"yuvarlama yapılmaz."
+"program çıktısı puanı bunlardan türer, sayı gösterilene kadar hiç yuvarlama "
+"yapılmaz."
 
 msgid "Wrong username or password."
 msgstr "Kullanıcı adı veya şifre yanlış."
@@ -657,7 +722,7 @@ msgstr "Notlar"
 
 #, python-format
 msgid "%(from)s to %(to)s: %(percent)s%% of %(po)s"
-msgstr "%(from)s'dan %(to)s'ye: %(po)s'nin %%%(percent)s'i"
+msgstr "%(from)s, %(to)s içinde: %(po)s ağırlığının %%%(percent)s kadarı"
 
 msgid "Grades changed while you were saving. Reload the page and try again."
 msgstr "Siz kaydederken notlar değişti. Sayfayı yenileyip tekrar deneyin."
@@ -666,7 +731,7 @@ msgid ""
 "Someone changed these grades at the same time, so nothing was saved. Choose "
 "the files again."
 msgstr ""
-"Biri bu notları aynı anda değiştirdi, bu yüzden hiçbir şey kaydedilmedi. "
+"Başka bir kullanıcı bu notları aynı anda değiştirdi, bu yüzden hiçbir şey kaydedilmedi. "
 "Dosyaları tekrar seçin."
 
 msgid "absent"
@@ -691,14 +756,16 @@ msgid "Paste one score column into a score cell."
 msgstr "Tek bir puan sütununu bir puan hücresine yapıştırın."
 
 msgid "Paste student numbers and scores into a student number cell."
-msgstr "Öğrenci numaralarını ve puanları bir öğrenci numarası hücresine yapıştırın."
+msgstr ""
+"Öğrenci numaralarını ve puanları bir öğrenci numarası hücresine yapıştırın."
 
 msgid "The pasted rows do not fit below the selected cell."
 msgstr "Yapıştırılan satırlar seçilen hücrenin altına sığmıyor."
 
 #, python-format
 msgid "%(n)s rows pasted. Check the student numbers before saving."
-msgstr "%(n)s satır yapıştırıldı. Kaydetmeden önce öğrenci numaralarını kontrol edin."
+msgstr ""
+"%(n)s satır yapıştırıldı. Kaydetmeden önce öğrenci numaralarını kontrol edin."
 
 msgid "Saving…"
 msgstr "Kaydediliyor…"
@@ -728,13 +795,14 @@ msgstr "En az bir puan girin."
 
 #, python-format
 msgid "%(username)s: %(old)s to %(new)s"
-msgstr "%(username)s: %(old)s yerine %(new)s"
+msgstr "%(username)s: %(old)s, yeni değer %(new)s"
 
 msgid "The preview is invalid or has expired. Preview the files again."
 msgstr "Önizleme geçersiz veya süresi dolmuş. Dosyaları tekrar önizleyin."
 
 msgid "The maximum score of this assessment changed. Preview the files again."
-msgstr "Bu değerlendirmenin maksimum puanı değişti. Dosyaları tekrar önizleyin."
+msgstr ""
+"Bu değerlendirmenin maksimum puanı değişti. Dosyaları tekrar önizleyin."
 
 msgid "Enrollments in this course changed. Preview the files again."
 msgstr "Bu dersteki kayıtlar değişti. Dosyaları tekrar önizleyin."

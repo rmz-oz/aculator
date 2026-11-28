@@ -135,6 +135,9 @@ LANGUAGE_CODE = 'en-us'
 
 # The university teaches in English; MÜDEK documents are in Turkish (#49).
 # A visitor's browser picks the first match, the header switch overrides it.
+# Remember the chosen language for a year, not only until the browser closes.
+LANGUAGE_COOKIE_AGE = 60 * 60 * 24 * 365
+
 LANGUAGES = [
     ('en', 'English'),
     ('tr', 'Türkçe'),

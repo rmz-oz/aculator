@@ -4,6 +4,8 @@
 
   const grid = document.getElementById("grade-grid");
   const status = document.getElementById("paste-grades-status");
+  // Same as the server renders "Current": the page language's decimal mark.
+  const currentFormat = new Intl.NumberFormat(document.documentElement.lang, { maximumFractionDigits: 2 });
   const button = form.querySelector('button[type="submit"]');
   const csrfToken = form.querySelector('[name="csrfmiddlewaretoken"]').value;
   const roster = JSON.parse(document.getElementById("grade-grid-data").textContent);
@@ -206,7 +208,7 @@
       if (response.ok) {
         for (const {student_number, score} of data) {
           const student = students[student_number.trim()];
-          if (student && score.trim()) student.current = score.trim().replace(",", ".");
+          if (student && score.trim()) student.current = currentFormat.format(Number(score.trim().replace(",", ".")));
         }
         redrawRows();
         status.textContent = withN(
