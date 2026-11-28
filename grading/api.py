@@ -1,9 +1,10 @@
+from django.db.models import BooleanField, Exists, ExpressionWrapper, OuterRef, Q
 from rest_framework import serializers
 from rest_framework.generics import ListAPIView
 
 from .access import visible_enrollments, visible_grades, visible_offerings
 from .models import Course, CourseOffering, Grade, LearningOutcome, ProgramOutcome
-from .services import scores_by_enrollment
+from .services import counting_enrollment_ids, scores_by_enrollment
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -43,15 +44,25 @@ class GradeSerializer(serializers.ModelSerializer):
         read_only=True,
     )
 
+    counts = serializers.BooleanField(
+        read_only=True,
+        help_text="False when the grade is left out of the calculation: a graded makeup replaced it, "
+        "or it is a makeup the student was absent from (decision 0011).",
+    )
+
     class Meta:
         model = Grade
-        fields = ("id", "offering", "student", "assessment", "score", "max_score", "status")
+        fields = ("id", "offering", "student", "assessment", "score", "max_score", "status", "counts")
 
 
 class OutcomeScoreSerializer(serializers.Serializer):
     enrollment = serializers.IntegerField()
     offering = serializers.IntegerField()
     student = serializers.IntegerField()
+    counts_across_courses = serializers.BooleanField(
+        help_text="False for an earlier attempt of a retaken course: only the latest attempt with grades "
+        "counts in the student's cross-course scores (decision 0011).",
+    )
     learning_outcomes = serializers.DictField(
         child=serializers.CharField(),
         help_text="Learning outcome IDs mapped to decimal scores as strings.",
@@ -100,9 +111,16 @@ class GradeList(ListAPIView):
     serializer_class = GradeSerializer
 
     def get_queryset(self):
+        replaced = Grade.objects.filter(
+            enrollment_id=OuterRef("enrollment_id"),
+            assessment__replaces_id=OuterRef("assessment_id"),
+            status=Grade.Status.GRADED,
+        )
+        absent_makeup = Q(assessment__replaces__isnull=False, status=Grade.Status.ABSENT)
         return (
             visible_grades(self.request.user)
             .select_related("enrollment", "assessment")
+            .annotate(counts=ExpressionWrapper(~Q(Exists(replaced)) & ~absent_makeup, output_field=BooleanField()))
             .order_by("term_id", "pk")
         )
 
@@ -118,6 +136,9 @@ class OutcomeScoreList(ListAPIView):
     def list(self, request, *args, **kwargs):
         enrollments = self.paginate_queryset(self.get_queryset())
         scores = scores_by_enrollment(enrollments)
+        counting = set()
+        for student_id in {enrollment.student_id for enrollment in enrollments}:
+            counting |= counting_enrollment_ids(student_id)
         rows = []
 
         for enrollment in enrollments:
@@ -127,6 +148,7 @@ class OutcomeScoreList(ListAPIView):
                     "enrollment": enrollment.pk,
                     "offering": enrollment.offering_id,
                     "student": enrollment.student_id,
+                    "counts_across_courses": enrollment.pk in counting,
                     "learning_outcomes": {
                         str(lo_id): str(score) for lo_id, score in lo_scores.items()
                     },

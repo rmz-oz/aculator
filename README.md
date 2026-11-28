@@ -57,6 +57,13 @@ python manage.py test e2e    # browser tests, screenshots in e2e-screenshots/
 
 CI runs both. The screenshots of every run are attached to it as the `screenshots` artifact.
 
+## API
+
+Read-only JSON under `/api/v1/` with the same visibility as the pages: a student sees their own rows, an instructor
+the courses they teach, the head everything. Documentation at `/api/docs/`. A request carries
+`Authorization: Token <key>`. Tokens are made and deleted in the admin (Auth Token); deleting one revokes it at
+once. Each user may make 600 requests an hour.
+
 ## Deploy
 
 Every green `main` is built into `ghcr.io/rmz-oz/aculator` and deployed to Render, see
