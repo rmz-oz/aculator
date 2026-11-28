@@ -11,7 +11,9 @@ import hashlib
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
-from io import StringIO
+import re
+from io import BytesIO, StringIO
+from zipfile import BadZipFile, ZipFile
 
 from django.db import OperationalError, connection, transaction
 
@@ -26,6 +28,15 @@ class ParsedFiles:
     errors: list = field(default_factory=list)
     locations: dict = field(default_factory=dict)  # student number -> first "file, line N"
 
+def _is_excel_workbook(content):
+    if not content.startswith(b"PK\x03\x04"):
+        return False
+
+    try:
+        with ZipFile(BytesIO(content)) as archive:
+            return "xl/workbook.xml" in archive.namelist()
+    except BadZipFile:
+        return False
 
 def parse_grade_files(files, assessment, enrollments):
     """Check every row of every file. `enrollments` maps student number to Enrollment.
@@ -38,8 +49,18 @@ def parse_grade_files(files, assessment, enrollments):
         if uploaded.size > MAX_FILE_SIZE:
             parsed.errors.append(f"{uploaded.name}: File is larger than 1 MB.")
             continue
+
+        content = uploaded.read()
+        if _is_excel_workbook(content):
+            parsed.errors.append(
+                f'{uploaded.name}: This file is an Excel workbook. '
+                'Open it in Excel and use Save As to export it as "CSV UTF-8".'
+            )
+            continue
+
         try:
-            text = uploaded.read().decode("utf-8-sig")
+            text = content.decode("utf-8-sig")
+
         except UnicodeDecodeError:
             parsed.errors.append(f'{uploaded.name}: File is not UTF-8. Save it as "CSV UTF-8" and try again.')
             continue
@@ -49,6 +70,55 @@ def parse_grade_files(files, assessment, enrollments):
             parsed.errors.append(f"{uploaded.name}: File could not be read ({error}).")
     return parsed
 
+def _has_trailing_empty_columns(columns):
+    return len(columns) > len(COLUMNS) and all(
+        not column.strip() for column in columns[len(COLUMNS):]
+    )
+
+
+def _header_error(first_line, header):
+    if "\t" in first_line and ";" not in first_line and "," not in first_line:
+        return (
+            "This file is tab-separated. Keep only the student number and score columns, "
+            "name them student_number and score, and export as a comma- or "
+            "semicolon-separated CSV UTF-8 file."
+        )
+
+    if {"öğrenci no", "not"}.issubset(header):
+        return (
+            'The file uses Turkish column names. Rename "Öğrenci No" to student_number '
+            'and "Not" to score, and keep only those two columns.'
+        )
+
+    if set(header[:len(COLUMNS)]) == COLUMNS and _has_trailing_empty_columns(header):
+        return (
+            "The header has trailing empty columns. Delete the empty columns on the right "
+            "and export the file again with only student_number and score."
+        )
+
+    return "The first row must be student_number,score."
+
+def _unknown_student_error(number, enrollments):
+    if re.fullmatch(r"[0-9]+(?:[.,][0-9]+)?[eE][+-]?[0-9]+", number):
+        return (
+            f"Student number {number} is in scientific notation. "
+            "Set the student number column to Text in Excel, enter the original "
+            "student number from the class list, and export the CSV again."
+        )
+
+    if re.fullmatch(r"[0-9]+", number) and any(
+        enrolled_number.startswith("0")
+        and len(enrolled_number) > len(number)
+        and enrolled_number.lstrip("0") == number.lstrip("0")
+        for enrolled_number in enrollments
+    ):
+        return (
+            f"Student number {number} is missing one or more leading zeros. "
+            "Restore them from the class list and keep the student number column "
+            "formatted as Text when exporting the CSV."
+        )
+
+    return f"{number} is not enrolled in this course."
 
 def _parse_file(name, text, assessment, enrollments, parsed):
     if not text.strip():
@@ -60,7 +130,7 @@ def _parse_file(name, text, assessment, enrollments, parsed):
     reader = csv.reader(StringIO(text), delimiter=delimiter, strict=True)
     header = [column.strip().lower() for column in next(reader)]
     if len(header) != len(COLUMNS) or set(header) != COLUMNS:
-        parsed.errors.append(f"{name}: The first row must be student_number,score.")
+        parsed.errors.append(f"{name}: {_header_error(first_line, header)}")
         return
     number_at = header.index("student_number")
     score_at = header.index("score")
@@ -72,7 +142,13 @@ def _parse_file(name, text, assessment, enrollments, parsed):
         has_rows = True
         location = f"{name}, line {reader.line_num}"
         if len(values) != len(header):
-            parsed.errors.append(f"{location}: Expected 2 columns, found {len(values)}.")
+            if _has_trailing_empty_columns(values):
+                parsed.errors.append(
+                    f"{location}: This row has trailing empty columns. "
+                    "Remove the extra separators at the end of the row."
+                )
+            else:
+                parsed.errors.append(f"{location}: Expected 2 columns, found {len(values)}.")
             continue
 
         number = values[number_at].strip()
@@ -80,7 +156,7 @@ def _parse_file(name, text, assessment, enrollments, parsed):
         if not number:
             parsed.errors.append(f"{location}: Student number is empty.")
         elif enrollment is None:
-            parsed.errors.append(f"{location}: {number} is not enrolled in this course.")
+            parsed.errors.append(f"{location}: {_unknown_student_error(number, enrollments)}")
         if number in parsed.locations:
             parsed.errors.append(f"{location}: {number} appears again, first at {parsed.locations[number]}.")
             enrollment = None
@@ -88,6 +164,13 @@ def _parse_file(name, text, assessment, enrollments, parsed):
             parsed.locations[number] = location
 
         raw_score = values[score_at].strip()
+        if delimiter == "," and re.fullmatch(r"[+-]?[0-9]+,[0-9]+", raw_score):
+            dot_score = raw_score.replace(",", ".")
+            parsed.errors.append(
+                f"{location}: Score {raw_score} uses a decimal comma in a comma-separated CSV. "
+                f"Use a decimal point ({dot_score}) or export the whole file with semicolon separators."
+            )
+            continue
         if delimiter == ";":
             raw_score = raw_score.replace(",", ".")
         score, error = validate_score(raw_score, assessment.max_score)
